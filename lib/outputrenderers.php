@@ -5270,8 +5270,5 @@ class core_renderer_maintenance extends core_renderer {
     public function user_picture(stdClass $user, array $options = null) {
         return '';
     }
-<<<<<<< HEAD
+
 }
-=======
-}
->>>>>>> archive/master
