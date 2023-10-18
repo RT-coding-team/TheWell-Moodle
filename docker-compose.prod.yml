@@ -1,0 +1,41 @@
+version: '3.4'
+
+services:
+
+  moodle_db:
+    container_name: twc-moodle-pg-production
+    networks:
+      - twc-moodle-production-network
+    
+    env_file:
+      - ../Moodle-Secrets/production.env
+    volumes: 
+      - psql_db_production:/var/lib/postgresql/data
+
+  moodle_site:
+    container_name: twc-moodle-site-production
+    networks:
+      - twc-moodle-production-network
+    env_file:
+      - ../Moodle-Secrets/production.env
+    volumes:
+      - ../moodledata/Production/:/var/www/moodledata 
+    depends_on:
+      - moodle_db
+  
+  moodle_nginx:
+    container_name: twc-moodle-gateway-production
+    networks:
+      - twc-moodle-production-network
+    volumes:
+      - ./_docker/nginx/conf.d/nginx.production.conf:/etc/nginx/nginx.conf
+      - ../moodledata/Production/:/var/www/moodledata 
+
+networks:
+  twc-moodle-production-network:
+    name: twc-moodle-production-network
+    driver: bridge
+
+volumes:
+  psql_db_production:
+    driver: local

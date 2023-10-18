@@ -1,0 +1,66 @@
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary:visited,
+.btn-primary:focus {
+    background-color: #982960;
+    border-color: #982960;
+}
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary:visited,
+.btn-primary:focus {
+    opacity: 0.75;
+}
+.btn-primary:disabled,
+.btn-primary.disabled,
+.btn-primary.disabled:hover,
+.btn-primary.disabled:active,
+.btn-primary.disabled:visited,
+.btn-primary.disabled:focus {
+    background-color: #982960;
+    border-color: #982960;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+.btn-secondary,
+.btn-secondary:hover,
+.btn-secondary:active,
+.btn-secondary:visited,
+.btn-secondary:focus {
+    background-color: #C4C5C7;
+    border-color: #C4C5C7;
+}
+.btn-secondary:hover,
+.btn-secondary:active,
+.btn-secondary:visited,
+.btn-secondary:focus {
+    opacity: 0.75;
+}
+.btn-secondary:disabled,
+.btn-secondary.disabled,
+.btn-secondary.disabled:hover,
+.btn-secondary.disabled:active,
+.btn-secondary.disabled:visited,
+.btn-secondary.disabled:focus {
+    background-color: #C4C5C7;
+    border-color: #C4C5C7;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+.btn-link,
+.btn-link:hover,
+.btn-link:active,
+.btn-link:visited,
+.btn-link:focus {
+    color: #982960;
+}
+.progress-bar {
+    background-color: #4A4A4C !important;
+}
+.color-primary {
+    color: #982960;
+}
+.badge-primary {
+    background-color: #982960 !important;
+}

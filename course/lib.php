@@ -475,6 +475,7 @@ function get_array_of_activities($courseid) {
 
                    if ($hasfunction = function_exists($functionname)) {
                        if ($info = $functionname($rawmods[$seq])) {
+                           $info = call_modify_coursemodule_info($rawmods[$seq], $info);
                            if (!empty($info->icon)) {
                                $mod[$seq]->icon = $info->icon;
                            }
@@ -512,6 +513,17 @@ function get_array_of_activities($courseid) {
                                }
                            }
                        }
+                   }
+                   if ((!property_exists($mod[$seq], 'icon')) || (!$mod[$seq]->icon)) {
+                       /**
+                        * Catch activities that haven't set an icon yet, and check
+                        * if they have a custom icon
+                        */
+                        $info = new stdClass();
+                        $info = call_modify_coursemodule_info($rawmods[$seq], $info);
+                        if (!empty($info->icon)) {
+                            $mod[$seq]->icon = $info->icon;
+                        }
                    }
                    // When there is no modname_get_coursemodule_info function,
                    // but showdescriptions is enabled, then we use the 'intro'
@@ -554,7 +566,23 @@ function get_array_of_activities($courseid) {
     }
     return $mod;
 }
+/**
+ * Allows plugins to modify the coursemodule info
+ *
+ * @param  object $coursemodule The course module details
+ * @param  object $info         The course module info to modify
+ * @return object               The modified module info
+ */
+function call_modify_coursemodule_info($coursemodule, $info) {
+    $callbacks = get_plugins_with_function('modify_coursemodule_info', 'lib.php');
+    foreach ($callbacks as $type => $plugins) {
+        foreach ($plugins as $plugin => $pluginfunction) {
+            $info = $pluginfunction($coursemodule, $info);
+        }
+    }
 
+    return $info;
+}
 /**
  * Returns the localised human-readable names of all used modules
  *

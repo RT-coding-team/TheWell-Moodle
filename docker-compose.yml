@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+
+  moodle_db:
+    image: postgres:14.1-alpine
+    restart: unless-stopped
+
+  moodle_site:
+    build:
+      context: .
+      dockerfile: ./_docker/php-build
+    restart: unless-stopped
+    container_name: twc-moodle-site-staging
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./_docker/php/conf.d/custom-php.ini:/usr/local/etc/php/conf.d/custom-php.ini
+    depends_on:
+      - moodle_db
+  
+  moodle_nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - 80:80
+    volumes:
+      - ./:/var/www/html

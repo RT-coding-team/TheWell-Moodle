@@ -51,3 +51,6 @@ moodle-plugin-ci.phar
 .eslintignore
 .stylelintignore
 /jsdoc
+node_modules/
+.env
+config.php

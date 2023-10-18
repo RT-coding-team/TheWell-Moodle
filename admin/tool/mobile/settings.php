@@ -99,10 +99,11 @@ if ($hassiteconfig) {
     ];
     $qrcodetypedefault = tool_mobile\api::QR_CODE_URL;
 
-    if (is_https()) {   // Allow QR login for https sites.
+// REMOVED HTTPS requirement for QR login -- Derek Maxson 20210126
+//    if (is_https()) {   // Allow QR login for https sites.
         $options[tool_mobile\api::QR_CODE_LOGIN] = new lang_string('qrcodetypelogin', 'tool_mobile');
         $qrcodetypedefault = tool_mobile\api::QR_CODE_LOGIN;
-    }
+//    }
 
     $temp->add(new admin_setting_configselect('tool_mobile/qrcodetype',
                 new lang_string('qrcodetype', 'tool_mobile'),

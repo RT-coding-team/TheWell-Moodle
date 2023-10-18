@@ -221,7 +221,7 @@ class api {
         }
 
         // Identity providers.
-        $authsequence = get_enabled_auth_plugins();
+        $authsequence = get_enabled_auth_plugins(true);
         $identityproviders = \auth_plugin_base::get_identity_providers($authsequence);
         $identityprovidersdata = \auth_plugin_base::prepare_identity_providers_for_output($identityproviders, $OUTPUT);
         if (!empty($identityprovidersdata)) {
@@ -350,10 +350,11 @@ class api {
         if (!$CFG->enablewebservices or !$CFG->enablemobilewebservice) {
             throw new moodle_exception('enablewsdescription', 'webservice');
         }
-
-        if (!is_https()) {
-            throw new moodle_exception('httpsrequired', 'tool_mobile');
-        }
+        
+// REMOVED HTTPS requirement for QR login -- Derek Maxson 20210126
+//         if (!is_https()) {
+//             throw new moodle_exception('httpsrequired', 'tool_mobile');
+//         }
 
         if (has_capability('moodle/site:config', context_system::instance(), $userid) or is_siteadmin($userid)) {
             throw new moodle_exception('autologinnotallowedtoadmins', 'tool_mobile');
@@ -596,53 +597,55 @@ class api {
         $curl->head($httpswwwroot . "/$CFG->admin/tool/mobile/mobile.webmanifest.php");
         $info = $curl->get_info();
 
-        // First of all, check the server certificate (if any).
-        if (empty($info['http_code']) or ($info['http_code'] >= 400)) {
-            $warnings[] = ['nohttpsformobilewarning', 'admin'];
-        } else {
-            // Check the certificate is not self-signed or has an untrusted-root.
-            // This may be weak in some scenarios (when the curl SSL verifier is outdated).
-            if (empty($info['certinfo'])) {
-                $warnings[] = ['selfsignedoruntrustedcertificatewarning', 'tool_mobile'];
-            } else {
-                $timenow = time();
-                $expectedissuer = null;
-                foreach ($info['certinfo'] as $cert) {
-
-                    // Due to a bug in certain curl/openssl versions the signature algorithm isn't always correctly parsed.
-                    // See https://github.com/curl/curl/issues/3706 for reference.
-                    if (!array_key_exists('Signature Algorithm', $cert)) {
-                        // The malformed field that does contain the algorithm we're looking for looks like the following:
-                        // <WHITESPACE>Signature Algorithm: <ALGORITHM><CRLF><ALGORITHM>.
-                        preg_match('/\s+Signature Algorithm: (?<algorithm>[^\s]+)/', $cert['Public Key Algorithm'], $matches);
-
-                        $signaturealgorithm = $matches['algorithm'] ?? '';
-                    } else {
-                        $signaturealgorithm = $cert['Signature Algorithm'];
-                    }
-
-                    // Check if the signature algorithm is weak (Android won't work with SHA-1).
-                    if ($signaturealgorithm == 'sha1WithRSAEncryption' || $signaturealgorithm == 'sha1WithRSA') {
-                        $warnings[] = ['insecurealgorithmwarning', 'tool_mobile'];
-                    }
-                    // Check certificate start date.
-                    if (strtotime($cert['Start date']) > $timenow) {
-                        $warnings[] = ['invalidcertificatestartdatewarning', 'tool_mobile'];
-                    }
-                    // Check certificate end date.
-                    if (strtotime($cert['Expire date']) < $timenow) {
-                        $warnings[] = ['invalidcertificateexpiredatewarning', 'tool_mobile'];
-                    }
-                    // Check the chain.
-                    if ($expectedissuer !== null) {
-                        if ($expectedissuer !== $cert['Subject'] || $cert['Subject'] === $cert['Issuer']) {
-                            $warnings[] = ['invalidcertificatechainwarning', 'tool_mobile'];
-                        }
-                    }
-                    $expectedissuer = $cert['Issuer'];
-                }
-            }
-        }
+// Remove HTTPS requirement for QR Login -- Derek Maxson 20210211
+//
+//        // First of all, check the server certificate (if any).
+//         if (empty($info['http_code']) or ($info['http_code'] >= 400)) {
+//             $warnings[] = ['nohttpsformobilewarning', 'admin'];
+//         } else {
+//             // Check the certificate is not self-signed or has an untrusted-root.
+//             // This may be weak in some scenarios (when the curl SSL verifier is outdated).
+//             if (empty($info['certinfo'])) {
+//                 $warnings[] = ['selfsignedoruntrustedcertificatewarning', 'tool_mobile'];
+//             } else {
+//                 $timenow = time();
+//                 $expectedissuer = null;
+//                 foreach ($info['certinfo'] as $cert) {
+// 
+//                     // Due to a bug in certain curl/openssl versions the signature algorithm isn't always correctly parsed.
+//                     // See https://github.com/curl/curl/issues/3706 for reference.
+//                     if (!array_key_exists('Signature Algorithm', $cert)) {
+//                         // The malformed field that does contain the algorithm we're looking for looks like the following:
+//                         // <WHITESPACE>Signature Algorithm: <ALGORITHM><CRLF><ALGORITHM>.
+//                         preg_match('/\s+Signature Algorithm: (?<algorithm>[^\s]+)/', $cert['Public Key Algorithm'], $matches);
+// 
+//                         $signaturealgorithm = $matches['algorithm'] ?? '';
+//                     } else {
+//                         $signaturealgorithm = $cert['Signature Algorithm'];
+//                     }
+// 
+//                     // Check if the signature algorithm is weak (Android won't work with SHA-1).
+//                     if ($signaturealgorithm == 'sha1WithRSAEncryption' || $signaturealgorithm == 'sha1WithRSA') {
+//                         $warnings[] = ['insecurealgorithmwarning', 'tool_mobile'];
+//                     }
+//                     // Check certificate start date.
+//                     if (strtotime($cert['Start date']) > $timenow) {
+//                         $warnings[] = ['invalidcertificatestartdatewarning', 'tool_mobile'];
+//                     }
+//                     // Check certificate end date.
+//                     if (strtotime($cert['Expire date']) < $timenow) {
+//                         $warnings[] = ['invalidcertificateexpiredatewarning', 'tool_mobile'];
+//                     }
+//                     // Check the chain.
+//                     if ($expectedissuer !== null) {
+//                         if ($expectedissuer !== $cert['Subject'] || $cert['Subject'] === $cert['Issuer']) {
+//                             $warnings[] = ['invalidcertificatechainwarning', 'tool_mobile'];
+//                         }
+//                     }
+//                     $expectedissuer = $cert['Issuer'];
+//                 }
+//             }
+//         }
         // Now check typical configuration problems.
         if ((int) $CFG->userquota === PHP_INT_MAX) {
             // In old Moodle version was a text so was possible to have numeric values > PHP_INT_MAX.

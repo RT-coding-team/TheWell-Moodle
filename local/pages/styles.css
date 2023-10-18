@@ -1,0 +1,201 @@
+/* CSS Document */
+.custompages-list-element {
+    padding: 5px;
+    list-style: none;
+    margin: 0 0 1px 0;
+    border: 1px solid #e2e2e2;
+    border-radius: 0;
+}
+
+.custompages-title {
+    margin: -5px -5px 10px -5px;
+    padding: 5px;
+    border-bottom: 1px solid #e2e2e2;
+    background: #f1f1f1;
+    font-size: 18px;
+}
+
+ul.custompages_nav {
+    float: left;
+    margin: 0;
+    padding: 0;
+}
+
+ul.custompages_nav li {
+    float: left;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+ul.custompages-list {
+    margin-left: 0;
+}
+
+ul.custompages_nav li a {
+    display: block;
+    padding: 5px;
+}
+
+.custompages-list-element {
+    clear: both;
+    padding-bottom: 0;
+}
+
+.custompages-list-element .custompages_submenu {
+    margin: 0 -5px;
+    padding: 0;
+    border-top: 1px solid #e2e2e2;
+}
+
+.custompages-list-element .custompages_submenu .custompages-list-element {
+    clear: both;
+    border: none;
+    border-bottom: 1px solid #e2e2e2;
+    border-radius: 0;
+    padding: 6px 5px 0 20px;
+}
+
+.custompages-list-element .custompages_submenu .custompages-list-element:last-child {
+    border-bottom: none;
+}
+
+.custompages-list .custompages-title {
+    margin-bottom: 0;
+    border-bottom: 0;
+}
+
+.custompages-list-element .custompages_submenu h4 {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0 25px 0 5px;
+    font-size: 14px;
+    padding-bottom: 5px;
+}
+
+.custompages-list-element .custompages_submenu h4:before {
+    content: "->";
+    margin-right: 5px;
+    margin-top: -1px;
+    display: block;
+    float: left;
+}
+
+.custompages-list-element .pages-action {
+    float: right;
+    margin-top: 0;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.custompages-add {
+    text-align: right;
+    font-size: 12px;
+    text-transform: uppercase;
+    display: block;
+}
+
+.custompages-delete,
+.custompages-delete:hover {
+    color: #930;
+}
+
+#page-local-pages-edit .felement.fselect select,
+#page-local-pages-edit .felement.ftext input,
+#page-local-pages-edit .felement.feditor textarea {
+    width: 90%;
+    margin: 0;
+}
+
+#page-local-pages-edit .felement.fdate_selector select {
+    min-width: 80px;
+}
+
+body#page-local-pages-edit fieldset.hidden {
+    display: block;
+}
+
+#page-local-pages-edit #fitem_id_pagedata {
+    display: none;
+}
+
+#page-local-pages-edit .formbuilderform .formrow:first-child .form-removerow {
+    display: none;
+}
+
+#page-local-pages-edit .formbuilderform .formrow .form-addrow {
+    display: none;
+    margin-right: 10px;
+}
+
+#page-local-pages-edit .formbuilderform .formrow:last-child .form-addrow {
+    display: inline-block;
+}
+
+#page-local-pages-edit .formbuilderform .formrow input.form-removerow {
+    margin-right: 0;
+}
+
+.custompages_submenu .custompages_submenu {
+    margin-left: -10px;
+    padding-left: 10px;
+}
+
+#page-local-pages-edit .row.formrow {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+body#page-local-pages-edit #showform-builder span {
+    display: block;
+    float: right;
+    font-size: 15px;
+    text-transform: uppercase;
+}
+
+body#page-local-pages-edit #form-builder {
+    border-bottom: 1px solid #e2e2e2;
+    margin-right: 0;
+}
+
+body#page-local-pages-edit #form-builder h3 {
+    width: 100%;
+}
+
+body#page-local-pages-edit #id_s_local_pages_email_headers {
+    width: 90%;
+    font-size: 12px;
+}
+body#page-local-pages-edit .span2 .form-control {
+    max-width: 95%;
+    width: 95%;
+}
+
+body#page-local-pages-index .form-group {
+    min-height: 25px;
+    height: auto;
+}
+textarea.form-control {
+    max-width: 100%;
+    width: auto;
+}
+
+body#page-local-pages-edit .formbuilderform {
+    margin-top: 10px;
+    float: left;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+body#page-local-pages-edit .formrow {
+    clear: both;
+}
+
+body#page-local-pages-index span.required {
+    color: red;
+    margin-top: -5px;
+    margin-left: -12px;
+    display: block;
+    float: left;
+}

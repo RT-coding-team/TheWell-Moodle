@@ -1,0 +1,41 @@
+version: '3.4'
+
+services:
+
+  moodle_db:
+    container_name: twc-moodle-pg-staging
+    networks:
+      - twc-moodle-staging-network
+    
+    env_file:
+      - ../Moodle-Secrets/staging.env
+    volumes: 
+      - psql_db_staging:/var/lib/postgresql/data
+
+  moodle_site:
+    container_name: twc-moodle-site-staging
+    networks:
+      - twc-moodle-staging-network
+    env_file:
+      - ../Moodle-Secrets/staging.env
+    volumes:
+      - ../moodledata/Staging/:/var/www/moodledata 
+    depends_on:
+      - moodle_db
+  
+  moodle_nginx:
+    container_name: twc-moodle-gateway-staging
+    networks:
+      - twc-moodle-staging-network
+    volumes:
+      - ./_docker/nginx/conf.d/nginx.staging.conf:/etc/nginx/nginx.conf
+      - ../moodledata/Staging/:/var/www/moodledata 
+
+networks:
+  twc-moodle-staging-network:
+    name: twc-moodle-staging-network
+    driver: bridge
+
+volumes:
+  psql_db_staging:
+    driver: local
