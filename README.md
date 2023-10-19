@@ -1,5 +1,7 @@
 # Moodle Branch For The Well
 
+**Warning:** This is currently being upgraded, and should be tested before deployment!
+
 This is the Moodle branch to be deployed for The Well or Raspberry Pi but can also run on AWS, Azure or a server.
 
 # Default Database and Filestore
