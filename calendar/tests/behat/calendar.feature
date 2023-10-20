@@ -16,11 +16,13 @@ Feature: Perform basic calendar functionality
       | Course 1 | C1 | topics |
       | Course 2 | C2 | topics |
       | Course 3 | C3 | topics |
+      | Course 4 | C4 | topics |
     And the following "course enrolments" exist:
       | user | course | role |
       | student1 | C1 | student |
       | student3 | C1 | student |
       | teacher1 | C1 | teacher |
+      | admin    | C1 | editingteacher |
     And the following "groups" exist:
       | name | course | idnumber |
       | Group 1 | C1 | G1 |
@@ -28,10 +30,10 @@ Feature: Perform basic calendar functionality
       | user | group |
       | student1 | G1 |
       | teacher1 | G1 |
-    And I log in as "admin"
-    And I am on "Course 1" course homepage with editing mode on
-    And I add the "Calendar" block
-    And I log out
+    And the following "blocks" exist:
+      | blockname         | contextlevel | reference | pagetypepattern | defaultregion |
+      | calendar_month    | Course       | C1        | course-view-*   | side-pre      |
+      | calendar_upcoming | Course       | C4        | course-view-*   | side-pre      |
 
   @javascript
   Scenario: Create a site event
@@ -41,14 +43,13 @@ Feature: Perform basic calendar functionality
       | Event title | Really awesome event! |
       | Description | Come join this awesome event, sucka! |
     And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    When I am on the "Course 1" course page logged in as student1
     And I follow "This month"
     And I should see "Really awesome event!"
     And I log out
     And I log in as "student2"
     And I follow "This month"
-    And I should see "Really awesome event!"
+    Then I should see "Really awesome event!"
 
   @javascript
   Scenario: Create a course event
@@ -59,8 +60,7 @@ Feature: Perform basic calendar functionality
       | Event title | Really awesome event! |
       | Description | Come join this awesome event, sucka! |
     And I log out
-    And I log in as "student1"
-    When I am on "Course 1" course homepage
+    When I am on the "Course 1" course page logged in as student1
     And I follow "This month"
     And I click on "Really awesome event!" "link"
     And "Course 1" "link" should exist in the "Really awesome event!" "dialogue"
@@ -80,8 +80,7 @@ Feature: Perform basic calendar functionality
       | Event title | Really awesome event! |
       | Description | Come join this awesome event |
     And I log out
-    And I log in as "student1"
-    When I am on "Course 1" course homepage
+    When I am on the "Course 1" course page logged in as student1
     And I follow "This month"
     Then I follow "Really awesome event!"
 
@@ -93,8 +92,7 @@ Feature: Perform basic calendar functionality
       | Event title | Really awesome event! |
       | Description | Come join this awesome event, sucka! |
     And I log out
-    And I log in as "student1"
-    When I am on "Course 1" course homepage
+    When I am on the "Course 1" course page logged in as student1
     And I follow "This month"
     Then I should not see "Really awesome event!"
 
@@ -166,8 +164,7 @@ Feature: Perform basic calendar functionality
 
   @javascript
   Scenario: Attempt to create event without fill required fields should display validation errors
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    Given I am on the "Course 1" course page logged in as teacher1
     And I follow "This month"
     And I click on "New event" "button"
     When I click on "Save" "button"
@@ -193,9 +190,7 @@ Feature: Perform basic calendar functionality
 
   @javascript
   Scenario: Admin can only see all courses if calendar_adminseesall setting is enabled.
-    Given I log in as "admin"
-    And I am on "Course 1" course homepage
-    And I enrol "admin" user as "Teacher"
+    Given I am on the "Course 1" course page logged in as admin
     And I am viewing site calendar
     And I click on "New event" "button"
     And I set the field "Type of event" to "Course"
@@ -241,9 +236,72 @@ Feature: Perform basic calendar functionality
 
   @javascript @accessibility
   Scenario: The calendar page must be accessible
-    Given I log in as "student1"
-    And I am on "Course 1" course homepage
+    Given I am on the "Course 1" course page logged in as student1
     When I follow "This month"
     Then the page should meet accessibility standards
     And the page should meet "wcag131, wcag143, wcag412" accessibility standards
     And the page should meet accessibility standards with "wcag131, wcag143, wcag412" extra tests
+
+  @javascript
+  Scenario: Admin can create and edit course events if calendar_adminseesall setting is disabled
+    Given I log in as "admin"
+    And the following config values are set as admin:
+      | calendar_adminseesall | 0 |
+    And I am on "Course 4" course homepage with editing mode on
+    And I click on "Go to calendar..." "link" in the "Upcoming events" "block"
+    And I click on "New event" "button"
+    And I should see "Course" in the "Type of event" "select"
+    And "Course 4" "autocomplete_selection" should exist
+    And I set the field "Event title" to "Test course event"
+    And I click on "Save" "button"
+    And I should see "Test course event"
+    When I click on "Edit" "link" in the "region-main" "region"
+    Then the field "Event title" matches value "Test course event"
+    And the field "Type of event" matches value "Course"
+    And "Course 4" "autocomplete_selection" should exist
+
+  @javascript
+  Scenario: Changing the event type should clear previous data
+    Given I am on the "Course 1" course page logged in as admin
+    And I follow "This month"
+    And I press "New event"
+    And I set the following fields to these values:
+      | Event title | Group 1 event |
+      | Type of event | Group       |
+    And I press "Save"
+    And I am on "Course 1" course homepage
+    And I follow "This month"
+    And I click on "Group 1 event" "link"
+    And I should see "Group event"
+    And I should see "Group 1"
+    When I click on "Edit" "button"
+    And I set the following fields to these values:
+      | Event title | My own user event |
+      | Type of event | user |
+    And I press "Save"
+    And I click on "My own user event" "link"
+    Then I should see "User event"
+    And I should not see "Group 1"
+    And I click on "Edit" "button"
+    And I set the following fields to these values:
+      | Event title | Site event |
+      | Type of event | site |
+    And I press "Save"
+    And I click on "Site event" "link"
+    And I should see "Site event"
+    And I click on "Edit" "button"
+    And I set the following fields to these values:
+      | Event title | Course 1 event |
+      | Type of event | course |
+    And I expand the "Course" autocomplete
+    And I click on "Course 1" item in the autocomplete list
+    And I press "Save"
+    And I click on "Course 1 event" "link"
+    And I should see "Course event"
+    And I click on "Edit" "button"
+    And I set the following fields to these values:
+      | Event title | Category event |
+      | Type of event | category |
+    And I press "Save"
+    And I click on "Category event" "link"
+    And I should see "Category event"

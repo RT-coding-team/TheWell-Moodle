@@ -943,12 +943,25 @@ class theme_config {
 
         // First editor plugins.
         $plugins = core_component::get_plugin_list('editor');
-        foreach ($plugins as $plugin=>$fulldir) {
+        foreach ($plugins as $plugin => $fulldir) {
             $sheetfile = "$fulldir/editor_styles.css";
             if (is_readable($sheetfile)) {
                 $files['plugin_'.$plugin] = $sheetfile;
             }
+
+            $subplugintypes = core_component::get_subplugins("editor_{$plugin}");
+            // Fetch sheets for any editor subplugins.
+            foreach ($subplugintypes as $plugintype => $subplugins) {
+                foreach ($subplugins as $subplugin) {
+                    $plugindir = core_component::get_plugin_directory($plugintype, $subplugin);
+                    $sheetfile = "{$plugindir}/editor_styles.css";
+                    if (is_readable($sheetfile)) {
+                        $files["{$plugintype}_{$subplugin}"] = $sheetfile;
+                    }
+                }
+            }
         }
+
         // Then parent themes - base first, the immediate parent last.
         foreach (array_reverse($this->parent_configs) as $parent_config) {
             if (empty($parent_config->editor_sheets)) {
@@ -2451,22 +2464,22 @@ class theme_config {
      * @return string
      */
     protected function get_region_name($region, $theme) {
-        $regionstring = get_string('region-' . $region, 'theme_' . $theme);
-        // A name exists in this theme, so use it
-        if (substr($regionstring, 0, 1) != '[') {
-            return $regionstring;
+
+        $stringman = get_string_manager();
+
+        // Check if the name is defined in the theme.
+        if ($stringman->string_exists('region-' . $region, 'theme_' . $theme)) {
+            return get_string('region-' . $region, 'theme_' . $theme);
         }
 
-        // Otherwise, try to find one elsewhere
-        // Check parents, if any
+        // Check the theme parents.
         foreach ($this->parents as $parentthemename) {
-            $regionstring = get_string('region-' . $region, 'theme_' . $parentthemename);
-            if (substr($regionstring, 0, 1) != '[') {
-                return $regionstring;
+            if ($stringman->string_exists('region-' . $region, 'theme_' . $parentthemename)) {
+                return get_string('region-' . $region, 'theme_' . $parentthemename);
             }
         }
 
-        // Last resort, try the boost theme for names
+        // Last resort, try the boost theme for names.
         return get_string('region-' . $region, 'theme_boost');
     }
 

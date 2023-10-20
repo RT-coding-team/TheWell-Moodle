@@ -67,6 +67,9 @@ abstract class scheduled_task extends task_base {
     /** @var boolean $customised - Has this task been changed from it's default schedule? */
     private $customised = false;
 
+    /** @var boolean $overridden - Does the task have values set VIA config? */
+    private $overridden = false;
+
     /** @var int $disabled - Is this task disabled in cron? */
     private $disabled = false;
 
@@ -103,6 +106,22 @@ abstract class scheduled_task extends task_base {
     }
 
     /**
+     * Has this task been changed from it's default config?
+     * @return bool
+     */
+    public function is_overridden(): bool {
+        return $this->overridden;
+    }
+
+    /**
+     * Set the overridden value.
+     * @param bool $overridden
+     */
+    public function set_overridden(bool $overridden): void {
+        $this->overridden = $overridden;
+    }
+
+    /**
      * Setter for $minute. Accepts a special 'R' value
      * which will be translated to a random minute.
      * @param string $minute
@@ -111,7 +130,7 @@ abstract class scheduled_task extends task_base {
      */
     public function set_minute($minute, $expandr = true) {
         if ($minute === 'R' && $expandr) {
-            $minute = mt_rand(self::HOURMIN, self::HOURMAX);
+            $minute = mt_rand(self::MINUTEMIN, self::MINUTEMAX);
         }
         $this->minute = $minute;
     }

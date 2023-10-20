@@ -40,7 +40,7 @@ Feature: Assignments correctly add feedback to the grade report when workflow an
     And I set the field "Grade out of 100" to "50"
     And I set the field "Marking workflow state" to "In review"
     And I set the field "Feedback comments" to "Great job! Lol, not really."
-    And I set the field "Notify students" to "0"
+    And I set the field "Notify student" to "0"
     And I press "Save changes"
     And I click on "Edit settings" "link"
     And I follow "Test assignment name"
@@ -51,7 +51,7 @@ Feature: Assignments correctly add feedback to the grade report when workflow an
   Scenario: Student identities are revealed after releasing the grades.
     When I click on "Grade" "link" in the "I'm the student's first submission" "table_row"
     And I set the field "Marking workflow state" to "Ready for release"
-    And I set the field "Notify students" to "0"
+    And I set the field "Notify student" to "0"
     And I press "Save changes"
     And I click on "Edit settings" "link"
     And I follow "Test assignment name"
@@ -66,10 +66,7 @@ Feature: Assignments correctly add feedback to the grade report when workflow an
     And I should see "Released" in the "I'm the student's first submission" "table_row"
     And I set the field "Grading action" to "Reveal student identities"
     And I press "Continue"
-    And I log out
-
-    And I am on the "C1" Course page logged in as student1
-    And I navigate to "User report" in the course gradebook
+    And I am on the "Course 1" "grades > User report > View" page logged in as "student1"
     Then I should see "50"
     And I should see "Great job! Lol, not really."
 
@@ -77,7 +74,7 @@ Feature: Assignments correctly add feedback to the grade report when workflow an
   Scenario: Student identities are revealed before releasing the grades.
     When I click on "Grade" "link" in the "I'm the student's first submission" "table_row"
     And I set the field "Marking workflow state" to "Ready for release"
-    And I set the field "Notify students" to "0"
+    And I set the field "Notify student" to "0"
     And I press "Save changes"
     And I click on "Edit settings" "link"
     And I follow "Test assignment name"
@@ -92,10 +89,7 @@ Feature: Assignments correctly add feedback to the grade report when workflow an
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should see "Released" in the "Student 1" "table_row"
-    And I log out
-
-    And I am on the "C1" Course page logged in as student1
-    And I navigate to "User report" in the course gradebook
+    And I am on the "Course 1" "grades > User report > View" page logged in as "student1"
     Then I should see "50"
     And I should see "Great job! Lol, not really."
 

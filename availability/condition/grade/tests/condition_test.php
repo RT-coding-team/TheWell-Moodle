@@ -14,17 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Unit tests for the grade condition.
- *
- * @package availability_grade
- * @copyright 2014 The Open University
- * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die();
-
-use availability_grade\condition;
+namespace availability_grade;
 
 /**
  * Unit tests for the grade condition.
@@ -33,7 +23,7 @@ use availability_grade\condition;
  * @copyright 2014 The Open University
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class availability_grade_condition_testcase extends advanced_testcase {
+class condition_test extends \advanced_testcase {
     /**
      * Tests constructing and using grade condition.
      */
@@ -52,7 +42,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         // Make assign module.
         $assignrow = $this->getDataGenerator()->create_module('assign', array(
                 'course' => $course->id, 'name' => 'Test!'));
-        $assign = new assign(context_module::instance($assignrow->cmid), false, false);
+        $assign = new \assign(\context_module::instance($assignrow->cmid), false, false);
         $modinfo = get_fast_modinfo($course);
         $cm = $modinfo->get_cm($assignrow->cmid);
 
@@ -69,7 +59,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(false, $info, true, $user->id));
         $information = $cond->get_description(false, false, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~have a grade.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~have a grade.*Test!~', $information);
         $this->assertTrue($cond->is_available(true, $info, true, $user->id));
 
         // Add grade and check available.
@@ -78,7 +68,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(true, $info, true, $user->id));
         $information = $cond->get_description(false, true, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~do not have a grade.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~do not have a grade.*Test!~', $information);
 
         // Construct directly and test remaining conditions; first, min grade (fail).
         self::set_grade($assignrow, $user->id, 29.99999);
@@ -87,7 +77,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(false, $info, true, $user->id));
         $information = $cond->get_description(false, false, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~achieve a required score.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~achieve a required score.*Test!~', $information);
         $this->assertTrue($cond->is_available(true, $info, true, $user->id));
 
         // Min grade (success).
@@ -96,7 +86,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(true, $info, true, $user->id));
         $information = $cond->get_description(false, true, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~do not get certain scores.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~do not get certain scores.*Test!~', $information);
 
         // Max grade (fail).
         unset($structure->min);
@@ -105,7 +95,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(false, $info, true, $user->id));
         $information = $cond->get_description(false, false, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~get an appropriate score.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~get an appropriate score.*Test!~', $information);
         $this->assertTrue($cond->is_available(true, $info, true, $user->id));
 
         // Max grade (success).
@@ -114,7 +104,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(true, $info, true, $user->id));
         $information = $cond->get_description(false, true, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~do not get certain scores.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~do not get certain scores.*Test!~', $information);
 
         // Max and min (fail).
         $structure->min = 30.0;
@@ -123,7 +113,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(false, $info, true, $user->id));
         $information = $cond->get_description(false, false, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~get a particular score.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~get a particular score.*Test!~', $information);
         $this->assertTrue($cond->is_available(true, $info, true, $user->id));
 
         // Still fail (other end).
@@ -136,7 +126,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(true, $info, true, $user->id));
         $information = $cond->get_description(false, true, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~do not get certain scores.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~do not get certain scores.*Test!~', $information);
 
         // Success (bottom end).
         self::set_grade($assignrow, $user->id, 30.0);
@@ -144,7 +134,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         $this->assertFalse($cond->is_available(true, $info, true, $user->id));
         $information = $cond->get_description(false, true, $info);
         $information = \core_availability\info::format_info($information, $course);
-        $this->assertRegExp('~do not get certain scores.*Test!~', $information);
+        $this->assertMatchesRegularExpression('~do not get certain scores.*Test!~', $information);
     }
 
     /**
@@ -153,11 +143,11 @@ class availability_grade_condition_testcase extends advanced_testcase {
      */
     public function test_constructor() {
         // No parameters.
-        $structure = new stdClass();
+        $structure = new \stdClass();
         try {
             $cond = new condition($structure);
             $this->fail();
-        } catch (coding_exception $e) {
+        } catch (\coding_exception $e) {
             $this->assertStringContainsString('Missing or invalid ->id', $e->getMessage());
         }
 
@@ -166,7 +156,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         try {
             $cond = new condition($structure);
             $this->fail();
-        } catch (coding_exception $e) {
+        } catch (\coding_exception $e) {
             $this->assertStringContainsString('Missing or invalid ->id', $e->getMessage());
         }
 
@@ -176,7 +166,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         try {
             $cond = new condition($structure);
             $this->fail();
-        } catch (coding_exception $e) {
+        } catch (\coding_exception $e) {
             $this->assertStringContainsString('Missing or invalid ->min', $e->getMessage());
         }
 
@@ -186,7 +176,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
         try {
             $cond = new condition($structure);
             $this->fail();
-        } catch (coding_exception $e) {
+        } catch (\coding_exception $e) {
             $this->assertStringContainsString('Missing or invalid ->max', $e->getMessage());
         }
 
@@ -230,7 +220,7 @@ class availability_grade_condition_testcase extends advanced_testcase {
     /**
      * Updates the grade of a user in the given assign module instance.
      *
-     * @param stdClass $assignrow Assignment row from database
+     * @param \stdClass $assignrow Assignment row from database
      * @param int $userid User id
      * @param float $grade Grade
      */

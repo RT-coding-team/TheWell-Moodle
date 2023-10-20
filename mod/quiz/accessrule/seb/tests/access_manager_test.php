@@ -14,18 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * PHPUnit tests for the access manager.
- *
- * @package    quizaccess_seb
- * @author     Andrew Madden <andrewmadden@catalyst-au.net>
- * @copyright  2019 Catalyst IT
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-use quizaccess_seb\access_manager;
-use quizaccess_seb\quiz_settings;
-use quizaccess_seb\settings_provider;
+namespace quizaccess_seb;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -34,11 +23,13 @@ require_once(__DIR__ . '/test_helper_trait.php');
 /**
  * PHPUnit tests for the access manager.
  *
- * @copyright  2020 Catalyst IT
+ * @package   quizaccess_seb
+ * @author    Andrew Madden <andrewmadden@catalyst-au.net>
+ * @copyright 2020 Catalyst IT
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class quizacces_seb_access_manager_testcase extends advanced_testcase {
-    use quizaccess_seb_test_helper_trait;
+class access_manager_test extends \advanced_testcase {
+    use \quizaccess_seb_test_helper_trait;
 
     /**
      * Called before every test.
@@ -98,7 +89,7 @@ class quizacces_seb_access_manager_testcase extends advanced_testcase {
         $this->setUser($user);
 
         // Set the bypass SEB check capability to $USER.
-        $this->assign_user_capability('quizaccess/seb:bypassseb', context_module::instance($this->quiz->cmid)->id);
+        $this->assign_user_capability('quizaccess/seb:bypassseb', \context_module::instance($this->quiz->cmid)->id);
 
         $accessmanager = $this->get_access_manager();
         $this->assertTrue($accessmanager->can_bypass_seb());
@@ -330,7 +321,7 @@ class quizacces_seb_access_manager_testcase extends advanced_testcase {
     public function test_should_validate_basic_header($type, $expected) {
         $accessmanager = $this->getMockBuilder(access_manager::class)
             ->disableOriginalConstructor()
-            ->setMethods(['get_seb_use_type'])
+            ->onlyMethods(['get_seb_use_type'])
             ->getMock();
         $accessmanager->method('get_seb_use_type')->willReturn($type);
 
@@ -364,7 +355,7 @@ class quizacces_seb_access_manager_testcase extends advanced_testcase {
     public function test_should_validate_config_key($type, $expected) {
         $accessmanager = $this->getMockBuilder(access_manager::class)
             ->disableOriginalConstructor()
-            ->setMethods(['get_seb_use_type'])
+            ->onlyMethods(['get_seb_use_type'])
             ->getMock();
         $accessmanager->method('get_seb_use_type')->willReturn($type);
 
@@ -397,7 +388,7 @@ class quizacces_seb_access_manager_testcase extends advanced_testcase {
     public function test_should_validate_browser_exam_key($type, $expected) {
         $accessmanager = $this->getMockBuilder(access_manager::class)
             ->disableOriginalConstructor()
-            ->setMethods(['get_seb_use_type'])
+            ->onlyMethods(['get_seb_use_type'])
             ->getMock();
         $accessmanager->method('get_seb_use_type')->willReturn($type);
 

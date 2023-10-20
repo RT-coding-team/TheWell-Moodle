@@ -14,23 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace core;
+
 /**
- * Tests groups subsystems.
+ * Unit tests for lib/grouplib.php
  *
- * @package    core_group
- * @category   phpunit
+ * @package    core
  * @copyright  2007 onwards Martin Dougiamas (http://dougiamas.com)
  * @author     Andrew Nicols
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-/**
- * Unit tests for lib/grouplib.php
- * @group core_group
- */
-class core_grouplib_testcase extends advanced_testcase {
+class grouplib_test extends \advanced_testcase {
 
     public function test_groups_get_group_by_idnumber() {
         $this->resetAfterTest(true);
@@ -184,7 +178,7 @@ class core_grouplib_testcase extends advanced_testcase {
         $generator = $this->getDataGenerator();
 
         $course = $generator->create_course();
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $student1 = $generator->create_user();
         $student2 = $generator->create_user();
         $plugin = enrol_get_plugin('manual');
@@ -376,7 +370,7 @@ class core_grouplib_testcase extends advanced_testcase {
         $generator = $this->getDataGenerator();
 
         $course = $generator->create_course();
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $student1 = $generator->create_user();
         $student2 = $generator->create_user();
         $plugin = enrol_get_plugin('manual');
@@ -411,7 +405,7 @@ class core_grouplib_testcase extends advanced_testcase {
         $generator = $this->getDataGenerator();
 
         $course = $generator->create_course();
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $student1 = $generator->create_user();
         $student2 = $generator->create_user();
         $plugin = enrol_get_plugin('manual');
@@ -444,7 +438,7 @@ class core_grouplib_testcase extends advanced_testcase {
         $generator = $this->getDataGenerator();
 
         $course = $generator->create_course();
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $student1 = $generator->create_user();
         $student2 = $generator->create_user();
         $plugin = enrol_get_plugin('manual');
@@ -465,7 +459,7 @@ class core_grouplib_testcase extends advanced_testcase {
         groups_add_member($group->id, $student1->id);
 
         // Test with members at any group and with an invalid $context.
-        $syscontext = context_system::instance();
+        $syscontext = \context_system::instance();
         $this->expectException('coding_exception');
         list($sql, $params) = groups_get_members_ids_sql(USERSWITHOUTGROUP, $syscontext);
     }
@@ -641,8 +635,8 @@ class core_grouplib_testcase extends advanced_testcase {
         $this->assertSame($group3->name, $data->groups[$group3->id]->name);
 
         // Check we have the expected number of groupings.
-        $this->assertContains($grouping1->id, array_keys($data->groupings));
-        $this->assertContains($grouping2->id, array_keys($data->groupings));
+        $this->assertArrayHasKey($grouping1->id, $data->groupings);
+        $this->assertArrayHasKey($grouping2->id, $data->groupings);
 
         // Test a grouping-id is mapped correctly.
         $this->assertEquals($grouping2->name, $data->groupings[$grouping2->id]->name);
@@ -657,10 +651,10 @@ class core_grouplib_testcase extends advanced_testcase {
         foreach ($data->mappings as $mapping) {
             if ($mapping->groupingid === $grouping1->id) {
                 $grouping1maps++;
-                $this->assertContains($mapping->groupid, array($group1->id, $group2->id));
+                $this->assertContainsEquals($mapping->groupid, array($group1->id, $group2->id));
             } else if ($mapping->groupingid === $grouping2->id) {
                 $grouping2maps++;
-                $this->assertContains($mapping->groupid, array($group3->id, $group4->id));
+                $this->assertContainsEquals($mapping->groupid, array($group3->id, $group4->id));
             } else {
                 $this->fail('Unexpected groupingid');
             }
@@ -680,35 +674,31 @@ class core_grouplib_testcase extends advanced_testcase {
 
         // Test the groups_get_all_groups which uses this functionality.
         $groups  = groups_get_all_groups($course->id);
-        $groupkeys = array_keys($groups);
         $this->assertCount(4, $groups);
-        $this->assertContains($group1->id, $groupkeys);
-        $this->assertContains($group2->id, $groupkeys);
-        $this->assertContains($group3->id, $groupkeys);
-        $this->assertContains($group4->id, $groupkeys);
+        $this->assertArrayHasKey($group1->id, $groups);
+        $this->assertArrayHasKey($group2->id, $groups);
+        $this->assertArrayHasKey($group3->id, $groups);
+        $this->assertArrayHasKey($group4->id, $groups);
 
         $groups  = groups_get_all_groups($course->id, null, $grouping1->id);
-        $groupkeys = array_keys($groups);
         $this->assertCount(2, $groups);
-        $this->assertContains($group1->id, $groupkeys);
-        $this->assertContains($group2->id, $groupkeys);
-        $this->assertNotContains($group3->id, $groupkeys);
-        $this->assertNotContains($group4->id, $groupkeys);
+        $this->assertArrayHasKey($group1->id, $groups);
+        $this->assertArrayHasKey($group2->id, $groups);
+        $this->assertArrayNotHasKey($group3->id, $groups);
+        $this->assertArrayNotHasKey($group4->id, $groups);
 
         $groups  = groups_get_all_groups($course->id, null, $grouping2->id);
-        $groupkeys = array_keys($groups);
         $this->assertCount(2, $groups);
-        $this->assertNotContains($group1->id, $groupkeys);
-        $this->assertNotContains($group2->id, $groupkeys);
-        $this->assertContains($group3->id, $groupkeys);
-        $this->assertContains($group4->id, $groupkeys);
+        $this->assertArrayNotHasKey($group1->id, $groups);
+        $this->assertArrayNotHasKey($group2->id, $groups);
+        $this->assertArrayHasKey($group3->id, $groups);
+        $this->assertArrayHasKey($group4->id, $groups);
 
         // Test this function using an alternate column for the result index
         $groups  = groups_get_all_groups($course->id, null, $grouping2->id, 'g.name, g.id');
-        $groupkeys = array_keys($groups);
         $this->assertCount(2, $groups);
-        $this->assertNotContains($group3->id, $groupkeys);
-        $this->assertContains($group3->name, $groupkeys);
+        $this->assertArrayNotHasKey($group3->id, $groups);
+        $this->assertArrayHasKey($group3->name, $groups);
         $this->assertEquals($group3->id, $groups[$group3->name]->id);
     }
 
@@ -725,7 +715,7 @@ class core_grouplib_testcase extends advanced_testcase {
         // Create a course category, course and groups.
         $cat = $generator->create_category(array('parent' => 0));
         $course = $generator->create_course(array('category' => $cat->id));
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $group1 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 1'));
         $group2 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 2'));
         $group3 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 3'));
@@ -977,7 +967,7 @@ class core_grouplib_testcase extends advanced_testcase {
 
         // Generate data.
         $course = $this->getDataGenerator()->create_course();
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->courseid = $course->id;
         $group1 = $this->getDataGenerator()->create_group($record);
         $group2 = $this->getDataGenerator()->create_group($record);
@@ -1211,7 +1201,7 @@ class core_grouplib_testcase extends advanced_testcase {
     protected function make_group_list($number) {
         $testgroups = array();
         for ($a = 0; $a < $number; $a++) {
-            $grp = new stdClass();
+            $grp = new \stdClass();
             $grp->id = 100 + $a;
             $grp->name = 'test group ' . $grp->id;
             $testgroups[$grp->id] = $grp;
@@ -1285,7 +1275,7 @@ class core_grouplib_testcase extends advanced_testcase {
         // Create a course category, course and groups.
         $cat = $generator->create_category(array('parent' => 0));
         $course = $generator->create_course(array('category' => $cat->id));
-        $coursecontext = context_course::instance($course->id);
+        $coursecontext = \context_course::instance($course->id);
         $group1 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 1'));
         $group2 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 2'));
         $group3 = $generator->create_group(array('courseid' => $course->id, 'name' => 'Group 3'));

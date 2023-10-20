@@ -82,7 +82,7 @@ class controller {
                     $a->url  = $this->installer->lang_pack_url($langcode);
                     $a->dest = $CFG->dataroot.'/lang';
                     $this->errors[] = get_string('remotedownloaderror', 'error', $a);
-                    throw new \moodle_exception('remotedownloaderror', 'error', $a);
+                    throw new \moodle_exception('remotedownloaderror', 'error', '', $a);
                     break;
                 case \lang_installer::RESULT_INSTALLED:
                     $updatedpacks++;
@@ -124,6 +124,12 @@ class controller {
         }
 
         if ($rm1 or $rm2) {
+            // Set the default site language to en if the deleted language pack is the default site language.
+            if ($CFG->lang === $lang) {
+                set_config('lang', 'en');
+                // Fix the user's current language to the default site language.
+                fix_current_language($CFG->lang);
+            }
             $this->info[] = get_string('langpackremoved', 'tool_langimport', $lang);
             event\langpack_removed::event_with_langcode($lang)->trigger();
             return true;
@@ -220,5 +226,24 @@ class controller {
      */
     public function lang_pack_url($langcode = '') {
         return $this->installer->lang_pack_url($langcode);
+    }
+
+    /**
+     * Schedule installation of the given language packs asynchronously via ad hoc task.
+     *
+     * @param string|array $langs array of langcodes or individual langcodes
+     */
+    public function schedule_languagepacks_installation($langs): void {
+        global $USER;
+
+        $task = new \tool_langimport\task\install_langpacks();
+        $task->set_userid($USER->id);
+        $task->set_custom_data([
+            'langs' => $langs,
+        ]);
+
+        \core\task\manager::queue_adhoc_task($task, true);
+
+        $this->info[] = get_string('installscheduled', 'tool_langimport');
     }
 }

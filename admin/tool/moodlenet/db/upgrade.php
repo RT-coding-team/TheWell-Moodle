@@ -126,7 +126,10 @@ function xmldb_tool_moodlenet_upgrade(int $oldversion) {
     // Automatically generated Moodle v3.10.0 release upgrade line.
     // Put any upgrade step following this.
 
-    if ($oldversion < 2020110901) {
+    // Automatically generated Moodle v3.11.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2021051701) {
 
         $selectsql = "moodlenetprofile IS NOT NULL AND moodlenetprofile != ''";
 
@@ -142,7 +145,7 @@ function xmldb_tool_moodlenet_upgrade(int $oldversion) {
             core\task\manager::queue_adhoc_task($notificationtask);
         }
 
-        upgrade_plugin_savepoint(true, 2020110901, 'tool', 'moodlenet');
+        upgrade_plugin_savepoint(true, 2021051701, 'tool', 'moodlenet');
     }
 
     return true;

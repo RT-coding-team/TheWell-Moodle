@@ -27,9 +27,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// @codingStandardsIgnoreStart
-require('../config.php');
-// @codingStandardsIgnoreEnd
+require('../config.php'); // phpcs:ignore
 
 $context = context_system::instance();
 $title = get_string('pagenotexisttitle', 'error');
@@ -38,6 +36,14 @@ $PAGE->set_context($context);
 $PAGE->set_title($title);
 $PAGE->set_heading($title);
 $PAGE->navbar->add($title);
+
+// This allows the webserver to dictate wether the http status should remain
+// what it would have been, or force it to be a 404. Under other conditions
+// it could most often be a 403, 405 or a 50x error.
+$code = optional_param('code', 0, PARAM_INT);
+if ($code == 404) {
+    header("HTTP/1.0 404 Not Found");
+}
 
 $canmessage = has_capability('moodle/site:senderrormessage', $context);
 

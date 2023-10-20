@@ -232,6 +232,13 @@ if ($datarecord = data_submitted() and confirm_sesskey()) {
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(format_string($data->name), 2);
+
+// Render the activity information.
+$cminfo = cm_info::create($cm);
+$completiondetails = \core_completion\cm_completion_details::get_instance($cminfo, $USER->id);
+$activitydates = \core\activity_dates::get_dates_for_module($cminfo, $USER->id);
+echo $OUTPUT->activity_information($cminfo, $completiondetails, $activitydates);
+
 echo $OUTPUT->box(format_module_intro('data', $data, $cm->id), 'generalbox', 'intro');
 groups_print_activity_menu($cm, $CFG->wwwroot.'/mod/data/edit.php?d='.$data->id);
 
@@ -270,25 +277,36 @@ if ($data->addtemplate){
     $replacements = array();
 
     ///then we generate strings to replace
-    foreach ($possiblefields as $eachfield){
+    foreach ($possiblefields as $eachfield) {
         $field = data_get_field($eachfield, $data);
 
         // To skip unnecessary calls to display_add_field().
-        if (strpos($data->addtemplate, "[[".$field->field->name."]]") !== false) {
-            // Replace the field tag.
-            $patterns[] = "[[".$field->field->name."]]";
+        if (strpos($data->addtemplate, "[[" . $field->field->name . "]]") !== false) {
+            // Display an error in case the field type is not found.
             $errors = '';
             if (!empty($fieldnotifications[$field->field->name])) {
                 foreach ($fieldnotifications[$field->field->name] as $notification) {
                     $errors .= $OUTPUT->notification($notification);
                 }
             }
-            $replacements[] = $errors . $field->display_add_field($rid, $datarecord);
-        }
 
-        // Replace the field id tag.
-        $patterns[] = "[[".$field->field->name."#id]]";
-        $replacements[] = 'field_'.$field->field->id;
+            // Replace the field tag.
+            $fielddisplay = '';
+            if ($field->type === 'unknown') {
+                if (has_capability('mod/data:manageentries', $context)) {
+                    // Display notification for users that can manage entries.
+                    $errors .= $OUTPUT->notification(get_string('missingfieldtype', 'data',
+                    (object)['name' => $field->field->name]));
+                }
+            } else {
+                $fielddisplay = $field->display_add_field($rid, $datarecord);
+            }
+
+            $patterns[] = "[[" . $field->field->name . "]]";
+            $replacements[] = $errors . $fielddisplay;
+        }    // Replace the field id tag.
+        $patterns[] = "[[" . $field->field->name . "#id]]";
+        $replacements[] = 'field_' . $field->field->id;
     }
 
     if (core_tag_tag::is_enabled('mod_data', 'data_records')) {

@@ -35,6 +35,9 @@ define ('DATA_TIMEMODIFIED', -4);
 define ('DATA_TAGS', -5);
 
 define ('DATA_CAP_EXPORT', 'mod/data:viewalluserpresets');
+// Users having assigned the default role "Non-editing teacher" can export database records
+// Using the mod/data capability "viewalluserpresets" existing in Moodle 1.9.x.
+// In Moodle >= 2, new roles may be introduced and used instead.
 
 define('DATA_PRESET_COMPONENT', 'mod_data');
 define('DATA_PRESET_FILEAREA', 'site_presets');
@@ -43,9 +46,7 @@ define('DATA_PRESET_CONTEXT', SYSCONTEXTID);
 define('DATA_EVENT_TYPE_OPEN', 'open');
 define('DATA_EVENT_TYPE_CLOSE', 'close');
 
-// Users having assigned the default role "Non-editing teacher" can export database records
-// Using the mod/data capability "viewalluserpresets" existing in Moodle 1.9.x.
-// In Moodle >= 2, new roles may be introduced and used instead.
+require_once(__DIR__ . '/deprecatedlib.php');
 
 /**
  * @package   mod_data
@@ -333,6 +334,12 @@ class data_field_base {     // Base class for Database Field Types (see field/*/
         if (empty($this->field)) {   // No field has been defined yet, try and make one
             $this->define_default_field();
         }
+
+        // Throw an exception if field type doen't exist. Anyway user should never access to edit a field with an unknown fieldtype.
+        if ($this->type === 'unknown') {
+            throw new \moodle_exception(get_string('missingfieldtype', 'data', (object)['name' => $this->field->name]));
+        }
+
         echo $OUTPUT->box_start('generalbox boxaligncenter boxwidthwide');
 
         echo '<form id="editfield" action="'.$CFG->wwwroot.'/mod/data/field.php" method="post">'."\n";
@@ -350,7 +357,13 @@ class data_field_base {     // Base class for Database Field Types (see field/*/
 
         echo $OUTPUT->heading($this->name(), 3);
 
-        require_once($CFG->dirroot.'/mod/data/field/'.$this->type.'/mod.html');
+        $filepath = $CFG->dirroot.'/mod/data/field/'.$this->type.'/mod.html';
+
+        if (!file_exists($filepath)) {
+            throw new \moodle_exception(get_string('missingfieldtype', 'data', (object)['name' => $this->field->name]));
+        } else {
+            require_once($filepath);
+        }
 
         echo '<div class="mdl-align">';
         echo '<input type="submit" class="btn btn-primary" value="'.$savebutton.'" />'."\n";
@@ -880,7 +893,12 @@ function data_get_field_from_id($fieldid, $data){
 function data_get_field_new($type, $data) {
     global $CFG;
 
-    require_once($CFG->dirroot.'/mod/data/field/'.$type.'/field.class.php');
+    $filepath = $CFG->dirroot.'/mod/data/field/'.$type.'/field.class.php';
+    // It should never access this method if the subfield class doesn't exist.
+    if (!file_exists($filepath)) {
+        throw new \moodle_exception('invalidfieldtype', 'data');
+    }
+    require_once($filepath);
     $newfield = 'data_field_'.$type;
     $newfield = new $newfield(0, $data);
     return $newfield;
@@ -892,20 +910,25 @@ function data_get_field_new($type, $data) {
  * input: $param $field - record from db
  *
  * @global object
- * @param object $field
- * @param object $data
- * @param object $cm
- * @return object
+ * @param stdClass $field the field record
+ * @param stdClass $data the data instance
+ * @param stdClass|null $cm optional course module data
+ * @return data_field_base the field object instance or data_field_base if unkown type
  */
 function data_get_field($field, $data, $cm=null) {
     global $CFG;
 
-    if ($field) {
-        require_once('field/'.$field->type.'/field.class.php');
-        $newfield = 'data_field_'.$field->type;
-        $newfield = new $newfield($field, $data, $cm);
-        return $newfield;
+    if (!isset($field->type)) {
+        return new data_field_base($field);
     }
+    $filepath = $CFG->dirroot.'/mod/data/field/'.$field->type.'/field.class.php';
+    if (!file_exists($filepath)) {
+        return new data_field_base($field);
+    }
+    require_once($filepath);
+    $newfield = 'data_field_'.$field->type;
+    $newfield = new $newfield($field, $data, $cm);
+    return $newfield;
 }
 
 
@@ -1195,9 +1218,9 @@ function data_user_outline($course, $user, $mod, $data) {
         $result->time = $lastrecord->timemodified;
         if ($grade) {
             if (!$grade->hidden || has_capability('moodle/grade:viewhidden', context_course::instance($course->id))) {
-                $result->info .= ', ' . get_string('grade') . ': ' . $grade->str_long_grade;
+                $result->info .= ', ' . get_string('gradenoun') . ': ' . $grade->str_long_grade;
             } else {
-                $result->info = get_string('grade') . ': ' . get_string('hidden', 'grades');
+                $result->info = get_string('gradenoun') . ': ' . get_string('hidden', 'grades');
             }
         }
         return $result;
@@ -1206,9 +1229,9 @@ function data_user_outline($course, $user, $mod, $data) {
             'time' => grade_get_date_for_user_grade($grade, $user),
         ];
         if (!$grade->hidden || has_capability('moodle/grade:viewhidden', context_course::instance($course->id))) {
-            $result->info = get_string('grade') . ': ' . $grade->str_long_grade;
+            $result->info = get_string('gradenoun') . ': ' . $grade->str_long_grade;
         } else {
-            $result->info = get_string('grade') . ': ' . get_string('hidden', 'grades');
+            $result->info = get_string('gradenoun') . ': ' . get_string('hidden', 'grades');
         }
 
         return $result;
@@ -1233,12 +1256,12 @@ function data_user_complete($course, $user, $mod, $data) {
     if (!empty($grades->items[0]->grades)) {
         $grade = reset($grades->items[0]->grades);
         if (!$grade->hidden || has_capability('moodle/grade:viewhidden', context_course::instance($course->id))) {
-            echo $OUTPUT->container(get_string('grade').': '.$grade->str_long_grade);
+            echo $OUTPUT->container(get_string('gradenoun') . ': ' . $grade->str_long_grade);
             if ($grade->str_feedback) {
                 echo $OUTPUT->container(get_string('feedback').': '.$grade->str_feedback);
             }
         } else {
-            echo $OUTPUT->container(get_string('grade') . ': ' . get_string('hidden', 'grades'));
+            echo $OUTPUT->container(get_string('gradenoun') . ': ' . get_string('hidden', 'grades'));
         }
     }
 
@@ -1913,6 +1936,9 @@ function data_print_preference_form($data, $perpage, $search, $sort='', $order='
         $fieldname = preg_quote($fieldname, '/');
         $patterns[] = "/\[\[$fieldname\]\]/i";
         $searchfield = data_get_field_from_id($field->field->id, $data);
+        if ($searchfield->type === 'unknown') {
+            continue;
+        }
         if (!empty($search_array[$field->field->id]->data)) {
             $replacement[] = $searchfield->display_search_field($search_array[$field->field->id]->data);
         } else {
@@ -2304,11 +2330,18 @@ function data_delete_site_preset($name) {
  */
 function data_print_header($course, $cm, $data, $currenttab='') {
 
-    global $CFG, $displaynoticegood, $displaynoticebad, $OUTPUT, $PAGE;
+    global $CFG, $displaynoticegood, $displaynoticebad, $OUTPUT, $PAGE, $USER;
 
     $PAGE->set_title($data->name);
     echo $OUTPUT->header();
     echo $OUTPUT->heading(format_string($data->name), 2);
+
+    // Render the activity information.
+    $cminfo = cm_info::create($cm);
+    $completiondetails = \core_completion\cm_completion_details::get_instance($cminfo, $USER->id);
+    $activitydates = \core\activity_dates::get_dates_for_module($cminfo, $USER->id);
+    echo $OUTPUT->activity_information($cminfo, $completiondetails, $activitydates);
+
     echo $OUTPUT->box(format_module_intro('data', $data, $cm->id), 'generalbox', 'intro');
 
     // Groups needed for Add entry tab
@@ -2619,7 +2652,7 @@ abstract class data_preset_importer {
      * @return bool
      */
     function import($overwritesettings) {
-        global $DB, $CFG;
+        global $DB, $CFG, $OUTPUT;
 
         $params = $this->get_preset_settings();
         $settings = $params->settings;
@@ -2640,7 +2673,7 @@ abstract class data_preset_importer {
                 }
                 else $preservedfields[$cid] = true;
             }
-
+            $missingfieldtypes = [];
             foreach ($newfields as $nid => $newfield) {
                 $cid = optional_param("field_$nid", -1, PARAM_INT);
 
@@ -2657,7 +2690,12 @@ abstract class data_preset_importer {
                     unset($fieldobject);
                 } else {
                     /* Make a new field */
-                    include_once("field/$newfield->type/field.class.php");
+                    $filepath = "field/$newfield->type/field.class.php";
+                    if (!file_exists($filepath)) {
+                        $missingfieldtypes[] = $newfield->name;
+                        continue;
+                    }
+                    include_once($filepath);
 
                     if (!isset($newfield->description)) {
                         $newfield->description = '';
@@ -2667,6 +2705,9 @@ abstract class data_preset_importer {
                     $fieldclass->insert_field();
                     unset($fieldclass);
                 }
+            }
+            if (!empty($missingfieldtypes)) {
+                echo $OUTPUT->notification(get_string('missingfieldtypeimport', 'data') . html_writer::alist($missingfieldtypes));
             }
         }
 
@@ -3104,7 +3145,12 @@ function data_import_csv($cm, $data, &$csvdata, $encoding, $fielddelimiter) {
                     unset($fieldnames[$id]); // To ensure the user provided content fields remain in the array once flipped.
                 } else {
                     $field = $rawfields[$name];
-                    require_once("$CFG->dirroot/mod/data/field/$field->type/field.class.php");
+                    $filepath = "$CFG->dirroot/mod/data/field/$field->type/field.class.php";
+                    if (!file_exists($filepath)) {
+                        $errorfield .= "'$name' ";
+                        continue;
+                    }
+                    require_once($filepath);
                     $classname = 'data_field_' . $field->type;
                     $fields[$name] = new $classname($field, $data, $cm);
                 }
@@ -4118,9 +4164,8 @@ function data_get_recordids($alias, $searcharray, $dataid, $recordids) {
 function data_get_advanced_search_sql($sort, $data, $recordids, $selectdata, $sortorder) {
     global $DB;
 
-    $namefields = user_picture::fields('u');
-    // Remove the id from the string. This already exists in the sql statement.
-    $namefields = str_replace('u.id,', '', $namefields);
+    $userfieldsapi = \core_user\fields::for_userpic()->excluding('id');
+    $namefields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
 
     if ($sort == 0) {
         $nestselectsql = 'SELECT r.id, r.approved, r.timecreated, r.timemodified, r.userid, ' . $namefields . '
@@ -4172,7 +4217,8 @@ function data_get_advanced_search_sql($sort, $data, $recordids, $selectdata, $so
 
     // Find the field we are sorting on
     if ($sort > 0 or data_get_field_from_id($sort, $data)) {
-        $selectdata .= ' AND c.fieldid = :sort';
+        $selectdata .= ' AND c.fieldid = :sort AND s.recordid = r.id';
+        $nestselectsql .= ',{data_content} s ';
     }
 
     // If there are no record IDs then return an sql statment that will return no rows.
@@ -4468,40 +4514,6 @@ function data_update_completion_state($data, $course, $cm) {
             $completion->update_state($cm, COMPLETION_INCOMPLETE);
         }
     }
-}
-
-/**
- * Obtains the automatic completion state for this database item based on any conditions
- * on its settings. The call for this is in completion lib where the modulename is appended
- * to the function name. This is why there are unused parameters.
- *
- * @since Moodle 3.3
- * @param stdClass $course Course
- * @param cm_info|stdClass $cm course-module
- * @param int $userid User ID
- * @param bool $type Type of comparison (or/and; can be used as return value if no conditions)
- * @return bool True if completed, false if not, $type if conditions not set.
- */
-function data_get_completion_state($course, $cm, $userid, $type) {
-    global $DB, $PAGE;
-    $result = $type; // Default return value
-    // Get data details.
-    if (isset($PAGE->cm->id) && $PAGE->cm->id == $cm->id) {
-        $data = $PAGE->activityrecord;
-    } else {
-        $data = $DB->get_record('data', array('id' => $cm->instance), '*', MUST_EXIST);
-    }
-    // If completion option is enabled, evaluate it and return true/false.
-    if ($data->completionentries) {
-        $numentries = data_numentries($data, $userid);
-        // Check the number of entries required against the number of entries already made.
-        if ($numentries >= $data->completionentries) {
-            $result = true;
-        } else {
-            $result = false;
-        }
-    }
-    return $result;
 }
 
 /**

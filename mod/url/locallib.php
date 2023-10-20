@@ -266,10 +266,17 @@ EOF;
  * @return does not return
  */
 function url_print_workaround($url, $cm, $course) {
-    global $OUTPUT;
+    global $OUTPUT, $USER;
 
     url_print_header($url, $cm, $course);
     url_print_heading($url, $cm, $course, true);
+
+    // Display any activity information (eg completion requirements / dates).
+    $cminfo = cm_info::create($cm);
+    $completiondetails = \core_completion\cm_completion_details::get_instance($cminfo, $USER->id);
+    $activitydates = \core\activity_dates::get_dates_for_module($cminfo, $USER->id);
+    echo $OUTPUT->activity_information($cminfo, $completiondetails, $activitydates);
+
     url_print_intro($url, $cm, $course, true);
 
     $fullurl = url_get_full_url($url, $cm, $course);
@@ -306,7 +313,7 @@ function url_print_workaround($url, $cm, $course) {
  * @return does not return
  */
 function url_display_embed($url, $cm, $course) {
-    global $CFG, $PAGE, $OUTPUT;
+    global $PAGE, $OUTPUT, $USER;
 
     $mimetype = resourcelib_guess_url_mimetype($url->externalurl);
     $fullurl  = url_get_full_url($url, $cm, $course);
@@ -338,6 +345,12 @@ function url_display_embed($url, $cm, $course) {
 
     url_print_header($url, $cm, $course);
     url_print_heading($url, $cm, $course);
+
+    // Display any activity information (eg completion requirements / dates).
+    $cminfo = cm_info::create($cm);
+    $completiondetails = \core_completion\cm_completion_details::get_instance($cminfo, $USER->id);
+    $activitydates = \core\activity_dates::get_dates_for_module($cminfo, $USER->id);
+    echo $OUTPUT->activity_information($cminfo, $completiondetails, $activitydates);
 
     echo $code;
 
@@ -434,7 +447,6 @@ function url_get_variable_options($config) {
         'userlastname'    => get_string('lastname'),
         'userfullname'    => get_string('fullnameuser'),
         'useremail'       => get_string('email'),
-        'usericq'         => get_string('icqnumber'),
         'userphone1'      => get_string('phone1'),
         'userphone2'      => get_string('phone2'),
         'userinstitution' => get_string('institution'),
@@ -442,7 +454,6 @@ function url_get_variable_options($config) {
         'useraddress'     => get_string('address'),
         'usercity'        => get_string('city'),
         'usertimezone'    => get_string('timezone'),
-        'userurl'         => get_string('webpage'),
     );
 
     if ($config->rolesinparams) {
@@ -497,7 +508,6 @@ function url_get_variable_values($url, $cm, $course, $config) {
         $values['userlastname']    = $USER->lastname;
         $values['userfullname']    = fullname($USER);
         $values['useremail']       = $USER->email;
-        $values['usericq']         = $USER->icq;
         $values['userphone1']      = $USER->phone1;
         $values['userphone2']      = $USER->phone2;
         $values['userinstitution'] = $USER->institution;
@@ -506,7 +516,6 @@ function url_get_variable_values($url, $cm, $course, $config) {
         $values['usercity']        = $USER->city;
         $now = new DateTime('now', core_date::get_user_timezone_object());
         $values['usertimezone']    = $now->getOffset() / 3600.0; // Value in hours for BC.
-        $values['userurl']         = $USER->url;
     }
 
     // weak imitation of Single-Sign-On, for backwards compatibility only
@@ -575,9 +584,10 @@ function url_guess_icon($fullurl, $size = null) {
     $icon = file_extension_icon($fullurl, $size);
     $htmlicon = file_extension_icon('.htm', $size);
     $unknownicon = file_extension_icon('', $size);
+    $phpicon = file_extension_icon('.php', $size); // Exception for php files.
 
     // We do not want to return those icon types, the module icon is more appropriate.
-    if ($icon === $unknownicon || $icon === $htmlicon) {
+    if ($icon === $unknownicon || $icon === $htmlicon || $icon === $phpicon) {
         return null;
     }
 

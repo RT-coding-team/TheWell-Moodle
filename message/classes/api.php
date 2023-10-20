@@ -111,15 +111,27 @@ class api {
         global $DB;
 
         // Get the user fields we want.
-        $ufields = \user_picture::fields('u', array('lastaccess'), 'userfrom_id', 'userfrom_');
-        $ufields2 = \user_picture::fields('u2', array('lastaccess'), 'userto_id', 'userto_');
+        $userfieldsapi = \core_user\fields::for_userpic()->including('lastaccess');
+        $ufields = $userfieldsapi->get_sql('u', false, 'userfrom_', '', false)->selects;
+        $ufields2 = $userfieldsapi->get_sql('u2', false, 'userto_', '', false)->selects;
         // Add the uniqueid column to make each row unique and avoid SQL errors.
         $uniqueidsql = $DB->sql_concat('m.id', "'_'", 'm.useridfrom', "'_'", 'mcm.userid');
 
         $sql = "SELECT $uniqueidsql AS uniqueid, m.id, m.useridfrom, mcm.userid as useridto, m.subject, m.fullmessage,
                        m.fullmessagehtml, m.fullmessageformat, m.smallmessage, m.conversationid, m.timecreated, 0 as isread,
                        $ufields, mub.id as userfrom_blocked, $ufields2, mub2.id as userto_blocked
-                  FROM {messages} m
+                  FROM (
+                        SELECT m2.id AS id
+                          FROM {messages} m2
+                         WHERE m2.useridfrom = ?
+                         UNION
+                        SELECT m3.id AS id
+                          FROM {message_conversation_members} mcm3
+                    INNER JOIN {messages} m3 ON mcm3.conversationid = m3.conversationid
+                         WHERE mcm3.userid = ?
+                       ) der
+            INNER JOIN {messages} m
+                    ON der.id = m.id
             INNER JOIN {user} u
                     ON u.id = m.useridfrom
             INNER JOIN {message_conversations} mc
@@ -142,7 +154,7 @@ class api {
                    AND " . $DB->sql_like('smallmessage', '?', false) . "
               ORDER BY timecreated DESC";
 
-        $params = array($userid, $userid, $userid, self::MESSAGE_ACTION_DELETED, $userid, $userid,
+        $params = array($userid, $userid, $userid, $userid, $userid, self::MESSAGE_ACTION_DELETED, $userid, $userid,
             self::MESSAGE_CONVERSATION_TYPE_SELF, '%' . $search . '%');
 
         // Convert the messages into searchable contacts with their last message being the message that was searched.
@@ -1022,7 +1034,8 @@ class api {
         debugging('\core_message\api::get_contacts_with_unread_message_count is deprecated and no longer used',
             DEBUG_DEVELOPER);
 
-        $userfields = \user_picture::fields('u', array('lastaccess'));
+        $userfieldsapi = \core_user\fields::for_userpic()->including('lastaccess');
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $unreadcountssql = "SELECT $userfields, count(m.id) as messagecount
                               FROM {message_contacts} mc
                         INNER JOIN {user} u
@@ -1063,7 +1076,8 @@ class api {
         debugging('\core_message\api::get_non_contacts_with_unread_message_count is deprecated and no longer used',
             DEBUG_DEVELOPER);
 
-        $userfields = \user_picture::fields('u', array('lastaccess'));
+        $userfieldsapi = \core_user\fields::for_userpic()->including('lastaccess');
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $unreadcountssql = "SELECT $userfields, count(m.id) as messagecount
                               FROM {user} u
                         INNER JOIN {messages} m
@@ -1885,7 +1899,8 @@ class api {
     public static function get_blocked_users($userid) {
         global $DB;
 
-        $userfields = \user_picture::fields('u', array('lastaccess'));
+        $userfieldsapi = \core_user\fields::for_userpic()->including('lastaccess');
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $blockeduserssql = "SELECT $userfields
                               FROM {message_users_blocked} mub
                         INNER JOIN {user} u

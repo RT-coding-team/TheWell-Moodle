@@ -191,7 +191,7 @@ function resource_delete_instance($id) {
  * "extra" information that may be needed when printing
  * this activity in a course listing.
  *
- * See {@link get_array_of_activities()} in course/lib.php
+ * See {@link course_modinfo::get_array_of_activities()}
  *
  * @param stdClass $coursemodule
  * @return cached_cm_info info
@@ -252,10 +252,11 @@ function resource_get_coursemodule_info($coursemodule) {
     if (($filedetails = resource_get_file_details($resource, $coursemodule)) && empty($filedetails['isref'])) {
         $displayoptions = (array) unserialize_array($resource->displayoptions);
         $displayoptions['filedetails'] = $filedetails;
-        $info->customdata = serialize($displayoptions);
+        $info->customdata['displayoptions'] = serialize($displayoptions);
     } else {
-        $info->customdata = $resource->displayoptions;
+        $info->customdata['displayoptions'] = $resource->displayoptions;
     }
+    $info->customdata['display'] = $display;
 
     return $info;
 }
@@ -270,7 +271,7 @@ function resource_cm_info_view(cm_info $cm) {
     global $CFG;
     require_once($CFG->dirroot . '/mod/resource/locallib.php');
 
-    $resource = (object)array('displayoptions' => $cm->customdata);
+    $resource = (object) ['displayoptions' => $cm->customdata['displayoptions']];
     $details = resource_get_optional_details($resource, $cm);
     if ($details) {
         $cm->set_after_link(' ' . html_writer::tag('span', $details,

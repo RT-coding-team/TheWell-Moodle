@@ -212,6 +212,7 @@ abstract class moodleform_mod extends moodleform {
         $this->_features->showdescription   = plugin_supports('mod', $this->_modname, FEATURE_SHOW_DESCRIPTION, false);
         $this->_features->gradecat          = ($this->_features->outcomes or $this->_features->hasgrades);
         $this->_features->advancedgrading   = plugin_supports('mod', $this->_modname, FEATURE_ADVANCED_GRADING, false);
+        $this->_features->hasnoview         = plugin_supports('mod', $this->_modname, FEATURE_NO_VIEW_LINK, false);
         $this->_features->canrescale = (component_callback_exists('mod_' . $this->_modname, 'rescale_activity_grades') !== false);
     }
 
@@ -379,16 +380,17 @@ abstract class moodleform_mod extends moodleform {
 
         // Freeze admin defaults if required (and not different from default)
         $this->apply_admin_locked_flags();
+
+        $this->plugin_extend_coursemodule_definition_after_data();
     }
 
     // form verification
     function validation($data, $files) {
         global $COURSE, $DB, $CFG;
-        $errors = parent::validation($data, $files);
 
         $mform =& $this->_form;
 
-        $errors = array();
+        $errors = parent::validation($data, $files);
 
         if ($mform->elementExists('name')) {
             $name = trim($data['name']);
@@ -572,7 +574,10 @@ abstract class moodleform_mod extends moodleform {
         $mform->addElement('header', 'modstandardelshdr', get_string('modstandardels', 'form'));
 
         $section = get_fast_modinfo($COURSE)->get_section_info($this->_section);
-        $allowstealth = !empty($CFG->allowstealth) && $this->courseformat->allow_stealth_module_visibility($this->_cm, $section);
+        $allowstealth =
+            !empty($CFG->allowstealth) &&
+            $this->courseformat->allow_stealth_module_visibility($this->_cm, $section) &&
+            !$this->_features->hasnoview;
         if ($allowstealth && $section->visible) {
             $modvisiblelabel = 'modvisiblewithstealth';
         } else if ($section->visible) {
@@ -887,10 +892,9 @@ abstract class moodleform_mod extends moodleform {
         }
 
         // Grade to pass.
-        $mform->addElement('text', $gradepassfieldname, get_string('gradepass', 'grades'));
+        $mform->addElement('float', $gradepassfieldname, get_string('gradepass', 'grades'));
         $mform->addHelpButton($gradepassfieldname, 'gradepass', 'grades');
         $mform->setDefault($gradepassfieldname, '');
-        $mform->setType($gradepassfieldname, PARAM_RAW);
         $mform->hideIf($gradepassfieldname, $assessedfieldname, 'eq', '0');
         $mform->hideIf($gradepassfieldname, "{$scalefieldname}[modgrade_type]", 'eq', 'none');
     }
@@ -904,6 +908,18 @@ abstract class moodleform_mod extends moodleform {
             foreach ($plugins as $plugin => $pluginfunction) {
                 // We have exposed all the important properties with public getters - and the callback can manipulate the mform
                 // directly.
+                $pluginfunction($this, $this->_form);
+            }
+        }
+    }
+
+    /**
+     * Plugins can extend the coursemodule settings form after the data is set.
+     */
+    protected function plugin_extend_coursemodule_definition_after_data() {
+        $callbacks = get_plugins_with_function('coursemodule_definition_after_data', 'lib.php');
+        foreach ($callbacks as $type => $plugins) {
+            foreach ($plugins as $plugin => $pluginfunction) {
                 $pluginfunction($this, $this->_form);
             }
         }
@@ -994,7 +1010,7 @@ abstract class moodleform_mod extends moodleform {
 
         if ($this->_features->hasgrades) {
             if ($this->_features->gradecat) {
-                $mform->addElement('header', 'modstandardgrade', get_string('grade'));
+                $mform->addElement('header', 'modstandardgrade', get_string('gradenoun'));
             }
 
             //if supports grades and grades arent being handled via ratings
@@ -1011,7 +1027,7 @@ abstract class moodleform_mod extends moodleform {
                     $gradeoptions['hasgrades'] = $gradeitem->has_grades();
                 }
             }
-            $mform->addElement('modgrade', $gradefieldname, get_string('grade'), $gradeoptions);
+            $mform->addElement('modgrade', $gradefieldname, get_string('gradenoun'), $gradeoptions);
             $mform->addHelpButton($gradefieldname, 'modgrade', 'grades');
             $mform->setDefault($gradefieldname, $CFG->gradepointdefault);
 
@@ -1052,10 +1068,9 @@ abstract class moodleform_mod extends moodleform {
             }
 
             // Grade to pass.
-            $mform->addElement('text', $gradepassfieldname, get_string($gradepassfieldname, 'grades'));
+            $mform->addElement('float', $gradepassfieldname, get_string($gradepassfieldname, 'grades'));
             $mform->addHelpButton($gradepassfieldname, $gradepassfieldname, 'grades');
             $mform->setDefault($gradepassfieldname, '');
-            $mform->setType($gradepassfieldname, PARAM_RAW);
             $mform->hideIf($gradepassfieldname, "{$gradefieldname}[modgrade_type]", 'eq', 'none');
         }
     }
@@ -1269,6 +1284,11 @@ abstract class moodleform_mod extends moodleform {
             // they can be added to the DB.
             if (isset($data->gradepass)) {
                 $data->gradepass = unformat_float($data->gradepass);
+            }
+
+            // Trim name for all activity name.
+            if (isset($data->name)) {
+                $data->name = trim($data->name);
             }
 
             $this->data_postprocessing($data);

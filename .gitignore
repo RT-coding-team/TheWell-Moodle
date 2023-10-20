@@ -54,3 +54,5 @@ moodle-plugin-ci.phar
 node_modules/
 .env
 config.php
+phpcs.xml
+jsconfig.json

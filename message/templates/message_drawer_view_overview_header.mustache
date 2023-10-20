@@ -33,7 +33,7 @@
     {}
 
 }}
-<div class="border-bottom  p-1 px-sm-2 py-sm-3" aria-hidden="false" {{^isdrawer}}data-in-panel="true"{{/isdrawer}} data-region="view-overview">
+<div class="border-bottom p-1 px-sm-2" aria-hidden="false" {{^isdrawer}}data-in-panel="true"{{/isdrawer}} data-region="view-overview">
     <div class="d-flex align-items-center">
         <div class="input-group simplesearchform">
             <input
@@ -49,6 +49,7 @@
                 </span>
             </div>
         </div>
+        {{#caneditownmessageprofile}}
         <div class="ml-2">
             <a
                 href="#"
@@ -60,6 +61,7 @@
                 {{#pix}} t/edit, core {{/pix}}
             </a>
         </div>
+        {{/caneditownmessageprofile}}
     </div>
     <div class="text-right mt-sm-3">
         <a href="#" data-route="view-contacts" role="button">

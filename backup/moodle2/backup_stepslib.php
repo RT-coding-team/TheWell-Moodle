@@ -44,11 +44,9 @@ class create_and_clean_temp_stuff extends backup_execution_step {
 }
 
 /**
- * Delete the temp dir used by backup/restore (conditionally),
- * delete old directories and drop temp ids table. Note we delete
- * the directory but not the corresponding log file that will be
- * there for, at least, 1 week - only delete_old_backup_dirs() or cron
- * deletes log files (for easier access to them).
+ * Delete the temp dir used by backup/restore (conditionally) and drop temp ids table.
+ * Note we delete the directory but not the corresponding log file that will be
+ * there until cron cleans it up.
  */
 class drop_and_clean_temp_stuff extends backup_execution_step {
 
@@ -58,7 +56,6 @@ class drop_and_clean_temp_stuff extends backup_execution_step {
         global $CFG;
 
         backup_controller_dbops::drop_backup_ids_temp_table($this->get_backupid()); // Drop ids temp table
-        backup_helper::delete_old_backup_dirs(strtotime('-1 week'));                // Delete > 1 week old temp dirs.
         // Delete temp dir conditionally:
         // 1) If $CFG->keeptempdirectoriesonbackup is not enabled
         // 2) If backup temp dir deletion has been marked to be avoided
@@ -394,6 +391,8 @@ class backup_course_structure_step extends backup_structure_step {
             'defaultgroupingid', 'lang', 'theme',
             'timecreated', 'timemodified',
             'requested',
+            'showactivitydates',
+            'showcompletionconditions',
             'enablecompletion', 'completionstartonenrol', 'completionnotify'));
 
         $category = new backup_nested_element('category', array('id'), array(
@@ -408,6 +407,11 @@ class backup_course_structure_step extends backup_structure_step {
         $customfield = new backup_nested_element('customfield', array('id'), array(
           'shortname', 'type', 'value', 'valueformat'
         ));
+
+        $courseformatoptions = new backup_nested_element('courseformatoptions');
+        $courseformatoption = new backup_nested_element('courseformatoption', [], [
+            'courseid', 'format', 'sectionid', 'name', 'value'
+        ]);
 
         // attach format plugin structure to $course element, only one allowed
         $this->add_plugin_structure('format', $course, false);
@@ -446,16 +450,13 @@ class backup_course_structure_step extends backup_structure_step {
         $course->add_child($customfields);
         $customfields->add_child($customfield);
 
+        $course->add_child($courseformatoptions);
+        $courseformatoptions->add_child($courseformatoption);
+
         // Set the sources
 
         $courserec = $DB->get_record('course', array('id' => $this->task->get_courseid()));
         $courserec->contextid = $this->task->get_contextid();
-
-        $formatoptions = course_get_format($courserec)->get_format_options();
-        $course->add_final_elements(array_keys($formatoptions));
-        foreach ($formatoptions as $key => $value) {
-            $courserec->$key = $value;
-        }
 
         // Add 'numsections' in order to be able to restore in previous versions of Moodle.
         // Even though Moodle does not officially support restore into older verions of Moodle from the
@@ -477,6 +478,10 @@ class backup_course_structure_step extends backup_structure_step {
                                  AND ti.itemid = ?', array(
                                      backup_helper::is_sqlparam('course'),
                                      backup::VAR_PARENTID));
+
+        $courseformatoption->set_source_sql('SELECT id, format, sectionid, name, value
+                                 FROM {course_format_options}
+                                 WHERE courseid = ?', [ backup::VAR_PARENTID ]);
 
         $handler = core_course\customfield\course_handler::create();
         $fieldsforbackup = $handler->get_instance_data_for_backup($this->task->get_courseid());
@@ -1261,7 +1266,7 @@ class backup_groups_structure_step extends backup_structure_step {
 
         $group = new backup_nested_element('group', array('id'), array(
             'name', 'idnumber', 'description', 'descriptionformat', 'enrolmentkey',
-            'picture', 'hidepicture', 'timecreated', 'timemodified'));
+            'picture', 'timecreated', 'timemodified'));
 
         $members = new backup_nested_element('group_members');
 
@@ -1364,12 +1369,11 @@ class backup_users_structure_step extends backup_structure_step {
 
         // Then, the fields potentially needing anonymization
         $anonfields = array(
-            'username', 'idnumber', 'email', 'icq', 'skype',
-            'yahoo', 'aim', 'msn', 'phone1',
+            'username', 'idnumber', 'email', 'phone1',
             'phone2', 'institution', 'department', 'address',
             'city', 'country', 'lastip', 'picture',
-            'url', 'description', 'descriptionformat', 'imagealt', 'auth');
-        $anonfields = array_merge($anonfields, get_all_user_name_fields());
+            'description', 'descriptionformat', 'imagealt', 'auth');
+        $anonfields = array_merge($anonfields, \core_user\fields::get_name_fields());
 
         // Add anonymized fields to $userfields with custom final element
         foreach ($anonfields as $field) {
@@ -1640,6 +1644,55 @@ class backup_course_logstores_structure_step extends backup_structure_step {
         $this->add_subplugin_structure('logstore', $logstore, true, 'tool', 'log');
 
         return $logstores;
+    }
+}
+
+/**
+ * Structure step in charge of constructing the loglastaccess.xml file for the course logs.
+ *
+ * This backup step will backup the logs of the user_lastaccess table.
+ */
+class backup_course_loglastaccess_structure_step extends backup_structure_step {
+
+    /**
+     *  This function creates the structures for the loglastaccess.xml file.
+     *  Expected structure would look like this.
+     *  <loglastaccesses>
+     *      <loglastaccess id=2>
+     *          <userid>5</userid>
+     *          <timeaccess>1616887341</timeaccess>
+     *      </loglastaccess>
+     *  </loglastaccesses>
+     *
+     * @return backup_nested_element
+     */
+    protected function define_structure() {
+
+        // To know if we are including userinfo.
+        $userinfo = $this->get_setting_value('users');
+
+        // Define the structure of logstores container.
+        $lastaccesses = new backup_nested_element('lastaccesses');
+        $lastaccess = new backup_nested_element('lastaccess', array('id'), array('userid', 'timeaccess'));
+
+        // Define build tree.
+        $lastaccesses->add_child($lastaccess);
+
+        // This element should only happen if we are including user info.
+        if ($userinfo) {
+            // Define sources.
+            $lastaccess->set_source_sql('
+                SELECT id, userid, timeaccess
+                  FROM {user_lastaccess}
+                 WHERE courseid = ?',
+                array(backup::VAR_COURSEID));
+
+            // Define userid annotation to user.
+            $lastaccess->annotate_ids('user', 'userid');
+        }
+
+        // Return the root element (lastaccessess).
+        return $lastaccesses;
     }
 }
 

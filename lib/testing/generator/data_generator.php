@@ -87,10 +87,18 @@ EOD;
      * @return void
      */
     public function reset() {
+        $this->gradecategorycounter = 0;
+        $this->gradeitemcounter = 0;
+        $this->gradeoutcomecounter = 0;
         $this->usercounter = 0;
         $this->categorycount = 0;
+        $this->cohortcount = 0;
         $this->coursecount = 0;
         $this->scalecount = 0;
+        $this->groupcount = 0;
+        $this->groupingcount = 0;
+        $this->rolecount = 0;
+        $this->tagcount = 0;
 
         foreach ($this->generators as $generator) {
             $generator->reset();
@@ -781,7 +789,20 @@ EOD;
         // If no archetype was specified we allow it to be added to all contexts,
         // otherwise we allow it in the archetype contexts.
         if (!$record['archetype']) {
-            $contextlevels = array_keys(context_helper::get_all_levels());
+            $contextlevels = [];
+            $usefallback = true;
+            foreach (context_helper::get_all_levels() as $level => $title) {
+                if (array_key_exists($title, $record)) {
+                    $usefallback = false;
+                    if (!empty($record[$title])) {
+                        $contextlevels[] = $level;
+                    }
+                }
+            }
+
+            if ($usefallback) {
+                $contextlevels = array_keys(context_helper::get_all_levels());
+            }
         } else {
             // Copying from the archetype default rol.
             $archetyperoleid = $DB->get_field(
@@ -794,7 +815,6 @@ EOD;
         set_role_contextlevels($newroleid, $contextlevels);
 
         if ($record['archetype']) {
-
             // We copy all the roles the archetype can assign, override, switch to and view.
             if ($record['archetype']) {
                 $types = array('assign', 'override', 'switch', 'view');
@@ -812,7 +832,74 @@ EOD;
             role_cap_duplicate($sourcerole, $newroleid);
         }
 
+        $allcapabilities = get_all_capabilities();
+        $foundcapabilities = array_intersect(array_keys($allcapabilities), array_keys($record));
+        $systemcontext = \context_system::instance();
+
+        $allpermissions = [
+            'inherit' => CAP_INHERIT,
+            'allow' => CAP_ALLOW,
+            'prevent' => CAP_PREVENT,
+            'prohibit' => CAP_PROHIBIT,
+        ];
+
+        foreach ($foundcapabilities as $capability) {
+            $permission = $record[$capability];
+            if (!array_key_exists($permission, $allpermissions)) {
+                throw new \coding_exception("Unknown capability permissions '{$permission}'");
+            }
+            assign_capability(
+                $capability,
+                $allpermissions[$permission],
+                $newroleid,
+                $systemcontext->id,
+                true
+            );
+        }
+
         return $newroleid;
+    }
+
+    /**
+     * Set role capabilities for the specified role.
+     *
+     * @param int $roleid The Role to set capabilities for
+     * @param array $rolecapabilities The list of capability =>permission to set for this role
+     * @param null|context $context The context to apply this capability to
+     */
+    public function create_role_capability(int $roleid, array $rolecapabilities, context $context = null): void {
+        // Map the capabilities into human-readable names.
+        $allpermissions = [
+            'inherit' => CAP_INHERIT,
+            'allow' => CAP_ALLOW,
+            'prevent' => CAP_PREVENT,
+            'prohibit' => CAP_PROHIBIT,
+        ];
+
+        // Fetch all capabilities to check that they exist.
+        $allcapabilities = get_all_capabilities();
+        foreach ($rolecapabilities as $capability => $permission) {
+            if ($permission === '') {
+                // Allow items to be skipped.
+                continue;
+            }
+
+            if (!array_key_exists($capability, $allcapabilities)) {
+                throw new \coding_exception("Unknown capability '{$capability}'");
+            }
+
+            if (!array_key_exists($permission, $allpermissions)) {
+                throw new \coding_exception("Unknown capability permissions '{$permission}'");
+            }
+
+            assign_capability(
+                $capability,
+                $allpermissions[$permission],
+                $roleid,
+                $context->id,
+                true
+            );
+        }
     }
 
     /**
@@ -1003,6 +1090,57 @@ EOD;
     }
 
     /**
+     * Create a grade_grade.
+     *
+     * @param array $record
+     * @return grade_grade the grade record
+     */
+    public function create_grade_grade(?array $record = null): grade_grade {
+        global $DB, $USER;
+
+        $item = $DB->get_record('grade_items', ['id' => $record['itemid']]);
+        $userid = $record['userid'] ?? $USER->id;
+
+        unset($record['itemid']);
+        unset($record['userid']);
+
+        if ($item->itemtype === 'mod') {
+            $cm = get_coursemodule_from_instance($item->itemmodule, $item->iteminstance);
+            $module = new $item->itemmodule(context_module::instance($cm->id), $cm, false);
+            $record['attemptnumber'] = $record['attemptnumber'] ?? 0;
+
+            $module->save_grade($userid, (object) $record);
+
+            $grade = grade_grade::fetch(['userid' => $userid, 'itemid' => $item->id]);
+        } else {
+            $grade = grade_grade::fetch(['userid' => $userid, 'itemid' => $item->id]);
+            $record['rawgrade'] = $record['rawgrade'] ?? $record['grade'] ?? null;
+            $record['finalgrade'] = $record['finalgrade'] ?? $record['grade'] ?? null;
+
+            unset($record['grade']);
+
+            if ($grade) {
+                $fields = $grade->required_fields + array_keys($grade->optional_fields);
+
+                foreach ($fields as $field) {
+                    $grade->{$field} = $record[$field] ?? $grade->{$field};
+                }
+
+                $grade->update();
+            } else {
+                $record['userid'] = $userid;
+                $record['itemid'] = $item->id;
+
+                $grade = new grade_grade($record, false);
+
+                $grade->insert();
+            }
+        }
+
+        return $grade;
+    }
+
+    /**
      * Create a grade_item.
      *
      * @param array|stdClass $record
@@ -1188,6 +1326,128 @@ EOD;
             unset($data['category']);
         }
         return $this->get_plugin_generator('core_customfield')->create_field($data);
+    }
+
+    /**
+     * Create a new category for custom profile fields.
+     *
+     * @param array $data Array with 'name' and optionally 'sortorder'
+     * @return \stdClass New category object
+     */
+    public function create_custom_profile_field_category(array $data): \stdClass {
+        global $DB;
+
+        // Pick next sortorder if not defined.
+        if (!array_key_exists('sortorder', $data)) {
+            $data['sortorder'] = (int)$DB->get_field_sql('SELECT MAX(sortorder) FROM {user_info_category}') + 1;
+        }
+
+        $category = (object)[
+            'name' => $data['name'],
+            'sortorder' => $data['sortorder']
+        ];
+        $category->id = $DB->insert_record('user_info_category', $category);
+
+        return $category;
+    }
+
+    /**
+     * Creates a new custom profile field.
+     *
+     * Optional fields are:
+     *
+     * categoryid (or use 'category' to specify by name). If you don't specify
+     * either, it will add the field to a 'Testing' category, which will be created for you if
+     * necessary.
+     *
+     * sortorder (if you don't specify this, it will pick the next one in the category).
+     *
+     * all the other database fields (if you don't specify this, it will pick sensible defaults
+     * based on the data type).
+     *
+     * @param array $data Array with 'datatype', 'shortname', and 'name'
+     * @return \stdClass Database object from the user_info_field table
+     */
+    public function create_custom_profile_field(array $data): \stdClass {
+        global $DB, $CFG;
+        require_once($CFG->dirroot . '/user/profile/lib.php');
+
+        // Set up category if necessary.
+        if (!array_key_exists('categoryid', $data)) {
+            if (array_key_exists('category', $data)) {
+                $data['categoryid'] = $DB->get_field('user_info_category', 'id',
+                        ['name' => $data['category']], MUST_EXIST);
+            } else {
+                // Make up a 'Testing' category or use existing.
+                $data['categoryid'] = $DB->get_field('user_info_category', 'id', ['name' => 'Testing']);
+                if (!$data['categoryid']) {
+                    $created = $this->create_custom_profile_field_category(['name' => 'Testing']);
+                    $data['categoryid'] = $created->id;
+                }
+            }
+        }
+
+        // Pick sort order if necessary.
+        if (!array_key_exists('sortorder', $data)) {
+            $data['sortorder'] = (int)$DB->get_field_sql(
+                    'SELECT MAX(sortorder) FROM {user_info_field} WHERE categoryid = ?',
+                    [$data['categoryid']]) + 1;
+        }
+
+        if ($data['datatype'] === 'menu' && isset($data['param1'])) {
+            // Convert new lines to the proper character.
+            $data['param1'] = str_replace('\n', "\n", $data['param1']);
+        }
+
+        // Defaults for other values.
+        $defaults = [
+            'description' => '',
+            'descriptionformat' => 0,
+            'required' => 0,
+            'locked' => 0,
+            'visible' => PROFILE_VISIBLE_ALL,
+            'forceunique' => 0,
+            'signup' => 0,
+            'defaultdata' => '',
+            'defaultdataformat' => 0,
+            'param1' => '',
+            'param2' => '',
+            'param3' => '',
+            'param4' => '',
+            'param5' => ''
+        ];
+
+        // Type-specific defaults for other values.
+        $typedefaults = [
+            'text' => [
+                'param1' => 30,
+                'param2' => 2048
+            ],
+            'menu' => [
+                'param1' => "Yes\nNo",
+                'defaultdata' => 'No'
+            ],
+            'datetime' => [
+                'param1' => '2010',
+                'param2' => '2015',
+                'param3' => 1
+            ],
+            'checkbox' => [
+                'defaultdata' => 0
+            ]
+        ];
+        foreach ($typedefaults[$data['datatype']] ?? [] as $field => $value) {
+            $defaults[$field] = $value;
+        }
+
+        foreach ($defaults as $field => $value) {
+            if (!array_key_exists($field, $data)) {
+                $data[$field] = $value;
+            }
+        }
+
+        $data['id'] = $DB->insert_record('user_info_field', $data);
+        return (object)$data;
     }
 
     /**

@@ -242,8 +242,8 @@ $tasks = array(
     array(
         'classname' => 'core\task\check_for_updates_task',
         'blocking' => 0,
-        'minute' => '0',
-        'hour' => '*/2',
+        'minute' => 'R',
+        'hour' => 'R',
         'day' => '*',
         'dayofweek' => '*',
         'month' => '*'
@@ -398,6 +398,15 @@ $tasks = array(
         'minute' => 'R',
         'hour' => 'R',
         'day' => '1',
+        'dayofweek' => '*',
+        'month' => '*'
+    ),
+    array(
+        'classname' => 'core\task\h5p_clean_orphaned_records_task',
+        'blocking' => 0,
+        'minute' => 'R',
+        'hour' => '0',
+        'day' => '*',
         'dayofweek' => '*',
         'month' => '*'
     ),

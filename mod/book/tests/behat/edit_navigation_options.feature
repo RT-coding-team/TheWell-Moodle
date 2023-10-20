@@ -15,20 +15,17 @@ Feature: In a book, change the navigation options
       | user | course | role |
       | teacher1 | C1 | editingteacher |
     And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
 
   Scenario: Change navigation options
-    Given I add a "Book" to section "1" and I fill the form with:
-      | Name | Test book |
-      | Description | A book about lorem ipsum |
-      | Style of navigation | TOC Only         |
+    Given the following "activities" exist:
+      | activity | name      | course | idnumber | navstyle |
+      | book     | Test book | C1     | book1    | 0        |
+    And the following "mod_book > chapter" exists:
+      | book    | Test book                  |
+      | title   | Test chapter 1             |
+      | content | Lorem ipsum dolor sit amet |
+    And I am on "Course 1" course homepage with editing mode on
     And I follow "Test book"
-    And I should see "Add new chapter"
-    And I set the following fields to these values:
-      | Chapter title | Test chapter 1 |
-      | Content | Lorem ipsum dolor sit amet |
-    And I press "Save changes"
-    And I should see "Test book"
     And I should see "1. Test chapter 1"
     And I click on "Add new chapter" "link" in the "Table of contents" "block"
     And I set the following fields to these values:

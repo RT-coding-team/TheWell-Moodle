@@ -419,10 +419,9 @@ function default_exception_handler($ex) {
  * @param string $errstr
  * @param string $errfile
  * @param int $errline
- * @param array $errcontext
  * @return bool false means use default error handler
  */
-function default_error_handler($errno, $errstr, $errfile, $errline, $errcontext) {
+function default_error_handler($errno, $errstr, $errfile, $errline) {
     if ($errno == 4096) {
         //fatal catchable error
         throw new coding_exception('PHP catchable fatal error', $errstr);
@@ -589,12 +588,7 @@ function get_exception_info($ex) {
     $moreinfourl = $errordoclink . 'error/' . $modulelink . '/' . $errorcode;
 
     if (empty($link)) {
-        if (!empty($SESSION->fromurl)) {
-            $link = $SESSION->fromurl;
-            unset($SESSION->fromurl);
-        } else {
-            $link = $CFG->wwwroot .'/';
-        }
+        $link = get_local_referer(false) ?: ($CFG->wwwroot . '/');
     }
 
     // When printing an error the continue button should never link offsite.
@@ -732,18 +726,23 @@ function format_backtrace($callers, $plaintext = false) {
         if (!isset($caller['file'])) {
             $caller['file'] = 'unknownfile'; // probably call_user_func()
         }
-        $from .= $plaintext ? '* ' : '<li>';
-        $from .= 'line ' . $caller['line'] . ' of ' . str_replace($dirroot, '', $caller['file']);
+        $line = $plaintext ? '* ' : '<li>';
+        $line .= 'line ' . $caller['line'] . ' of ' . str_replace($dirroot, '', $caller['file']);
         if (isset($caller['function'])) {
-            $from .= ': call to ';
+            $line .= ': call to ';
             if (isset($caller['class'])) {
-                $from .= $caller['class'] . $caller['type'];
+                $line .= $caller['class'] . $caller['type'];
             }
-            $from .= $caller['function'] . '()';
+            $line .= $caller['function'] . '()';
         } else if (isset($caller['exception'])) {
-            $from .= ': '.$caller['exception'].' thrown';
+            $line .= ': '.$caller['exception'].' thrown';
         }
-        $from .= $plaintext ? "\n" : '</li>';
+
+        // Remove any non printable chars.
+        $line = preg_replace('/[[:^print:]]/', '', $line);
+
+        $line .= $plaintext ? "\n" : '</li>';
+        $from .= $line;
     }
     $from .= $plaintext ? '' : '</ul>';
 
@@ -952,7 +951,7 @@ function setup_get_remote_url() {
     } else {
         $rurl['host'] = null;
     }
-    $rurl['port'] = $_SERVER['SERVER_PORT'];
+    $rurl['port'] = (int)$_SERVER['SERVER_PORT'];
     $rurl['path'] = $_SERVER['SCRIPT_NAME']; // Script path without slash arguments
     //$rurl['scheme'] = (empty($_SERVER['HTTPS']) or $_SERVER['HTTPS'] === 'off' or $_SERVER['HTTPS'] === 'Off' or $_SERVER['HTTPS'] === 'OFF') ? 'http' : 'https';
     //@link https://stackoverflow.com/a/47025598
@@ -2051,7 +2050,7 @@ class bootstrap_renderer {
         // In the name of protocol correctness, monitoring and performance
         // profiling, set the appropriate error headers for machine consumption.
         $protocol = (isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0');
-        @header($protocol . ' 503 Service Unavailable');
+        @header($protocol . ' 500 Internal Server Error');
 
         // better disable any caching
         @header('Content-Type: text/html; charset=utf-8');

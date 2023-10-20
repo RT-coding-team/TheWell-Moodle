@@ -32,10 +32,7 @@ Feature: Editing a grade item
     And I press "Save changes"
     And I set the following administration settings values:
       | grade_aggregations_visible | Mean of grades,Weighted mean of grades,Simple weighted mean of grades,Mean of grades (with extra credits),Median of grades,Lowest grade,Highest grade,Mode of grades,Natural |
-    And I log out
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I navigate to "Setup > Gradebook setup" in the course gradebook
+    And I am on the "Course 1" "grades > gradebook setup" page logged in as teacher1
     And I press "Add category"
     And I set the following fields to these values:
       | Category name | <span lang="en" class="multilang">EN</span><span lang="fr" class="multilang">FR</span> Cat 1 |
@@ -101,3 +98,21 @@ Feature: Editing a grade item
     And I set the field "Maximum grade" to "50"
     When I press "Save changes"
     Then I should see "You must choose whether to rescale existing grades or not."
+
+  Scenario: Perform changes to a grade category with custom decimal separator
+    Given the following "language customisations" exist:
+      | component       | stringid | value |
+      | core_langconfig | decsep   | #     |
+    And I navigate to "View > Grader report" in the course gradebook
+    And I turn editing mode on
+    And I give the grade "20#00" to the user "Student 1" for the grade item "EN Cat 1 total"
+    And I press "Save changes"
+    And I navigate to "Setup > Gradebook setup" in the course gradebook
+    And I click on "Edit settings" "link" in the "EN Cat 1" "table_row"
+    And I set the field "Rescale overridden grades" to "Yes"
+    And I set the field "Maximum grade" to "87#50"
+    When I press "Save changes"
+    And I navigate to "View > Grader report" in the course gradebook
+    And I follow "Single view for Student 1"
+    Then I should see "Student 1"
+    And the field "Grade for Category total" matches value "17#50"

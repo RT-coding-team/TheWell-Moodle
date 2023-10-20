@@ -156,6 +156,11 @@ if (!empty($CFG->enablerssfeeds) && !empty($CFG->forum_enablerssfeeds) && $forum
 echo $OUTPUT->header();
 echo $OUTPUT->heading(format_string($forum->get_name()), 2);
 
+// Render the activity information.
+$completiondetails = \core_completion\cm_completion_details::get_instance($cm, $USER->id);
+$activitydates = \core\activity_dates::get_dates_for_module($cm, $USER->id);
+echo $OUTPUT->activity_information($cm, $completiondetails, $activitydates);
+
 if (!$istypesingle && !empty($forum->get_intro())) {
     echo $OUTPUT->box(format_module_intro('forum', $forumrecord, $cm->id), 'generalbox', 'intro');
 }
@@ -187,6 +192,7 @@ switch ($forum->get_type()) {
                     'gradingcomponent' => $forumgradeitem->get_grading_component_name(),
                     'gradingcomponentsubtype' => $forumgradeitem->get_grading_component_subtype(),
                     'sendstudentnotifications' => $forum->should_notify_students_default_when_grade_for_forum(),
+                    'gradeonlyactiveusers' => $forumgradeitem->should_grade_only_active_users(),
                 ];
                 echo $OUTPUT->render_from_template('mod_forum/grades/grade_button', $gradeobj);
             }

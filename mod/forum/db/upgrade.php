@@ -47,9 +47,6 @@ function xmldb_forum_upgrade($oldversion) {
 
     $dbman = $DB->get_manager(); // Loads ddl manager and xmldb classes.
 
-    // Automatically generated Moodle v3.5.0 release upgrade line.
-    // Put any upgrade step following this.
-
     // Automatically generated Moodle v3.6.0 release upgrade line.
     // Put any upgrade step following this.
 
@@ -261,7 +258,10 @@ function xmldb_forum_upgrade($oldversion) {
     // Automatically generated Moodle v3.10.0 release upgrade line.
     // Put any upgrade step following this.
 
-    if ($oldversion < 2020110901) {
+    // Automatically generated Moodle v3.11.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2021051701) {
         // Add custom data to digest tasks to stop duplicates being created after this patch.
         $timenow = time();
 
@@ -287,7 +287,7 @@ function xmldb_forum_upgrade($oldversion) {
 
         $DB->set_field_select('task_adhoc', 'customdata', $customdata, $sql, $params);
 
-        upgrade_mod_savepoint(true, 2020110901, 'forum');
+        upgrade_mod_savepoint(true, 2021051701, 'forum');
     }
 
     return true;

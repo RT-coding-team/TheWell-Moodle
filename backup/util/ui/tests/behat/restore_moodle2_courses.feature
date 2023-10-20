@@ -12,15 +12,16 @@ Feature: Restore Moodle 2 course backups
       | Course 3 | C3 | 0 | topics | 2 | 0 |
       | Course 4 | C4 | 0 | topics | 20 | 0 |
     And the following "activities" exist:
-      | activity | course | idnumber | name | intro | section |
-      | assign | C3 | assign1 | Test assign name | Assign description | 1 |
-      | data | C3 | data1 | Test database name | Database description | 2 |
+      | activity | course | idnumber | name               | intro                  | section | externalurl           |
+      | assign   | C3     | assign1  | Test assign name   | Assign description     | 1       |                       |
+      | data     | C3     | data1    | Test database name | Database description   | 2       |                       |
+      | forum    | C1     | 0001     | Test forum name    |                        | 1       |                       |
+      | url      | C1     | url1     | Test URL name      | Test URL description   | 3       | http://www.moodle.org |
+    And the following "blocks" exist:
+      | blockname        | contextlevel | reference | pagetypepattern | defaultregion |
+      | activity_modules | Course       | C1        | course-view-*   | side-pre      |
     And I log in as "admin"
     And I am on "Course 1" course homepage with editing mode on
-    And I add a "Forum" to section "1" and I fill the form with:
-      | Forum name | Test forum name |
-      | Description | Test forum description |
-    And I add the "Activities" block
 
   @javascript
   Scenario: Restore a course in another existing course
@@ -62,10 +63,12 @@ Feature: Restore Moodle 2 course backups
   Scenario: Restore a backup into the same course removing it's contents before that
     When I backup "Course 1" course using this options:
       | Confirmation | Filename | test_backup.mbz |
+    And the following "activity" exists:
+      | activity | forum                              |
+      | course   | C1                                 |
+      | section  | 1                                  |
+      | name     | Test forum post backup name        |
     And I am on "Course 1" course homepage
-    And I add a "Forum" to section "1" and I fill the form with:
-      | Forum name | Test forum post backup name |
-      | Description | Test forum post backup description |
     And I navigate to "Restore" in current page administration
     And I merge "test_backup.mbz" backup into the current course after deleting it's contents using this options:
       | Schema | Section 3 | 0 |
@@ -108,11 +111,7 @@ Feature: Restore Moodle 2 course backups
 
   @javascript
   Scenario: Restore a backup in an existing course retaining the backup course settings
-    Given I add a "URL" to section "3" and I fill the form with:
-      | Name | Test URL name |
-      | Description | Test URL description |
-      | id_externalurl | http://www.moodle.org |
-    And I hide section "3"
+    Given I hide section "3"
     And I hide section "7"
     When I backup "Course 1" course using this options:
       | Confirmation | Filename | test_backup.mbz |
@@ -134,11 +133,7 @@ Feature: Restore Moodle 2 course backups
 
   @javascript
   Scenario: Restore a backup in an existing course keeping the target course settings
-    Given I add a "URL" to section "3" and I fill the form with:
-      | Name | Test URL name |
-      | Description | Test URL description |
-      | id_externalurl | http://www.moodle.org |
-    And I hide section "3"
+    Given I hide section "3"
     And I hide section "7"
     When I backup "Course 1" course using this options:
       | Confirmation | Filename | test_backup.mbz |
@@ -160,11 +155,7 @@ Feature: Restore Moodle 2 course backups
 
   @javascript
   Scenario: Restore a backup in an existing course deleting contents and retaining the backup course settings
-    Given I add a "URL" to section "3" and I fill the form with:
-      | Name | Test URL name |
-      | Description | Test URL description |
-      | id_externalurl | http://www.moodle.org |
-    And I hide section "3"
+    Given I hide section "3"
     And I hide section "7"
     When I backup "Course 1" course using this options:
       | Initial |  Include enrolled users | 0 |
@@ -189,11 +180,7 @@ Feature: Restore Moodle 2 course backups
 
   @javascript
   Scenario: Restore a backup in an existing course deleting contents and keeping the current course settings
-    Given I add a "URL" to section "3" and I fill the form with:
-      | Name | Test URL name |
-      | Description | Test URL description |
-      | id_externalurl | http://www.moodle.org |
-    And I hide section "3"
+    Given I hide section "3"
     And I hide section "7"
     When I backup "Course 1" course using this options:
       | Initial |  Include enrolled users | 0 |
@@ -218,11 +205,7 @@ Feature: Restore Moodle 2 course backups
 
   @javascript
   Scenario: Restore a backup in an existing course deleting contents decreasing the number of sections
-    Given I add a "URL" to section "3" and I fill the form with:
-      | Name | Test URL name |
-      | Description | Test URL description |
-      | id_externalurl | http://www.moodle.org |
-    And I hide section "3"
+    Given I hide section "3"
     And I hide section "7"
     When I backup "Course 1" course using this options:
       | Initial |  Include enrolled users | 0 |
@@ -244,3 +227,29 @@ Feature: Restore Moodle 2 course backups
     And I should not see "Topic 16"
     And I should see "Test URL name" in the "Topic 3" "section"
     And I should see "Test forum name" in the "Topic 1" "section"
+
+  @javascript
+  Scenario: Restore a backup with override permission
+    Given the following "permission overrides" exist:
+      | capability         | permission | role           | contextlevel | reference |
+      | enrol/manual:enrol | Allow      | teacher        | Course       | C1        |
+    And I backup "Course 1" course using this options:
+      | Confirmation | Filename | test_backup.mbz |
+    When I restore "test_backup.mbz" backup into a new course using this options:
+      | Settings | Include permission overrides | 1 |
+    Then I navigate to "Users > Permissions" in current page administration
+    And I should see "Non-editing teacher (1)"
+    And I set the field "Advanced role override" to "Non-editing teacher (1)"
+    And "enrol/manual:enrol" capability has "Allow" permission
+
+  @javascript
+  Scenario: Restore a backup without override permission
+    Given the following "permission overrides" exist:
+      | capability         | permission | role           | contextlevel | reference |
+      | enrol/manual:enrol | Allow      | teacher        | Course       | C1        |
+    And I backup "Course 1" course using this options:
+      | Confirmation | Filename | test_backup.mbz |
+    When I restore "test_backup.mbz" backup into a new course using this options:
+      | Settings | Include permission overrides | 0 |
+    Then I navigate to "Users > Permissions" in current page administration
+    And I should see "Non-editing teacher (0)"

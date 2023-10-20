@@ -293,7 +293,8 @@ class grade_report_grader extends grade_report {
                         }
 
                         if ($errorstr) {
-                            $userfields = 'id, ' . get_all_user_name_fields(true);
+                            $userfieldsapi = \core_user\fields::for_name();
+                            $userfields = 'id, ' . $userfieldsapi->get_sql('', false, '', '', false)->selects;
                             $user = $DB->get_record('user', array('id' => $userid), $userfields);
                             $gradestr = new stdClass();
                             $gradestr->username = fullname($user, $viewfullnames);
@@ -437,7 +438,9 @@ class grade_report_grader extends grade_report {
         list($enrolledsql, $enrolledparams) = get_enrolled_sql($this->context, '', 0, $showonlyactiveenrol);
 
         // Fields we need from the user table.
-        $userfields = user_picture::fields('u', get_extra_user_fields($this->context));
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $userfieldsapi = \core_user\fields::for_identity($this->context, false)->with_userpic();
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
 
         // We want to query both the current context and parent contexts.
         list($relatedctxsql, $relatedctxparams) = $DB->get_in_or_equal($this->context->get_parent_context_ids(true), SQL_PARAMS_NAMED, 'relatedctx');
@@ -655,9 +658,9 @@ class grade_report_grader extends grade_report {
         $viewfullnames = has_capability('moodle/site:viewfullnames', $this->context);
 
         $strfeedback  = $this->get_lang_string("feedback");
-        $strgrade     = $this->get_lang_string('grade');
 
-        $extrafields = get_extra_user_fields($this->context);
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $extrafields = \core_user\fields::get_identity_fields($this->context, false);
 
         $arrows = $this->get_sort_arrows($extrafields);
 
@@ -816,7 +819,7 @@ class grade_report_grader extends grade_report {
         $numusers = count($this->users);
         $gradetabindex = 1;
         $columnstounset = array();
-        $strgrade = $this->get_lang_string('grade');
+        $strgrade = $this->get_lang_string('gradenoun');
         $strfeedback  = $this->get_lang_string("feedback");
         $arrows = $this->get_sort_arrows();
 
@@ -1779,9 +1782,10 @@ class grade_report_grader extends grade_report {
      */
     protected static function filter_collapsed_categories($courseid, $collapsed) {
         global $DB;
-        if (empty($collapsed)) {
-            $collapsed = array('aggregatesonly' => array(), 'gradesonly' => array());
-        }
+        // Ensure we always have an element for aggregatesonly and another for gradesonly, no matter it's empty.
+        $collapsed['aggregatesonly'] = $collapsed['aggregatesonly'] ?? [];
+        $collapsed['gradesonly'] = $collapsed['gradesonly'] ?? [];
+
         if (empty($collapsed['aggregatesonly']) && empty($collapsed['gradesonly'])) {
             return $collapsed;
         }
@@ -1802,12 +1806,23 @@ class grade_report_grader extends grade_report {
      */
     protected static function get_collapsed_preferences($courseid) {
         if ($collapsed = get_user_preferences('grade_report_grader_collapsed_categories'.$courseid)) {
-            return json_decode($collapsed, true);
+            $collapsed = json_decode($collapsed, true);
+            // Ensure we always have an element for aggregatesonly and another for gradesonly, no matter it's empty.
+            $collapsed['aggregatesonly'] = $collapsed['aggregatesonly'] ?? [];
+            $collapsed['gradesonly'] = $collapsed['gradesonly'] ?? [];
+            return $collapsed;
         }
 
         // Try looking for old location of user setting that used to store all courses in one serialized user preference.
+        $collapsed = ['aggregatesonly' => [], 'gradesonly' => []]; // Use this if old settings are not found.
+        $collapsedall = [];
+        $oldprefexists = false;
         if (($oldcollapsedpref = get_user_preferences('grade_report_grader_collapsed_categories')) !== null) {
+            $oldprefexists = true;
             if ($collapsedall = unserialize_array($oldcollapsedpref)) {
+                // Ensure we always have an element for aggregatesonly and another for gradesonly, no matter it's empty.
+                $collapsedall['aggregatesonly'] = $collapsedall['aggregatesonly'] ?? [];
+                $collapsedall['gradesonly'] = $collapsedall['gradesonly'] ?? [];
                 // We found the old-style preference, filter out only categories that belong to this course and update the prefs.
                 $collapsed = static::filter_collapsed_categories($courseid, $collapsedall);
                 if (!empty($collapsed['aggregatesonly']) || !empty($collapsed['gradesonly'])) {
@@ -1816,17 +1831,21 @@ class grade_report_grader extends grade_report {
                     $collapsedall['gradesonly'] = array_diff($collapsedall['gradesonly'], $collapsed['gradesonly']);
                     if (!empty($collapsedall['aggregatesonly']) || !empty($collapsedall['gradesonly'])) {
                         set_user_preference('grade_report_grader_collapsed_categories', serialize($collapsedall));
-                    } else {
-                        unset_user_preference('grade_report_grader_collapsed_categories');
                     }
                 }
-            } else {
-                // We found the old-style preference, but it is unreadable, discard it.
-                unset_user_preference('grade_report_grader_collapsed_categories');
             }
-        } else {
-            $collapsed = array('aggregatesonly' => array(), 'gradesonly' => array());
         }
+
+        // Arrived here, if the old pref exists and it doesn't contain
+        // more information, it means that the migration of all the
+        // data to new, by course, preferences is completed, so
+        // the old one can be safely deleted.
+        if ($oldprefexists &&
+                empty($collapsedall['aggregatesonly']) &&
+                empty($collapsedall['gradesonly'])) {
+            unset_user_preference('grade_report_grader_collapsed_categories');
+        }
+
         return $collapsed;
     }
 
@@ -1955,7 +1974,7 @@ class grade_report_grader extends grade_report {
         }
 
         $arrows['studentname'] = '';
-        $requirednames = order_in_string(get_all_user_name_fields(), $nameformat);
+        $requirednames = order_in_string(\core_user\fields::get_name_fields(), $nameformat);
         if (!empty($requirednames)) {
             foreach ($requirednames as $name) {
                 $arrows['studentname'] .= html_writer::link(
@@ -1972,7 +1991,7 @@ class grade_report_grader extends grade_report {
 
         foreach ($extrafields as $field) {
             $fieldlink = html_writer::link(new moodle_url($this->baseurl,
-                    array('sortitemid'=>$field)), get_user_field_name($field));
+                    array('sortitemid' => $field)), \core_user\fields::get_display_name($field));
             $arrows[$field] = $fieldlink;
 
             if ($field == $this->sortitemid) {

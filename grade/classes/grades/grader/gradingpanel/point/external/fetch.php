@@ -156,8 +156,7 @@ class fetch extends external_api {
      * @param bool $isgrading
      * @return array
      */
-    public static function get_fetch_data(
-        stdClass $grade,
+    public static function get_fetch_data(stdClass $grade,
         bool $hasgrade,
         gradeitem $gradeitem,
         ?string $gradername,

@@ -23,7 +23,7 @@ Feature: Test creating a Short answer question
       | Question text        | What is the national langauge in France?  |
       | General feedback     | The national langauge in France is French |
       | Default mark         | 1                                         |
-      | Case sensitivity     | No, case is unimportant                   |
+      | Case sensitivity     | Yes, case must match                      |
       | id_answer_0          | French                                    |
       | id_fraction_0        | 100%                                      |
       | id_feedback_0        | Well done. French is correct.             |
@@ -31,3 +31,9 @@ Feature: Test creating a Short answer question
       | id_fraction_1        | None                                      |
       | id_feedback_1        | Your answer is incorrect.                 |
     Then I should see "shortanswer-001"
+    # Checking that the next new question form displays user preferences settings.
+    And I press "Create a new question ..."
+    And I set the field "Short answer" to "1"
+    And I click on "Add" "button" in the "Choose a question type to add" "dialogue"
+    And the following fields match these values:
+      | Case sensitivity | Yes, case must match |

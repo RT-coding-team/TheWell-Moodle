@@ -22,22 +22,17 @@ Feature: A teacher checks the grade history report in a course
       | student1 | C1     | student        |
       | student2 | C1     | student        |
     And the following "activities" exist:
-      | activity | course | section | name                         | intro                                         |
-      | assign   | C1     | 1       | The greatest assignment ever | Write a behat test for Moodle - it's amazing  |
-      | assign   | C1     | 1       | Rewarding assignment         | After writing your behat test go grab a beer! |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
-    And I navigate to "View > Grader report" in the course gradebook
+      | activity | course | name                         |
+      | assign   | C1     | The greatest assignment ever |
+      | assign   | C1     | Rewarding assignment         |
+    And I am on the "Course 1" "grades > Grader report > View" page logged in as "teacher1"
     And I turn editing mode on
     And I give the grade "50.00" to the user "Student 1" for the grade item "The greatest assignment ever"
     And I give the grade "60.00" to the user "Student 1" for the grade item "Rewarding assignment"
     And I give the grade "50.00" to the user "Student 2" for the grade item "The greatest assignment ever"
     And I give the grade "60.00" to the user "Student 2" for the grade item "Rewarding assignment"
     And I press "Save changes"
-    And I log out
-    And I log in as "teacher2"
-    And I am on "Course 1" course homepage
-    And I navigate to "View > Grader report" in the course gradebook
+    And I am on the "Course 1" "grades > Grader report > View" page logged in as "teacher2"
     And I turn editing mode on
     And I give the grade "70.00" to the user "Student 1" for the grade item "The greatest assignment ever"
     And I give the grade "80.00" to the user "Student 1" for the grade item "Rewarding assignment"
@@ -56,11 +51,22 @@ Feature: A teacher checks the grade history report in a course
       | Student 1          | Rewarding assignment          | 60.00          | 80.00         | Teacher 2 |
       | Student 2          | The greatest assignment ever  | 50.00          | 70.00         | Teacher 2 |
       | Student 2          | Rewarding assignment          | 60.00          | 80.00         | Teacher 2 |
+    # Test filtering by student - display of several users.
+    And I press "Select users"
+    And I click on "Student 1" "checkbox"
+    And I click on "Student 2" "checkbox"
+    And I press "Finish selecting users"
+    And I should see "Student 1, Student 2"
+    And I press "Submit"
+    And I should see "Student 1, Student 2"
     # Test filtering by student.
     And I press "Select users"
-    And I set the field with xpath "//form/input[@class='usp-search-field']" to "Student 1"
-    And I click on "Search" "button" in the "//div[@class='usp-search']" "xpath_element"
-    And I set the field with xpath "//div[@class='usp-checkbox']/input" to "1"
+    And I set the field with xpath "//form/input[@class='usp-search-field']" to "Student 2"
+    And I click on "Search" "button" in the "Select users" "dialogue"
+    And I should see "Student 2" in the "Select users" "dialogue"
+    And I should not see "Student 1" in the "Select users" "dialogue"
+    # Deselect.
+    And I click on "Student 2" "checkbox"
     And I press "Finish selecting users"
     And I press "Submit"
     And the following should exist in the "gradereport_history" table:

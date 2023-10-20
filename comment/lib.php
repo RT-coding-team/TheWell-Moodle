@@ -551,7 +551,8 @@ class comment {
         $params = array();
         $perpage = (!empty($CFG->commentsperpage))?$CFG->commentsperpage:15;
         $start = $page * $perpage;
-        $ufields = user_picture::fields('u');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $ufields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
 
         list($componentwhere, $component) = $this->get_component_select_sql('c');
         if ($component) {
@@ -929,7 +930,7 @@ class comment {
             $deletelink .= html_writer::start_tag('a', array('href' => '#', 'id' => 'comment-delete-'.$this->cid.'-'.$cmt->id,
                                                              'title' => $strdelete));
 
-            $deletelink .= $OUTPUT->pix_icon('t/delete', get_string('delete'));
+            $deletelink .= $OUTPUT->pix_icon('t/delete', $strdelete);
             $deletelink .= html_writer::end_tag('a');
             $deletelink .= html_writer::end_tag('div');
             $cmt->content = $deletelink . $cmt->content;

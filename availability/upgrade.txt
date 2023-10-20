@@ -2,7 +2,7 @@ This files describes API changes in /availability/*.
 
 The information here is intended only for developers.
 
-=== 3.10.8 ===
+=== 3.11.4 ===
 
 * There were existing restrictions on what condition plugins can do in the get_description
   method (for example they mustn't call format_string), which were not well documented.

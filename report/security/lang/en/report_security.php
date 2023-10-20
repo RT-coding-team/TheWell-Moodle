@@ -55,7 +55,7 @@ $string['check_embed_details'] = '<p>Unlimited object embedding is very dangerou
 $string['check_embed_error'] = 'Unlimited object embedding enabled - this is very dangerous for the majority of servers.';
 $string['check_embed_name'] = 'Allow EMBED and OBJECT';
 $string['check_embed_ok'] = 'Unlimited object embedding is not allowed.';
-$string['check_frontpagerole_details'] = '<p>The default frontpage role is given to all registered users for frontpage activities. Please make sure no risky capabilities are allowed for this role.</p>
+$string['check_frontpagerole_details'] = '<p>The default frontpage role is given to all authenticated users for frontpage activities. Please make sure no risky capabilities are allowed for this role.</p>
 <p>It is recommended that a special role is created for this purpose and a legacy type role is not used.</p>';
 $string['check_frontpagerole_error'] = 'Incorrectly defined frontpage role "{$a}" detected!';
 $string['check_frontpagerole_name'] = 'Frontpage role';
@@ -66,6 +66,8 @@ $string['check_crawlers_error'] = 'Search engine access is allowed but guest acc
 $string['check_crawlers_info'] = 'Search engines may enter as guests.';
 $string['check_crawlers_name'] = 'Open to search engines';
 $string['check_crawlers_ok'] = 'Search engine access is not enabled.';
+$string['check_dotfiles_info'] = 'All dotfiles except /.well-known/* should not be public';
+$string['check_dirindex_info'] = 'Directory index should not be enabled';
 $string['check_guestrole_details'] = '<p>The guest role is used for guests, not logged in users and temporary guest course access. Please make sure no risky capabilities are allowed in this role.</p>
 <p>The only supported legacy type for guest role is <em>Guest</em>.</p>';
 $string['check_guestrole_error'] = 'The guest role "{$a}" is incorrectly defined!';
@@ -91,8 +93,10 @@ $string['check_passwordpolicy_ok'] = 'Password policy enabled.';
 $string['check_preventexecpath_name'] = 'Executable paths';
 $string['check_preventexecpath_ok'] = 'Executable paths only settable in config.php.';
 $string['check_preventexecpath_warning'] = 'Executable paths can be set in the Admin GUI.';
-$string['check_preventexecpath_details'] = '<p>Allowing executable paths to be set via the Admin GUI is a vector for privilege escalation. This must be forced in config.php:</p><p><code>$CFG->preventexecpath = true;<code></p>';
-
+$string['check_preventexecpath_details'] = '<p>Allowing executable paths to be set via the Admin GUI is a vector for privilege escalation. This must be forced in config.php:</p><p><code>$CFG->preventexecpath = true;</code></p>';
+$string['check_publicpaths_name'] = 'Check all public / private paths';
+$string['check_publicpaths_generic'] = '{$a} files should not be public';
+$string['check_publicpaths_403'] = ' (Returned a 403, ideally should be 404)';
 $string['check_riskadmin_detailsok'] = '<p>Please verify the following list of system administrators:</p>{$a}';
 $string['check_riskadmin_detailswarning'] = '<p>Please verify the following list of system administrators:</p>{$a->admins}
 <p>It is recommended to assign administrator role in the system context only. The following users have (unsupported) admin role assignments in other contexts:</p>{$a->unsupported}';

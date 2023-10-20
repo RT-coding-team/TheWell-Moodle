@@ -14,8 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace core;
+
+use Redis;
+use RedisException;
+
 /**
- * Redis session tests.
+ * Unit tests for classes/session/redis.php.
  *
  * NOTE: in order to execute this test you need to set up
  *       Redis server and add configuration a constant
@@ -26,21 +31,10 @@
  * @package   core
  * @author    Russell Smith <mr-russ@smith2001.net>
  * @copyright 2016 Russell Smith
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die();
-
-/**
- * Unit tests for classes/session/redis.php.
- *
- * @package   core
- * @author    Russell Smith <mr-russ@smith2001.net>
- * @copyright 2016 Russell Smith
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @runClassInSeparateProcess
  */
-class core_session_redis_testcase extends advanced_testcase {
+class session_redis_test extends \advanced_testcase {
 
     /** @var $keyprefix This key prefix used when testing Redis */
     protected $keyprefix = null;
@@ -114,6 +108,30 @@ class core_session_redis_testcase extends advanced_testcase {
         $this->assertTrue($sess->handler_write('sess1', 'DATA-new'));
         $this->assertTrue($sess->handler_close());
         $this->assertSessionNoLocks();
+    }
+
+    public function test_compression_read_and_write_works() {
+        global $CFG;
+
+        $CFG->session_redis_compressor = \core\session\redis::COMPRESSION_GZIP;
+
+        $sess = new \core\session\redis();
+        $sess->init();
+        $this->assertTrue($sess->handler_write('sess1', 'DATA'));
+        $this->assertSame('DATA', $sess->handler_read('sess1'));
+        $this->assertTrue($sess->handler_close());
+
+        if (extension_loaded('zstd')) {
+            $CFG->session_redis_compressor = \core\session\redis::COMPRESSION_ZSTD;
+
+            $sess = new \core\session\redis();
+            $sess->init();
+            $this->assertTrue($sess->handler_write('sess2', 'DATA'));
+            $this->assertSame('DATA', $sess->handler_read('sess2'));
+            $this->assertTrue($sess->handler_close());
+        }
+
+        $CFG->session_redis_compressor = \core\session\redis::COMPRESSION_NONE;
     }
 
     public function test_session_blocks_with_existing_session() {

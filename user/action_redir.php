@@ -61,7 +61,7 @@ if ($formaction == 'bulkchange.php') {
 
     $userids = optional_param_array('userid', array(), PARAM_INT);
     $default = new moodle_url('/user/index.php', ['id' => $course->id]);
-    $returnurl = new moodle_url(optional_param('returnto', $default, PARAM_URL));
+    $returnurl = new moodle_url(optional_param('returnto', $default, PARAM_LOCALURL));
 
     if (empty($userids)) {
         $userids = optional_param_array('bulkuser', array(), PARAM_INT);
@@ -93,7 +93,8 @@ if ($formaction == 'bulkchange.php') {
                         'lastname' => get_string('lastname'),
                     );
 
-                    $identityfields = get_extra_user_fields($context);
+                    // TODO Does not support custom user profile fields (MDL-70456).
+                    $identityfields = \core_user\fields::get_identity_fields($context, false);
                     $identityfieldsselect = '';
 
                     foreach ($identityfields as $field) {

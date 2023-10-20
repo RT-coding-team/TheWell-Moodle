@@ -1644,7 +1644,7 @@ class moodle_page {
                 break;
 
                 case 'category':
-                    if (!empty($CFG->allowcategorythemes) && !$hascustomdevicetheme) {
+                    if (!empty($CFG->allowcategorythemes) && !empty($this->_course) && !$hascustomdevicetheme) {
                         $categories = $this->categories;
                         foreach ($categories as $category) {
                             if (!empty($category->theme)) {
@@ -1786,7 +1786,7 @@ class moodle_page {
             $this->add_body_class('cmid-' . $this->_cm->id);
         }
 
-        if (!empty($CFG->allowcategorythemes)) {
+        if (!empty($CFG->allowcategorythemes) && !empty($this->_course)) {
             $this->ensure_category_loaded();
             foreach ($this->_categories as $catid => $notused) {
                 $this->add_body_class('category-' . $catid);
@@ -2031,7 +2031,9 @@ class moodle_page {
         $reportnode = null;
         $navigationnodeerror =
                 'Could not find the navigation node requested. Please check that the node you are looking for exists.';
-        if ($userid != $USER->id) {
+        if ($userid != $USER->id  || $this->context->contextlevel == CONTEXT_COURSE) {
+            // Within a course context we need to properly indicate how we have come to the page,
+            // regardless of whether it's currently logged in user or not.
             // Check that we have a valid node.
             if (empty($newusernode)) {
                 // Throw an error if we ever reach here.

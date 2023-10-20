@@ -476,7 +476,10 @@ abstract class question_engine {
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class question_display_options {
-    /**#@+ @var integer named constants for the values that most of the options take. */
+    /**#@+
+     * @var integer named constants for the values that most of the options take.
+     */
+    const SHOW_ALL = -1;
     const HIDDEN = 0;
     const VISIBLE = 1;
     const EDITABLE = 2;
@@ -632,6 +635,11 @@ class question_display_options {
     public $context;
 
     /**
+     * @var int The option to show the action author in the response history.
+     */
+    public $userinfoinhistory = self::HIDDEN;
+
+    /**
      * Set all the feedback-related fields {@link $feedback}, {@link generalfeedback},
      * {@link rightanswer} and {@link manualcomment} to
      * {@link question_display_options::HIDDEN}.
@@ -739,26 +747,22 @@ abstract class question_flags {
             'requires' => array('base', 'dom', 'event-delegate', 'io-base'),
         );
         $actionurl = $CFG->wwwroot . '/question/toggleflag.php';
-        $flagtext = array(
-            0 => get_string('clickflag', 'question'),
-            1 => get_string('clickunflag', 'question')
-        );
         $flagattributes = array(
             0 => array(
                 'src' => $OUTPUT->image_url('i/unflagged') . '',
                 'title' => get_string('clicktoflag', 'question'),
-                'alt' => get_string('notflagged', 'question'),
-              //  'text' => get_string('clickflag', 'question'),
+                'alt' => get_string('flagged', 'question'), // Label on toggle should not change.
+                'text' => get_string('clickflag', 'question'),
             ),
             1 => array(
                 'src' => $OUTPUT->image_url('i/flagged') . '',
                 'title' => get_string('clicktounflag', 'question'),
                 'alt' => get_string('flagged', 'question'),
-               // 'text' => get_string('clickunflag', 'question'),
+                'text' => get_string('clickunflag', 'question'),
             ),
         );
         $PAGE->requires->js_init_call('M.core_question_flags.init',
-                array($actionurl, $flagattributes, $flagtext), false, $module);
+                array($actionurl, $flagattributes), false, $module);
         $done = true;
     }
 }

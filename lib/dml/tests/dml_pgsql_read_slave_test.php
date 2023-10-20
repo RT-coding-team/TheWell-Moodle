@@ -34,8 +34,9 @@ require_once(__DIR__.'/fixtures/read_slave_moodle_database_mock_pgsql.php');
  * @category   dml
  * @copyright  2018 Catalyst IT
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers     \pgsql_native_moodle_database
  */
-class core_dml_pgsql_read_slave_testcase extends base_testcase {
+class dml_pgsql_read_slave_test extends base_testcase {
     /**
      * Test correct database handles are used for cursors
      *
@@ -62,13 +63,13 @@ class core_dml_pgsql_read_slave_testcase extends base_testcase {
         // Read from the non-written to table cursor.
         $sql = 'FETCH 1 FROM crs1';
         $DB->query_start($sql, null, SQL_QUERY_AUX);
-        $this->assertEquals('test_ro', $DB->get_db_handle());
+        $this->assertTrue($DB->db_handle_is_ro());
         $DB->query_end(null);
 
         // Read from the written to table cursor.
         $sql = 'FETCH 1 FROM crs2';
         $DB->query_start($sql, null, SQL_QUERY_AUX);
-        $this->assertEquals('test_rw', $DB->get_db_handle());
+        $this->assertTrue($DB->db_handle_is_rw());
         $DB->query_end(null);
     }
 
@@ -83,7 +84,7 @@ class core_dml_pgsql_read_slave_testcase extends base_testcase {
         $this->assertEquals(0, $DB->perf_get_reads_slave());
 
         $DB->query_start('SELECT pg_whatever(1)', null, SQL_QUERY_SELECT);
-        $this->assertEquals('test_ro', $DB->get_db_handle());
+        $this->assertTrue($DB->db_handle_is_ro());
         $DB->query_end(null);
         $this->assertEquals(1, $DB->perf_get_reads_slave());
     }
@@ -101,7 +102,7 @@ class core_dml_pgsql_read_slave_testcase extends base_testcase {
 
         foreach (['pg_try_advisory_lock', 'pg_advisory_unlock'] as $fn) {
             $DB->query_start("SELECT $fn(1)", null, SQL_QUERY_SELECT);
-            $this->assertEquals('test_rw', $DB->get_db_handle());
+            $this->assertTrue($DB->db_handle_is_rw());
             $DB->query_end(null);
             $this->assertEquals(0, $DB->perf_get_reads_slave());
         }

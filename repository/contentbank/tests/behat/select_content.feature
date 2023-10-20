@@ -30,7 +30,7 @@ Feature: Select content bank files using the content bank files repository
       | System       |           | contenttype_h5p | admin | filltheblanks.h5p       | /h5p/tests/fixtures/filltheblanks.h5p       |
     And the following "activities" exist:
       | activity | name       | intro      | introformat | course | idnumber |
-      | forum    | Forum      | ForumDesc  | 1           | mscC1  | forum1   |
+      | forum    | Forum      |            | 1           | mscC1  | forum1   |
       | folder   | Folder     | FolderDesc | 1           | mscC1  | folder1  |
     And the following "course enrolments" exist:
       | user     | course | role           |
@@ -128,6 +128,8 @@ Feature: Select content bank files using the content bank files repository
     Then I should see "1" elements in "Files" filemanager
     And I should see "filltheblanks.h5p" in the ".fp-content .fp-file" "css_element"
 
+  # This scenario has Atto-specific steps. See MDL-75913 for further details.
+  @editor_atto
   Scenario: Non-editing teacher can not see the content bank repository
     Given I am on the Forum "Forum activity" page logged in as teacher2
     And I click on "Add a new discussion topic" "link"

@@ -26,25 +26,23 @@ Feature: Edit a users password
     And I click on "Edit profile" "link"
     Then "Sign out everywhere" "field" should not exist
 
-  @javascript
   Scenario Outline: Sign out everywhere field is present based on expiry of active token
     Given the following "users" exist:
       | username | firstname | lastname | email              |
       | user01   | User      | One      | user01@example.com |
+    And the following "core_webservice > Service" exist:
+      | shortname     | name            |
+      | mytestservice | My test service |
+    And the following "core_webservice > Tokens" exist:
+      | user   | service       | validuntil   |
+      | user01 | mytestservice | <validuntil> |
     And I log in as "admin"
-    When I navigate to "Plugins > Web services > Manage tokens" in site administration
-    And I click on "Add" "link"
-    And I set the following fields to these values:
-      | User                | User One                  |
-      | Service             | Moodle mobile web service |
-      | validuntil[enabled] | 1                         |
-      | Valid until         | <validuntil>              |
-    And I press "Save changes"
-    And I navigate to "Users > Accounts > Browse list of users" in site administration
+    When I navigate to "Users > Accounts > Browse list of users" in site administration
     And I click on "User One" "link" in the "users" "table"
     And I click on "Edit profile" "link"
     Then "Sign out everywhere" "field" <shouldornot> exist
     Examples:
       | validuntil     | shouldornot |
       | ## -1 month ## | should not  |
+      | 0              | should      |
       | ## +1 month ## | should      |

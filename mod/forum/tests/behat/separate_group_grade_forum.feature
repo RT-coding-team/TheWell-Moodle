@@ -32,18 +32,17 @@ Feature: I can grade a students by group with separate groups
       | student1 | G3 |
       | student2 | G3 |
       | student3 | G3 |
+    And the following "activity" exists:
+      | activity | forum        |
+      | course   | C1           |
+      | name     | Test Forum 1 |
     And I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I turn editing mode on
-    And I add a "Forum" to section "1"
+    And I am on "Course 1" course homepage with editing mode on
+    And I am on the "Test Forum 1" "forum activity editing" page logged in as teacher1
     And I expand all fieldsets
-    And I set the following fields to these values:
-      | Forum name | Test Forum 1 |
-      | Description | Test |
     And I set the field "Whole forum grading > Type" to "Point"
     And I set the field "Common module settings > Group mode" to "Separate groups"
-    And I press "Save and return to course"
-    And I follow "Test Forum 1"
+    And I press "Save and display"
 
   @javascript
   Scenario: Grade users by group A
@@ -72,3 +71,35 @@ Feature: I can grade a students by group with separate groups
     Then I should not see "1 out of 1"
     And I should not see "1 out of 2"
     And I should see "1 out of 3"
+
+  @javascript
+  Scenario: Teacher can see only the discussions which are joined to
+    Given the following "users" exist:
+      | username | firstname | lastname | email |
+      | teacher2 | Teacher | 2 | teacher2@example.com |
+    And the following "course enrolments" exist:
+      | user | course | role |
+      | teacher2 | C1 | teacher |
+    And the following "group members" exist:
+      | user | group |
+      | teacher2 | G2 |
+      | teacher2 | G3 |
+    When I am on the "Test Forum 1" "forum activity" page logged in as student1
+    And I select "Group A" from the "Separate groups" singleselect
+    And I click on "Add a new discussion topic" "link"
+    And I set the following fields to these values:
+      | Subject  | Discussion subject A |
+      | Message | Discussion message A |
+    And I press "Post to forum"
+    And I select "Group C" from the "Separate groups" singleselect
+    And I click on "Add a new discussion topic" "link"
+    And I set the following fields to these values:
+      | Subject  | Discussion subject C |
+      | Message | Discussion message C |
+    And I press "Post to forum"
+    Then I am on the "Test Forum 1" "forum activity" page logged in as teacher2
+    And I select "Group C" from the "Separate groups" singleselect
+    And I click on "Grade users" "button"
+    And I should see "Student 1"
+    And I should see "Discussion subject C"
+    And I should not see "Discussion subject A"

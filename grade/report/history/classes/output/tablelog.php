@@ -27,6 +27,7 @@ namespace gradereport_history\output;
 defined('MOODLE_INTERNAL') || die;
 
 require_once($CFG->libdir . '/tablelib.php');
+require_once($CFG->dirroot . '/user/lib.php');
 
 /**
  * Renderable class for gradehistory report.
@@ -52,6 +53,11 @@ class tablelog extends \table_sql implements \renderable {
      * @var \stdClass A list of filters to be applied to the sql query.
      */
     protected $filters;
+
+    /**
+     * @var \stdClass[] List of users included in the report (if userids are specified as filters)
+     */
+    protected $users = [];
 
     /**
      * @var array A list of grade items present in the course.
@@ -99,7 +105,6 @@ class tablelog extends \table_sql implements \renderable {
         $this->courseid = $this->context->instanceid;
         $this->pagesize = $perpage;
         $this->page = $page;
-        $this->filters = (object)$filters;
         $this->gradeitems = \grade_item::fetch_all(array('courseid' => $this->courseid));
         $this->cms = get_fast_modinfo($this->courseid);
         $this->useridfield = 'userid';
@@ -107,6 +112,9 @@ class tablelog extends \table_sql implements \renderable {
 
         // Define columns in the table.
         $this->define_table_columns();
+
+        // Define filters.
+        $this->define_table_filters((object) $filters);
 
         // Define configs.
         $this->define_table_configs($url);
@@ -137,10 +145,41 @@ class tablelog extends \table_sql implements \renderable {
     }
 
     /**
+     * Define table filters
+     *
+     * @param \stdClass $filters
+     */
+    protected function define_table_filters(\stdClass $filters): void {
+        global $DB;
+
+        $this->filters = $filters;
+
+        if (!empty($this->filters->userids)) {
+
+            $course = get_course($this->courseid);
+
+            // Retrieve userids that are part of the filters object, and ensure user can access each of them.
+            [$userselect, $userparams] = $DB->get_in_or_equal(explode(',', $this->filters->userids), SQL_PARAMS_NAMED);
+            [$usersort] = users_order_by_sql();
+
+            $this->users = array_filter(
+                $DB->get_records_select('user', "id {$userselect}", $userparams, $usersort),
+                static function(\stdClass $user) use ($course): bool {
+                    return user_can_view_profile($user, $course);
+                }
+            );
+
+            // Reset userids to the filtered array of users.
+            $this->filters->userids = implode(',', array_keys($this->users));
+        }
+    }
+
+    /**
      * Setup the headers for the html table.
      */
     protected function define_table_columns() {
-        $extrafields = get_extra_user_fields($this->context);
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $extrafields = \core_user\fields::get_identity_fields($this->context, false);
 
         // Define headers and columns.
         $cols = array(
@@ -394,17 +433,19 @@ class tablelog extends \table_sql implements \renderable {
                    gi.itemtype, gi.itemmodule, gi.iteminstance, gi.itemnumber, ';
 
         // Add extra user fields that we need for the graded user.
-        $extrafields = get_extra_user_fields($this->context);
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $extrafields = \core_user\fields::get_identity_fields($this->context, false);
         foreach ($extrafields as $field) {
             $fields .= 'u.' . $field . ', ';
         }
-        $gradeduserfields = get_all_user_name_fields(true, 'u');
+        $userfieldsapi = \core_user\fields::for_name();
+        $gradeduserfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $fields .= $gradeduserfields . ', ';
         $groupby = $fields;
 
         // Add extra user fields that we need for the grader user.
-        $fields .= get_all_user_name_fields(true, 'ug', '', 'grader');
-        $groupby .= get_all_user_name_fields(true, 'ug');
+        $fields .= $userfieldsapi->get_sql('ug', false, 'grader', '', false)->selects;
+        $groupby .= $userfieldsapi->get_sql('ug', false, '', '', false)->selects;
 
         // Filtering on revised grades only.
         $revisedonly = !empty($this->filters->revisedonly);
@@ -507,19 +548,9 @@ class tablelog extends \table_sql implements \renderable {
     /**
      * Returns a list of selected users.
      *
-     * @return array returns an array in the format $userid => $userid
+     * @return \stdClass[] List of user objects
      */
-    public function get_selected_users() {
-        global $DB;
-        $idlist = array();
-        if (!empty($this->filters->userids)) {
-
-            $idlist = explode(',', $this->filters->userids);
-            list($where, $params) = $DB->get_in_or_equal($idlist);
-            return $DB->get_records_select('user', "id $where", $params);
-
-        }
-        return $idlist;
+    public function get_selected_users(): array {
+        return $this->users;
     }
-
 }

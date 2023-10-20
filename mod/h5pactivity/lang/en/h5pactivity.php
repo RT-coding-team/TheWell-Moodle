@@ -97,6 +97,7 @@ $string['myattempts'] = 'My attempts';
 $string['no_compatible_track'] = 'This interaction ({$a}) does not provide tracking information or the tracking
         provided is not compatible with the current activity version.';
 $string['noparticipants'] = 'No participants to display';
+$string['opencontentbank'] = '<a href="{$a}" target="_blank">Access the H5P file in the content bank</a> (opens in a new window).';
 $string['outcome'] = 'Outcome';
 $string['package'] = 'Package file';
 $string['package_help'] = 'The package file is a h5p file containing H5P interactive content.';
@@ -128,6 +129,7 @@ $string['review_none'] = 'Participants cannot review their own attempts';
 $string['review_on_completion'] = 'Participants can review their own attempts';
 $string['score'] = 'Score';
 $string['score_out_of'] = '{$a->rawscore} out of {$a->maxscore}';
+$string['search:activity'] = 'H5P - activity information';
 $string['startdate'] = 'Start date';
 $string['statement_received'] = 'xAPI statement received';
 $string['totalscore'] = 'Total score';

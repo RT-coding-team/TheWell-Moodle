@@ -234,6 +234,15 @@ class discussion {
             ];
         }
 
+        $exporteddiscussion['throttlingwarningmsg'] = '';
+        $cmrecord = $this->forum->get_course_module_record();
+        if (($warningobj = forum_check_throttling($this->forumrecord, $cmrecord)) && $warningobj->canpost) {
+            $throttlewarnnotification = (new notification(
+                    get_string($warningobj->errorcode, $warningobj->module, $warningobj->additional)
+            ))->set_show_closebutton();
+            $exporteddiscussion['throttlingwarningmsg'] = $throttlewarnnotification->get_message();
+        }
+
         if ($this->displaymode === FORUM_MODE_NESTED_V2) {
             $template = 'mod_forum/forum_discussion_nested_v2';
         } else {
@@ -383,23 +392,25 @@ class discussion {
         $notifications = $this->notifications;
         $discussion = $this->discussion;
         $forum = $this->forum;
-        $renderer = $this->renderer;
 
         if ($forum->is_cutoff_date_reached()) {
             $notifications[] = (new notification(
                     get_string('cutoffdatereached', 'forum'),
                     notification::NOTIFY_INFO
             ))->set_show_closebutton();
-        } else if ($forum->is_due_date_reached()) {
-            $notifications[] = (new notification(
+        } else if ($forum->get_type() != 'single') {
+            // Due date is already shown at the top of the page for single simple discussion forums.
+            if ($forum->is_due_date_reached()) {
+                $notifications[] = (new notification(
                     get_string('thisforumisdue', 'forum', userdate($forum->get_due_date())),
                     notification::NOTIFY_INFO
-            ))->set_show_closebutton();
-        } else if ($forum->has_due_date()) {
-            $notifications[] = (new notification(
+                ))->set_show_closebutton();
+            } else if ($forum->has_due_date()) {
+                $notifications[] = (new notification(
                     get_string('thisforumhasduedate', 'forum', userdate($forum->get_due_date())),
                     notification::NOTIFY_INFO
-            ))->set_show_closebutton();
+                ))->set_show_closebutton();
+            }
         }
 
         if ($forum->is_discussion_locked($discussion)) {
@@ -424,8 +435,10 @@ class discussion {
                 get_string('thisforumisthrottled', 'forum', [
                     'blockafter' => $forum->get_block_after(),
                     'blockperiod' => get_string('secondstotime' . $forum->get_block_period())
-                ])
+                ]),
+                notification::NOTIFY_INFO
             ))->set_show_closebutton();
+
         }
 
         return array_map(function($notification) {

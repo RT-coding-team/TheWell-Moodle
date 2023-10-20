@@ -415,17 +415,17 @@ function uu_allowed_sysroles_cache() {
  * @return stdClass pre-processed custom profile data
  */
 function uu_pre_process_custom_profile_data($data) {
-    global $CFG, $DB;
+    global $CFG;
+    require_once($CFG->dirroot . '/user/profile/lib.php');
+    $fields = profile_get_user_fields_with_data(0);
+
     // find custom profile fields and check if data needs to converted.
     foreach ($data as $key => $value) {
         if (preg_match('/^profile_field_/', $key)) {
             $shortname = str_replace('profile_field_', '', $key);
-            if ($fields = $DB->get_records('user_info_field', array('shortname' => $shortname))) {
-                foreach ($fields as $field) {
-                    require_once($CFG->dirroot.'/user/profile/field/'.$field->datatype.'/field.class.php');
-                    $newfield = 'profile_field_'.$field->datatype;
-                    $formfield = new $newfield($field->id, $data->id);
-                    if (method_exists($formfield, 'convert_external_data')) {
+            if ($fields) {
+                foreach ($fields as $formfield) {
+                    if ($formfield->get_shortname() === $shortname && method_exists($formfield, 'convert_external_data')) {
                         $data->$key = $formfield->convert_external_data($value);
                     }
                 }
@@ -440,10 +440,13 @@ function uu_pre_process_custom_profile_data($data) {
  * Currently checking for custom profile field or type menu
  *
  * @param array $data user profile data
+ * @param array $profilefieldvalues Used to track previous profile field values to ensure uniqueness is observed
  * @return bool true if no error else false
  */
-function uu_check_custom_profile_data(&$data) {
-    global $CFG, $DB;
+function uu_check_custom_profile_data(&$data, array &$profilefieldvalues = []) {
+    global $CFG;
+    require_once($CFG->dirroot.'/user/profile/lib.php');
+
     $noerror = true;
     $testuserid = null;
 
@@ -452,20 +455,28 @@ function uu_check_custom_profile_data(&$data) {
             $testuserid = $result[1];
         }
     }
+    $profilefields = profile_get_user_fields_with_data(0);
     // Find custom profile fields and check if data needs to converted.
     foreach ($data as $key => $value) {
         if (preg_match('/^profile_field_/', $key)) {
             $shortname = str_replace('profile_field_', '', $key);
-            if ($fields = $DB->get_records('user_info_field', array('shortname' => $shortname))) {
-                foreach ($fields as $field) {
-                    require_once($CFG->dirroot.'/user/profile/field/'.$field->datatype.'/field.class.php');
-                    $newfield = 'profile_field_'.$field->datatype;
-                    $formfield = new $newfield($field->id, 0);
+            foreach ($profilefields as $formfield) {
+                if ($formfield->get_shortname() === $shortname) {
                     if (method_exists($formfield, 'convert_external_data') &&
                             is_null($formfield->convert_external_data($value))) {
                         $data['status'][] = get_string('invaliduserfield', 'error', $shortname);
                         $noerror = false;
                     }
+
+                    // Ensure unique field value doesn't already exist in supplied data.
+                    $formfieldunique = $formfield->is_unique() && ($value !== '' || $formfield->is_required());
+                    if ($formfieldunique && array_key_exists($shortname, $profilefieldvalues) &&
+                            (array_search($value, $profilefieldvalues[$shortname]) !== false)) {
+
+                        $data['status'][] = get_string('valuealreadyused') . " ({$key})";
+                        $noerror = false;
+                    }
+
                     // Check for duplicate value.
                     if (method_exists($formfield, 'edit_validate_field') ) {
                         $testuser = new stdClass();
@@ -476,6 +487,11 @@ function uu_check_custom_profile_data(&$data) {
                             $data['status'][] = $err[$key].' ('.$key.')';
                             $noerror = false;
                         }
+                    }
+
+                    // Record value of unique field, so it can be compared for duplicates.
+                    if ($formfieldunique) {
+                        $profilefieldvalues[$shortname][] = $value;
                     }
                 }
             }

@@ -4,16 +4,57 @@ Feature: Add URL to main menu block
   As a admin
   I need to add URLs to the main menu block and check it works.
 
+  Background:
+    Given the following "courses" exist:
+      | fullname | shortname | category | enablecompletion |
+      | Course 1 | C1        | 0        | 1                |
+      | Course 2 | C2        | 0        |                  |
+    And the following "blocks" exist:
+      | blockname      | contextlevel | reference | pagetypepattern | defaultregion |
+      | site_main_menu | System       | 1         | site-index      | side-pre      |
+
   @javascript
   Scenario: Add a URL in menu block and ensure it appears
+    Given the following "activity" exists:
+      | activity    | url                   |
+      | course      | Acceptance test site  |
+      | name        | reference link        |
+      | intro       | mooooooooodle         |
+      | externalurl | http://www.moodle.com |
+      | section     | 0                     |
+    And I log in as "admin"
+    And I am on site homepage
+    And I turn editing mode on
+    When I am on the "reference link" "url activity editing" page
+    And I expand all fieldsets
+    And I set the following fields to these values:
+      | id_display | In pop-up |
+    And I press "Save and return to course"
+    Then "reference link" "link" should exist in the "Main menu" "block"
+    And "Add an activity or resource" "button" should exist in the "Main menu" "block"
+
+  @javascript
+  Scenario: When the "Main Menu" block is displayed throrought the entire site, adding an URL in a course
+  results in adding it in the course and not in the frontpage
     Given I log in as "admin"
     And I am on site homepage
-    And I navigate to "Turn editing on" in current page administration
-    And I add the "Main menu" block
-    When I add a "URL" to section "0" and I fill the form with:
-      | Name | google |
-      | Description | gooooooooogle |
-      | External URL | http://www.google.com |
+    And I turn editing mode on
+    And I configure the "Main menu" block
+    And I set the following fields to these values:
+      | Page contexts | Display throughout the entire site |
+    And I press "Save changes"
+    When the following "activity" exists:
+      | activity        | url                   |
+      | course          | C2                    |
+      | name            | reference link        |
+      | intro           | mooooooooodle         |
+      | externalurl     | http://www.moodle.com |
+      | section         | 0                     |
+      | showdescription | 1                     |
+    And I am on the "reference link" "url activity editing" page
+    And I expand all fieldsets
+    And I set the following fields to these values:
       | id_display | In pop-up |
-    Then "google" "link" should exist in the "Main menu" "block"
-    And "Add an activity or resource" "button" should exist in the "Main menu" "block"
+    And I press "Save and return to course"
+    Then "reference link" "link" should not exist in the "Main menu" "block"
+    And I should see "mooooooooodle" in the "region-main" "region"

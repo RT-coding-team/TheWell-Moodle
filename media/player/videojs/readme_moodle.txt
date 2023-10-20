@@ -1,5 +1,5 @@
-VideoJS 7.7.6
--------------
+VideoJS 7.10.0
+--------------
 https://github.com/videojs/video.js
 
 Instructions to import VideoJS player into Moodle:
@@ -62,3 +62,10 @@ Import plugins:
      var OGVCompat__default = /*#__PURE__*/_interopDefaultLegacy(ogvBase.OGVCompat);
      var OGVLoader__default = /*#__PURE__*/_interopDefaultLegacy(ogvBase.OGVLoader);
      var OGVPlayer__default = /*#__PURE__*/_interopDefaultLegacy(ogvBase.OGVPlayer);
+
+Changes:
+In order to improve the validation, a couple of minor changes have been added to the video-lazy.js:
+1. Partial upgrade from VideoJS 7.17.0 for 'Subtitles' label check in 18043 - 18059
+2. Partial upgrade from VideoJS 7.17.0 for 'Captions' label check from 19123 - 19138
+3. Partial upgrade from VideoJS 7.17.0 for 'Description' label check from 19288 - 19302
+4. Fixed the menu item not being displayed as expected

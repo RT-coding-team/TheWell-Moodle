@@ -61,7 +61,7 @@ class process {
     protected $standardfields = [];
     /** @var array */
     protected $profilefields = [];
-    /** @var array */
+    /** @var \profile_field_base[] */
     protected $allprofilefields = [];
     /** @var string|\uu_progress_tracker|null  */
     protected $progresstrackerclass = null;
@@ -143,9 +143,8 @@ class process {
         $this->standardfields = array('id', 'username', 'email', 'emailstop',
             'city', 'country', 'lang', 'timezone', 'mailformat',
             'maildisplay', 'maildigest', 'htmleditor', 'autosubscribe',
-            'institution', 'department', 'idnumber', 'skype',
-            'msn', 'aim', 'yahoo', 'icq', 'phone1', 'phone2', 'address',
-            'url', 'description', 'descriptionformat', 'password',
+            'institution', 'department', 'idnumber', 'phone1', 'phone2', 'address',
+            'description', 'descriptionformat', 'password',
             'auth',        // Watch out when changing auth type or using external auth plugins!
             'oldusername', // Use when renaming users - this is the original username.
             'suspended',   // 1 means suspend user account, 0 means activate user account, nothing means keep as is.
@@ -156,19 +155,20 @@ class process {
             'interests',
         );
         // Include all name fields.
-        $this->standardfields = array_merge($this->standardfields, get_all_user_name_fields());
+        $this->standardfields = array_merge($this->standardfields, \core_user\fields::get_name_fields());
     }
 
     /**
      * Profile fields
      */
     protected function find_profile_fields(): void {
-        global $DB;
-        $this->allprofilefields = $DB->get_records('user_info_field');
+        global $CFG;
+        require_once($CFG->dirroot . '/user/profile/lib.php');
+        $this->allprofilefields = profile_get_user_fields_with_data(0);
         $this->profilefields = [];
         if ($proffields = $this->allprofilefields) {
             foreach ($proffields as $key => $proffield) {
-                $profilefieldname = 'profile_field_'.$proffield->shortname;
+                $profilefieldname = 'profile_field_'.$proffield->get_shortname();
                 $this->profilefields[] = $profilefieldname;
                 // Re-index $proffields with key as shortname. This will be
                 // used while checking if profile data is key and needs to be converted (eg. menu profile field).
@@ -530,8 +530,7 @@ class process {
                     }
                 }
             }
-            $proffields = $this->allprofilefields;
-            foreach ($this->profilefields as $field) {
+            foreach ($this->allprofilefields as $field => $profilefield) {
                 if (isset($user->$field)) {
                     continue;
                 }
@@ -541,9 +540,6 @@ class process {
 
                     // Form contains key and later code expects value.
                     // Convert key to value for required profile fields.
-                    require_once($CFG->dirroot.'/user/profile/field/'.$proffields[$field]->datatype.'/field.class.php');
-                    $profilefieldclass = 'profile_field_'.$proffields[$field]->datatype;
-                    $profilefield = new $profilefieldclass($proffields[$field]->id);
                     if (method_exists($profilefield, 'convert_external_data')) {
                         $user->$field = $profilefield->edit_save_data_preprocess($user->$field, null);
                     }
@@ -696,7 +692,11 @@ class process {
             $dologout = false;
 
             if ($this->get_update_type() != UU_UPDATE_NOCHANGES and !$remoteuser) {
-                if (!empty($user->auth) and $user->auth !== $existinguser->auth) {
+
+                // Handle 'auth' column separately, the field can never be missing from a user.
+                if (!empty($user->auth) && ($user->auth !== $existinguser->auth) &&
+                        ($this->get_update_type() != UU_UPDATE_MISSING)) {
+
                     $this->upt->track('auth', s($existinguser->auth).'-->'.s($user->auth), 'info', false);
                     $existinguser->auth = $user->auth;
                     if (!isset($this->supportedauths[$user->auth])) {

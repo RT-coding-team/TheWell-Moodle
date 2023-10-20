@@ -58,9 +58,16 @@ require_course_login($course, true, $cm);
 $context = context_module::instance($cm->id);
 $PAGE->set_context($context);
 
+// Initialize $PAGE.
+$courseshortname = format_string($course->shortname, true, array('context' => context_course::instance($course->id)));
+$title = $courseshortname . ': ' . format_string($chat->name);
+$PAGE->set_url('/mod/chat/view.php', ['id' => $cm->id]);
+$PAGE->set_title($title);
+$PAGE->set_heading($course->fullname);
+$PAGE->add_body_class('limitedwidth');
+
 // Show some info for guests.
 if (isguestuser()) {
-    $PAGE->set_title($chat->name);
     echo $OUTPUT->header();
     echo $OUTPUT->confirm('<p>'.get_string('noguests', 'chat').'</p>'.get_string('liketologin'),
             get_login_url(), $CFG->wwwroot.'/course/view.php?id='.$course->id);
@@ -76,14 +83,6 @@ $strenterchat    = get_string('enterchat', 'chat');
 $stridle         = get_string('idle', 'chat');
 $strcurrentusers = get_string('currentusers', 'chat');
 $strnextsession  = get_string('nextsession', 'chat');
-
-$courseshortname = format_string($course->shortname, true, array('context' => context_course::instance($course->id)));
-$title = $courseshortname . ': ' . format_string($chat->name);
-
-// Initialize $PAGE.
-$PAGE->set_url('/mod/chat/view.php', array('id' => $cm->id));
-$PAGE->set_title($title);
-$PAGE->set_heading($course->fullname);
 
 // Print the page header.
 echo $OUTPUT->header();
@@ -105,6 +104,12 @@ if ($currentgroup) {
 
 echo $OUTPUT->heading(format_string($chat->name), 2);
 
+// Render the activity information.
+$cminfo = cm_info::create($cm);
+$completiondetails = \core_completion\cm_completion_details::get_instance($cminfo, $USER->id);
+$activitydates = \core\activity_dates::get_dates_for_module($cminfo, $USER->id);
+echo $OUTPUT->activity_information($cminfo, $completiondetails, $activitydates);
+
 if ($chat->intro) {
     echo $OUTPUT->box(format_module_intro('chat', $chat, $cm->id), 'generalbox', 'intro');
 }
@@ -116,14 +121,10 @@ if (has_capability('mod/chat:chat', $context)) {
     echo $OUTPUT->box_start('generalbox', 'enterlink');
 
     $now = time();
-    $span = $chat->chattime - $now;
-    if ($chat->chattime and $chat->schedule and ($span > 0)) {  // A chat is scheduled.
-        echo '<p>';
-        $chatinfo = new stdClass();
-        $chatinfo->date = userdate($chat->chattime);
-        $chatinfo->fromnow = format_time($span);
-        echo get_string('sessionstart', 'chat', $chatinfo);
-        echo '</p>';
+    $chattime = $chat->chattime ?? 0;
+    $span = $chattime - $now;
+    if (!empty($chat->schedule) && $span > 0) {
+        echo html_writer::tag('p', get_string('sessionstartsin', 'chat', format_time($span)));
     }
 
     $params['id'] = $chat->id;

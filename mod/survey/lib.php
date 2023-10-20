@@ -54,7 +54,10 @@ define("SURVEY_COLLES_PREFERRED",        "2");
 define("SURVEY_COLLES_PREFERRED_ACTUAL", "3");
 define("SURVEY_ATTLS",                   "4");
 define("SURVEY_CIQ",                     "5");
+// Question length to wrap.
+define("SURVEY_QLENGTH_WRAP",            "80");
 
+require_once(__DIR__ . '/deprecatedlib.php');
 
 // STANDARD FUNCTIONS ////////////////////////////////////////////////////////
 /**
@@ -243,7 +246,8 @@ function survey_print_recent_activity($course, $viewfullnames, $timestart) {
 
     $slist = implode(',', $ids); // there should not be hundreds of glossaries in one course, right?
 
-    $allusernames = user_picture::fields('u');
+    $userfieldsapi = \core_user\fields::for_userpic();
+    $allusernames = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
     $rs = $DB->get_recordset_sql("SELECT sa.userid, sa.survey, MAX(sa.time) AS time,
                                          $allusernames
                                     FROM {survey_answers} sa
@@ -315,7 +319,8 @@ function survey_get_responses($surveyid, $groupid, $groupingid) {
         $groupsjoin = "";
     }
 
-    $userfields = user_picture::fields('u');
+    $userfieldsapi = \core_user\fields::for_userpic();
+    $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
     return $DB->get_records_sql("SELECT $userfields, MAX(a.time) as time
                                    FROM {survey_answers} a
                                    JOIN {user} u ON a.userid = u.id
@@ -375,7 +380,8 @@ function survey_get_user_answers($surveyid, $questionid, $groupid, $sort="sa.ans
         $groupsql  = '';
     }
 
-    $userfields = user_picture::fields('u');
+    $userfieldsapi = \core_user\fields::for_userpic();
+    $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
     return $DB->get_records_sql("SELECT sa.*, $userfields
                                    FROM {survey_answers} sa,  {user} u $groupfrom
                                   WHERE sa.survey = :surveyid
@@ -806,16 +812,21 @@ function survey_supports($feature) {
  * @param navigation_node $surveynode
  */
 function survey_extend_settings_navigation($settings, $surveynode) {
-    global $PAGE;
+    global $PAGE, $DB;
 
     if (has_capability('mod/survey:readresponses', $PAGE->cm->context)) {
         $responsesnode = $surveynode->add(get_string("responsereports", "survey"));
 
-        $url = new moodle_url('/mod/survey/report.php', array('id' => $PAGE->cm->id, 'action'=>'summary'));
-        $responsesnode->add(get_string("summary", "survey"), $url);
 
-        $url = new moodle_url('/mod/survey/report.php', array('id' => $PAGE->cm->id, 'action'=>'scales'));
-        $responsesnode->add(get_string("scales", "survey"), $url);
+        $cm = get_coursemodule_from_id('survey', $PAGE->cm->id);
+        $survey = $DB->get_record("survey", ["id" => $cm->instance]);
+        if ($survey && ($survey->template != SURVEY_CIQ)) {
+            $url = new moodle_url('/mod/survey/report.php', array('id' => $PAGE->cm->id, 'action' => 'summary'));
+            $responsesnode->add(get_string("summary", "survey"), $url);
+
+            $url = new moodle_url('/mod/survey/report.php', array('id' => $PAGE->cm->id, 'action' => 'scales'));
+            $responsesnode->add(get_string("scales", "survey"), $url);
+        }
 
         $url = new moodle_url('/mod/survey/report.php', array('id' => $PAGE->cm->id, 'action'=>'questions'));
         $responsesnode->add(get_string("question", "survey"), $url);
@@ -1024,32 +1035,6 @@ function survey_save_answers($survey, $answersrawdata, $course, $context) {
     );
     $event = \mod_survey\event\response_submitted::create($params);
     $event->trigger();
-}
-
-/**
- * Obtains the automatic completion state for this survey based on the condition
- * in feedback settings.
- *
- * @param object $course Course
- * @param object $cm Course-module
- * @param int $userid User ID
- * @param bool $type Type of comparison (or/and; can be used as return value if no conditions)
- * @return bool True if completed, false if not, $type if conditions not set.
- */
-function survey_get_completion_state($course, $cm, $userid, $type) {
-    global $DB;
-
-    // Get survey details.
-    $survey = $DB->get_record('survey', array('id' => $cm->instance), '*', MUST_EXIST);
-
-    // If completion option is enabled, evaluate it and return true/false.
-    if ($survey->completionsubmit) {
-        $params = array('userid' => $userid, 'survey' => $survey->id);
-        return $DB->record_exists('survey_answers', $params);
-    } else {
-        // Completion option is not enabled so just return $type.
-        return $type;
-    }
 }
 
 /**

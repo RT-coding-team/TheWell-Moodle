@@ -196,7 +196,10 @@ class core_badges_assertion {
                 }
             }
             $class['image'] = 'data:image/png;base64,' . $imagedata;
-            $class['criteria'] = $this->_url->out(false); // Currently issued badge URL.
+
+            $params = ['id' => $this->get_badge_id()];
+            $badgeurl = new moodle_url('/badges/badgeclass.php', $params);
+            $class['criteria'] = $badgeurl->out(false); // Currently badge URL.
             if ($issued) {
                 $params = ['id' => $this->get_badge_id(), 'obversion' => $this->_obversion];
                 $issuerurl = new moodle_url('/badges/issuer_json.php', $params);
@@ -281,13 +284,15 @@ class core_badges_assertion {
     public function get_criteria_badge_class() {
         $badge = new badge($this->_data->id);
         $narrative = $badge->markdown_badge_criteria();
+        $params = ['id' => $this->get_badge_id()];
+        $badgeurl = new moodle_url('/badges/badgeclass.php', $params);
         if (!empty($narrative)) {
-            $criteria = array();
-            $criteria['id'] = $this->_url->out(false);
+            $criteria = [];
+            $criteria['id'] = $badgeurl->out(false);
             $criteria['narrative'] = $narrative;
             return $criteria;
         } else {
-            return $this->_url->out(false);
+            return $badgeurl->out(false);
         }
     }
 
@@ -376,7 +381,7 @@ class core_badges_assertion {
                         $this->_data->imageauthorurl ||
                         $this->_data->imagecaption) {
                     $storage = get_file_storage();
-                    $imagefile = $storage->get_file($context->id, 'badges', 'badgeimage', $this->_data->id, '/', 'f1.png');
+                    $imagefile = $storage->get_file($context->id, 'badges', 'badgeimage', $this->_data->id, '/', 'f3.png');
                     if ($imagefile) {
                         $imagedata = base64_encode($imagefile->get_content());
                     } else {

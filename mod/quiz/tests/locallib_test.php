@@ -22,7 +22,10 @@
  * @copyright  2008 Tim Hunt
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+namespace mod_quiz;
 
+use quiz_attempt;
+use mod_quiz_display_options;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -36,10 +39,10 @@ require_once($CFG->dirroot . '/mod/quiz/locallib.php');
  * @copyright  2008 Tim Hunt
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class mod_quiz_locallib_testcase extends advanced_testcase {
+class locallib_test extends \advanced_testcase {
 
     public function test_quiz_rescale_grade() {
-        $quiz = new stdClass();
+        $quiz = new \stdClass();
         $quiz->decimalpoints = 2;
         $quiz->questiondecimalpoints = 3;
         $quiz->grade = 10;
@@ -82,7 +85,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
     public function test_quiz_attempt_state($attemptstate,
             $relativetimefinish, $relativetimeclose, $expectedstate) {
 
-        $attempt = new stdClass();
+        $attempt = new \stdClass();
         $attempt->state = $attemptstate;
         if ($relativetimefinish === null) {
             $attempt->timefinish = 0;
@@ -90,7 +93,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
             $attempt->timefinish = time() + $relativetimefinish;
         }
 
-        $quiz = new stdClass();
+        $quiz = new \stdClass();
         if ($relativetimeclose === null) {
             $quiz->timeclose = 0;
         } else {
@@ -101,7 +104,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
     }
 
     public function test_quiz_question_tostring() {
-        $question = new stdClass();
+        $question = new \stdClass();
         $question->qtype = 'multichoice';
         $question->name = 'The question name';
         $question->questiontext = '<p>What sort of <b>inequality</b> is x &lt; y<img alt="?" src="..."></p>';
@@ -127,7 +130,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(array('enablecompletion' => 1));
         $quiz = $this->getDataGenerator()->create_module('quiz', array('course' => $course->id),
                                                             array('completion' => 2, 'completionview' => 1));
-        $context = context_module::instance($quiz->cmid);
+        $context = \context_module::instance($quiz->cmid);
         $cm = get_coursemodule_from_instance('quiz', $quiz->id);
 
         // Trigger and capture the event.
@@ -148,7 +151,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         $this->assertEventContextNotUsed($event);
         $this->assertNotEmpty($event->get_name());
         // Check completion status.
-        $completion = new completion_info($course);
+        $completion = new \completion_info($course);
         $completiondata = $completion->get_data($cm);
         $this->assertEquals(1, $completiondata->completionstate);
     }
@@ -354,16 +357,16 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         // Let's test quiz 1 closes in three hours for user student 1 since member of group 1.
         // Quiz 2 closes in two hours.
         $this->setUser($student1id);
-        $params = new stdClass();
+        $params = new \stdClass();
 
         $comparearray = array();
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz1->id;
         $object->usertimeclose = $basetimestamp + 10800; // The overriden timeclose for quiz 1.
 
         $comparearray[$quiz1->id] = $object;
 
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz2->id;
         $object->usertimeclose = $basetimestamp + 7200; // The unchanged timeclose for quiz 2.
 
@@ -373,16 +376,16 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
 
         // Let's test quiz 1 closes in two hours (the original value) for user student 3 since member of no group.
         $this->setUser($student3id);
-        $params = new stdClass();
+        $params = new \stdClass();
 
         $comparearray = array();
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz1->id;
         $object->usertimeclose = $basetimestamp + 7200; // The original timeclose for quiz 1.
 
         $comparearray[$quiz1->id] = $object;
 
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz2->id;
         $object->usertimeclose = $basetimestamp + 7200; // The original timeclose for quiz 2.
 
@@ -403,13 +406,13 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         $this->setUser($student2id);
 
         $comparearray = array();
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz1->id;
         $object->usertimeclose = $basetimestamp + 14400; // The overriden timeclose for quiz 1.
 
         $comparearray[$quiz1->id] = $object;
 
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz2->id;
         $object->usertimeclose = $basetimestamp + 7200; // The unchanged timeclose for quiz 2.
 
@@ -422,13 +425,13 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         $this->setUser($teacherid);
 
         $comparearray = array();
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz1->id;
         $object->usertimeclose = $basetimestamp + 7200; // The unchanged timeclose for quiz 1.
 
         $comparearray[$quiz1->id] = $object;
 
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->id = $quiz2->id;
         $object->usertimeclose = $basetimestamp + 7200; // The unchanged timeclose for quiz 2.
 
@@ -542,7 +545,7 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         $slottags = quiz_retrieve_slot_tags($slotid);
 
         // Now remove the foo tag and check again.
-        core_tag_tag::delete_tags([$tags['foo']->id]);
+        \core_tag_tag::delete_tags([$tags['foo']->id]);
         $slottags = quiz_retrieve_slot_tags($slotid);
 
         $this->assertEqualsCanonicalizing(
@@ -838,5 +841,107 @@ class mod_quiz_locallib_testcase extends advanced_testcase {
         }
 
         $this->assertEquals($formattedexptected, $actual);
+    }
+
+    public function test_quiz_override_summary() {
+        global $DB, $PAGE;
+        $this->resetAfterTest();
+        $generator = $this->getDataGenerator();
+        /** @var mod_quiz_generator $quizgenerator */
+        $quizgenerator = $generator->get_plugin_generator('mod_quiz');
+        /** @var mod_quiz_renderer $renderer */
+        $renderer = $PAGE->get_renderer('mod_quiz');
+
+        // Course with quiz and a group - plus some others, to verify they don't get counted.
+        $course = $generator->create_course();
+        $quiz = $quizgenerator->create_instance(['course' => $course->id, 'groupmode' => SEPARATEGROUPS]);
+        $cm = get_coursemodule_from_id('quiz', $quiz->cmid, $course->id);
+        $group = $generator->create_group(['courseid' => $course->id]);
+        $othergroup = $generator->create_group(['courseid' => $course->id]);
+        $otherquiz = $quizgenerator->create_instance(['course' => $course->id]);
+
+        // Initial test (as admin) with no data.
+        $this->setAdminUser();
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'allgroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'onegroup'],
+                quiz_override_summary($quiz, $cm, $group->id));
+
+        // Editing teacher.
+        $teacher = $generator->create_user();
+        $generator->enrol_user($teacher->id, $course->id, 'editingteacher');
+
+        // Non-editing teacher.
+        $tutor = $generator->create_user();
+        $generator->enrol_user($tutor->id, $course->id, 'teacher');
+        $generator->create_group_member(['userid' => $tutor->id, 'groupid' => $group->id]);
+
+        // Three students.
+        $student1 = $generator->create_user();
+        $generator->enrol_user($student1->id, $course->id, 'student');
+        $generator->create_group_member(['userid' => $student1->id, 'groupid' => $group->id]);
+
+        $student2 = $generator->create_user();
+        $generator->enrol_user($student2->id, $course->id, 'student');
+        $generator->create_group_member(['userid' => $student2->id, 'groupid' => $othergroup->id]);
+
+        $student3 = $generator->create_user();
+        $generator->enrol_user($student3->id, $course->id, 'student');
+
+        // Initial test now users exist, but before overrides.
+        // Test as teacher.
+        $this->setUser($teacher);
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'allgroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'onegroup'],
+                quiz_override_summary($quiz, $cm, $group->id));
+
+        // Test as tutor.
+        $this->setUser($tutor);
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'somegroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals(['group' => 0, 'user' => 0, 'mode' => 'onegroup'],
+                quiz_override_summary($quiz, $cm, $group->id));
+        $this->assertEquals('', $renderer->quiz_override_summary_links($quiz, $cm));
+
+        // Quiz setting overrides for students 1 and 3.
+        $quizgenerator->create_override(['quiz' => $quiz->id, 'userid' => $student1->id, 'attempts' => 2]);
+        $quizgenerator->create_override(['quiz' => $quiz->id, 'userid' => $student3->id, 'attempts' => 2]);
+        $quizgenerator->create_override(['quiz' => $quiz->id, 'groupid' => $group->id, 'attempts' => 3]);
+        $quizgenerator->create_override(['quiz' => $quiz->id, 'groupid' => $othergroup->id, 'attempts' => 3]);
+        $quizgenerator->create_override(['quiz' => $otherquiz->id, 'userid' => $student2->id, 'attempts' => 2]);
+
+        // Test as teacher.
+        $this->setUser($teacher);
+        $this->assertEquals(['group' => 2, 'user' => 2, 'mode' => 'allgroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals('Settings overrides exist (Groups: 2, Users: 2)',
+                // Links checked by Behat, so strip them for these tests.
+                html_to_text($renderer->quiz_override_summary_links($quiz, $cm), 0, false));
+        $this->assertEquals(['group' => 1, 'user' => 1, 'mode' => 'onegroup'],
+                quiz_override_summary($quiz, $cm, $group->id));
+        $this->assertEquals('Settings overrides exist (Groups: 1, Users: 1) for this group',
+                html_to_text($renderer->quiz_override_summary_links($quiz, $cm, $group->id), 0, false));
+
+        // Test as tutor.
+        $this->setUser($tutor);
+        $this->assertEquals(['group' => 1, 'user' => 1, 'mode' => 'somegroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals('Settings overrides exist (Groups: 1, Users: 1) for your groups',
+                html_to_text($renderer->quiz_override_summary_links($quiz, $cm), 0, false));
+        $this->assertEquals(['group' => 1, 'user' => 1, 'mode' => 'onegroup'],
+                quiz_override_summary($quiz, $cm, $group->id));
+        $this->assertEquals('Settings overrides exist (Groups: 1, Users: 1) for this group',
+                html_to_text($renderer->quiz_override_summary_links($quiz, $cm, $group->id), 0, false));
+
+        // Now set the quiz to be group mode: no groups, and re-test as tutor.
+        // In this case, the tutor should see all groups.
+        $DB->set_field('course_modules', 'groupmode', NOGROUPS, ['id' => $cm->id]);
+        $cm = get_coursemodule_from_id('quiz', $quiz->cmid, $course->id);
+
+        $this->assertEquals(['group' => 2, 'user' => 2, 'mode' => 'allgroups'],
+                quiz_override_summary($quiz, $cm));
+        $this->assertEquals('Settings overrides exist (Groups: 2, Users: 2)',
+                html_to_text($renderer->quiz_override_summary_links($quiz, $cm), 0, false));
     }
 }

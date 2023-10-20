@@ -22,6 +22,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$string['activitydate:assessmentsclose'] = 'Assessments close:';
+$string['activitydate:assessmentsclosed'] = 'Assessments closed:';
+$string['activitydate:assessmentsopen'] = 'Assessments open:';
+$string['activitydate:assessmentsopened'] = 'Assessments opened:';
+$string['activitydate:submissionsclose'] = 'Submissions close:';
+$string['activitydate:submissionsclosed'] = 'Submissions closed:';
+$string['activitydate:submissionsopen'] = 'Submissions open:';
+$string['activitydate:submissionsopened'] = 'Submissions opened:';
 $string['aggregategrades'] = 'Re-calculate grades';
 $string['aggregation'] = 'Grades aggregation';
 $string['allocate'] = 'Allocate submissions';
@@ -125,6 +133,7 @@ $string['eventsubmissionreassessed'] = 'Submission re-assessed';
 $string['eventsubmissionupdated'] = 'Submission updated';
 $string['eventsubmissiondeleted'] = 'Submission deleted';
 $string['eventsubmissionviewed'] = 'Submission viewed';
+$string['eventphaseautomaticallyswitched'] = 'Phase automatically switched';
 $string['eventphaseswitched'] = 'Phase switched';
 $string['example'] = 'Example submission';
 $string['exampleadd'] = 'Add example submission';
@@ -445,3 +454,4 @@ $string['workshop:viewreviewernames'] = 'View reviewer names';
 $string['yourassessmentfor'] = 'Your assessment for {$a}';
 $string['yourgrades'] = 'Your grades';
 $string['yoursubmission'] = 'Your submission';
+$string['yoursubmissionwithassessments'] = 'Your submission with assessments';

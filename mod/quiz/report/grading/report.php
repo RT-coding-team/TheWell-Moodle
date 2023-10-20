@@ -231,7 +231,8 @@ class quiz_grading_report extends quiz_default_report {
         $params[] = $this->quiz->id;
 
         $fields = 'quiza.*, u.idnumber, ';
-        $fields .= get_all_user_name_fields(true, 'u');
+        $userfieldsapi = \core_user\fields::for_name();
+        $fields .= $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $attemptsbyid = $DB->get_records_sql("
                 SELECT $fields
                 FROM {quiz_attempts} quiza
@@ -322,13 +323,19 @@ class quiz_grading_report extends quiz_default_report {
      * @param bool $includeauto whether to show automatically-graded questions.
      */
     protected function display_index($includeauto) {
-        global $PAGE;
+        global $PAGE, $OUTPUT;
 
         $this->print_header_and_tabs($this->cm, $this->course, $this->quiz, 'grading');
 
         if ($groupmode = groups_get_activity_groupmode($this->cm)) {
             // Groups is being used.
             groups_print_activity_menu($this->cm, $this->list_questions_url());
+        }
+        // Get the current group for the user looking at the report.
+        $currentgroup = $this->get_current_group($this->cm, $this->course, $this->context);
+        if ($currentgroup == self::NO_GROUPS_ALLOWED) {
+            echo $OUTPUT->notification(get_string('notingroup'));
+            return;
         }
         $statecounts = $this->get_question_state_summary(array_keys($this->questions));
         if ($includeauto) {
@@ -458,8 +465,7 @@ class quiz_grading_report extends quiz_default_report {
             $attempt = $attempts[$qubaid];
             $quba = question_engine::load_questions_usage_by_activity($qubaid);
             $displayoptions = quiz_get_review_options($this->quiz, $attempt, $this->context);
-            $displayoptions->hide_all_feedback();
-            $displayoptions->rightanswer = question_display_options::VISIBLE;
+            $displayoptions->generalfeedback = question_display_options::HIDDEN;
             $displayoptions->history = question_display_options::HIDDEN;
             $displayoptions->manualcomment = question_display_options::EDITABLE;
 

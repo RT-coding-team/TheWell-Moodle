@@ -94,6 +94,13 @@ function user_create_user($user, $updatepassword = true, $triggerevent = true) {
     if (!isset($user->lang)) {
         $user->lang = core_user::get_property_default('lang');
     }
+    if (!isset($user->city)) {
+        $user->city = core_user::get_property_default('city');
+    }
+    if (!isset($user->country)) {
+        // The default value of $CFG->country is 0, but that isn't a valid property for the user field, so switch to ''.
+        $user->country = core_user::get_property_default('country') ?: '';
+    }
 
     $user->timecreated = time();
     $user->timemodified = $user->timecreated;
@@ -242,10 +249,10 @@ function user_get_users_by_id($userids) {
  */
 function user_get_default_fields() {
     return array( 'id', 'username', 'fullname', 'firstname', 'lastname', 'email',
-        'address', 'phone1', 'phone2', 'icq', 'skype', 'yahoo', 'aim', 'msn', 'department',
+        'address', 'phone1', 'phone2', 'department',
         'institution', 'interests', 'firstaccess', 'lastaccess', 'auth', 'confirmed',
         'idnumber', 'lang', 'theme', 'timezone', 'mailformat', 'description', 'descriptionformat',
-        'city', 'url', 'country', 'profileimageurlsmall', 'profileimageurl', 'customfields',
+        'city', 'country', 'profileimageurlsmall', 'profileimageurl', 'customfields',
         'groups', 'roles', 'preferences', 'enrolledcourses', 'suspended', 'lastcourseaccess'
     );
 }
@@ -302,7 +309,9 @@ function user_get_user_details($user, $course = null, array $userfields = array(
     $currentuser = ($user->id == $USER->id);
     $isadmin = is_siteadmin($USER);
 
-    $showuseridentityfields = get_extra_user_fields($context);
+    // This does not need to include custom profile fields as it is only used to check specific
+    // fields below.
+    $showuseridentityfields = \core_user\fields::get_identity_fields($context, false);
 
     if (!empty($course)) {
         $canviewhiddenuserfields = has_capability('moodle/course:viewhiddenuserfields', $context);
@@ -427,31 +436,6 @@ function user_get_user_details($user, $course = null, array $userfields = array(
         $userdetails['city'] = $user->city;
     }
 
-    if (in_array('url', $userfields) && $user->url && (!isset($hiddenfields['webpage']) or $isadmin)) {
-        $url = $user->url;
-        if (strpos($user->url, '://') === false) {
-            $url = 'http://'. $url;
-        }
-        $user->url = clean_param($user->url, PARAM_URL);
-        $userdetails['url'] = $user->url;
-    }
-
-    if (in_array('icq', $userfields) && $user->icq && (!isset($hiddenfields['icqnumber']) or $isadmin)) {
-        $userdetails['icq'] = $user->icq;
-    }
-
-    if (in_array('skype', $userfields) && $user->skype && (!isset($hiddenfields['skypeid']) or $isadmin)) {
-        $userdetails['skype'] = $user->skype;
-    }
-    if (in_array('yahoo', $userfields) && $user->yahoo && (!isset($hiddenfields['yahooid']) or $isadmin)) {
-        $userdetails['yahoo'] = $user->yahoo;
-    }
-    if (in_array('aim', $userfields) && $user->aim && (!isset($hiddenfields['aimid']) or $isadmin)) {
-        $userdetails['aim'] = $user->aim;
-    }
-    if (in_array('msn', $userfields) && $user->msn && (!isset($hiddenfields['msnid']) or $isadmin)) {
-        $userdetails['msn'] = $user->msn;
-    }
     if (in_array('suspended', $userfields) && (!isset($hiddenfields['suspended']) or $isadmin)) {
         $userdetails['suspended'] = (bool)$user->suspended;
     }

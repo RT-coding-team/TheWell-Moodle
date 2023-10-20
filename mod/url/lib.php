@@ -202,7 +202,7 @@ function url_delete_instance($id) {
  * "extra" information that may be needed when printing
  * this activity in a course listing.
  *
- * See {@link get_array_of_activities()} in course/lib.php
+ * See {@link course_modinfo::get_array_of_activities()}
  *
  * @param object $coursemodule
  * @return cached_cm_info info
@@ -242,6 +242,8 @@ function url_get_coursemodule_info($coursemodule) {
         // Convert intro to html. Do not filter cached version, filters run at display time.
         $info->content = format_module_intro('url', $url, $coursemodule->id, false);
     }
+
+    $info->customdata['display'] = $display;
 
     return $info;
 }

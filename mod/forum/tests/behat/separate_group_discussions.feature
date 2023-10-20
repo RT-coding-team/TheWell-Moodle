@@ -40,22 +40,39 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
       | student2 | G1 |
       | student2 | G2 |
     And the following "activities" exist:
-      | activity   | name                   | intro                         | course | idnumber     | groupmode |
-      | forum      | Standard forum name    | Standard forum description    | C1     | sepgroups    | 1         |
+      | activity   | name                   | course | idnumber     | groupmode |
+      | forum      | Standard forum name    | C1     | sepgroups    | 1         |
+    And the following "mod_forum > discussions" exist:
+      | forum     | name             | subject          | message          | group            |
+      | sepgroups | Initial Disc ALL | Initial Disc ALL | Disc ALL content | All participants |
+      | sepgroups | Initial Disc G1  | Initial Disc G1  | Disc G1 content  | G1               |
+      | sepgroups | Initial Disc G2  | Initial Disc G2  | Disc G2 content  | G2               |
+      | sepgroups | Initial Disc G3  | Initial Disc G3  | Disc G3 content  | G3               |
 
   Scenario: Teacher with accessallgroups can view all groups
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    When I follow "Standard forum name"
+    When I am on the "Standard forum name" "forum activity" page logged in as teacher1
     Then the "Separate groups" select box should contain "All participants"
-    Then the "Separate groups" select box should contain "Group A"
-    Then the "Separate groups" select box should contain "Group B"
-    Then the "Separate groups" select box should contain "Group C"
+    And the "Separate groups" select box should contain "Group A"
+    And the "Separate groups" select box should contain "Group B"
+    And the "Separate groups" select box should contain "Group C"
+    And I select "All participants" from the "Separate groups" singleselect
+    And I should see "Initial Disc ALL"
+    And I should see "Initial Disc G1"
+    And I should see "Initial Disc G2"
+    And I should see "Initial Disc G2"
+    And I select "Group A" from the "Separate groups" singleselect
+    And I should see "Initial Disc ALL"
+    And I should see "Initial Disc G1"
+    But I should not see "Initial Disc G2"
+    And I should not see "Initial Disc G3"
+    And I select "Group B" from the "Separate groups" singleselect
+    And I should see "Initial Disc ALL"
+    And I should see "Initial Disc G2"
+    But I should not see "Initial Disc G1"
+    And I should not see "Initial Disc G3"
 
   Scenario: Teacher with accessallgroups can select any group when posting
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
     Then the "Group" select box should contain "All participants"
@@ -65,9 +82,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should see "Post a copy to all groups"
 
   Scenario: Teacher with accessallgroups can post in groups they are a member of
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     And I select "Group A" from the "Separate groups" singleselect
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
@@ -96,9 +111,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should not see "Teacher 1 -> Group B"
 
   Scenario: Teacher with accessallgroups can post in groups they are not a member of
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     And I select "Group A" from the "Separate groups" singleselect
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
@@ -127,9 +140,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should not see "Teacher 1 -> Group C"
 
   Scenario: Teacher with accessallgroups can post to all groups
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
     And I set the following fields to these values:
@@ -155,9 +166,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     # No point testing the "All participants".
 
   Scenario: Students in one group can only post in their group
-    Given I log in as "student1"
-    And I am on "Course 1" course homepage
-    When I follow "Standard forum name"
+    When I am on the "Standard forum name" "forum activity" page logged in as student1
     Then I should see "Group A"
     And I click on "Add a new discussion topic" "link"
     And I should see "Group A"
@@ -173,9 +182,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should not see "Group B" in the "Student -> B" "table_row"
 
   Scenario: Students in multiple group can post in all of their group individually
-    Given I log in as "student2"
-    And I am on "Course 1" course homepage
-    When I follow "Standard forum name"
+    When I am on the "Standard forum name" "forum activity" page logged in as student2
     And I select "Group A" from the "Separate groups" singleselect
     And I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
@@ -219,13 +226,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should not see "Student -> A"
 
   Scenario: Teacher in all groups but without accessallgroups can only post in their groups
-    And I log in as "admin"
-    And I set the following system permissions of "Non-editing teacher" role:
-      | moodle/site:accessallgroups | Prohibit |
-    And I log out
-    Given I log in as "noneditor1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as noneditor1
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
     Then the "Group" select box should not contain "All participants"
@@ -234,13 +235,7 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should see "Post a copy to all groups"
 
   Scenario: Teacher in some groups and without accessallgroups can only post in their groups
-    And I log in as "admin"
-    And I set the following system permissions of "Non-editing teacher" role:
-      | moodle/site:accessallgroups | Prohibit |
-    And I log out
-    Given I log in as "noneditor1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
+    Given I am on the "Standard forum name" "forum activity" page logged in as noneditor1
     When I click on "Add a new discussion topic" "link"
     And I click on "Advanced" "button"
     Then the "Group" select box should not contain "All participants"
@@ -249,14 +244,5 @@ Feature: Posting to all groups in a separate group discussion is restricted to u
     And I should see "Post a copy to all groups"
 
   Scenario: Students can view all participants discussions in separate groups mode
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    When I add a new discussion to "Standard forum name" forum with:
-      | Subject | Forum post to all participants |
-      | Message | This is the body |
-      | Group   | All participants |
-    And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
-    And I follow "Standard forum name"
-    Then I should see "Forum post to all participants"
+    When I am on the "Standard forum name" "forum activity" page logged in as student1
+    Then I should see "Initial Disc ALL"

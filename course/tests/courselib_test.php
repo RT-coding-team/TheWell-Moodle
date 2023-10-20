@@ -14,23 +14,58 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Course related unit tests
- *
- * @package    core
- * @category   phpunit
- * @copyright  2012 Petr Skoda {@link http://skodak.org}
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace core_course;
 
-defined('MOODLE_INTERNAL') || die();
+use advanced_testcase;
+use backup_controller;
+use backup;
+use blog_entry;
+use cache;
+use calendar_event;
+use coding_exception;
+use comment;
+use completion_criteria_date;
+use completion_completion;
+use context_course;
+use context_module;
+use context_system;
+use context_coursecat;
+use core_completion_external;
+use core_external;
+use core_tag_index_builder;
+use core_tag_tag;
+use course_capability_assignment;
+use course_request;
+use core_course_category;
+use enrol_imsenterprise\imsenterprise_test;
+use external_api;
+use grade_item;
+use grading_manager;
+use moodle_exception;
+use moodle_url;
+use phpunit_util;
+use rating_manager;
+use restore_controller;
+use stdClass;
+use testing_data_generator;
 
+defined('MOODLE_INTERNAL') or die();
+
+// Require library globally because it's constants are used within dataProvider methods, executed before setUpBeforeClass.
 global $CFG;
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/course/tests/fixtures/course_capability_assignment.php');
 require_once($CFG->dirroot . '/enrol/imsenterprise/tests/imsenterprise_test.php');
 
-class core_course_courselib_testcase extends advanced_testcase {
+/**
+ * Course related unit tests
+ *
+ * @package    core_course
+ * @category   test
+ * @copyright  2012 Petr Skoda {@link http://skodak.org}
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class courselib_test extends advanced_testcase {
 
     /**
      * Set forum specific test values for calling create_module().
@@ -996,6 +1031,34 @@ class core_course_courselib_testcase extends advanced_testcase {
         $this->assertEquals(3, $course->marker);
     }
 
+    /**
+     * Test move_section_to method.
+     * Make sure that we only update the moving sections, not all the sections in the current course.
+     *
+     * @return void
+     */
+    public function test_move_section_to() {
+        global $DB, $CFG;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        // Generate the course and pre-requisite module.
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 3], ['createsections' => true]);
+
+        ob_start();
+        $DB->set_debug(true);
+        // Move section.
+        move_section_to($course, 2, 3);
+        $DB->set_debug(false);
+        $debuginfo = ob_get_contents();
+        ob_end_clean();
+        $sectionmovequerycount = substr_count($debuginfo, 'UPDATE ' . $CFG->phpunit_prefix . 'course_sections SET');
+        // We are updating the course_section table in steps to avoid breaking database uniqueness constraint.
+        // So the queries will be doubled. See: course/lib.php:1423
+        // Make sure that we only need 4 queries to update the position of section 2 and section 3.
+        $this->assertEquals(4, $sectionmovequerycount);
+    }
+
     public function test_course_can_delete_section() {
         global $DB;
         $this->resetAfterTest(true);
@@ -1517,9 +1580,9 @@ class core_course_courselib_testcase extends advanced_testcase {
         $modinfo = get_fast_modinfo($course);
 
         // Verify that forum and page have been moved to the hidden section and quiz has not.
-        $this->assertContains($forum->cmid, $modinfo->sections[3]);
-        $this->assertContains($page->cmid, $modinfo->sections[3]);
-        $this->assertNotContains($quiz->cmid, $modinfo->sections[3]);
+        $this->assertContainsEquals($forum->cmid, $modinfo->sections[3]);
+        $this->assertContainsEquals($page->cmid, $modinfo->sections[3]);
+        $this->assertNotContainsEquals($quiz->cmid, $modinfo->sections[3]);
 
         // Verify that forum has been made invisible.
         $forumcm = $modinfo->cms[$forum->cmid];
@@ -1754,7 +1817,7 @@ class core_course_courselib_testcase extends advanced_testcase {
 
         // Create the XML file we want to use.
         $course->category = (array)$course->category;
-        $imstestcase = new enrol_imsenterprise_testcase();
+        $imstestcase = new imsenterprise_test();
         $imstestcase->imsplugin = enrol_get_plugin('imsenterprise');
         $imstestcase->set_test_config();
         $imstestcase->set_xml_file(false, array($course));
@@ -3081,11 +3144,11 @@ class core_course_courselib_testcase extends advanced_testcase {
         $this->setAdminUser();
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */0, /*$ctx = */0, /*$rec = */1, /*$page = */0);
-        $this->assertRegExp('/'.$cm11->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm12->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm13->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm21->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm31->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm11->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm12->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm13->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm21->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm31->name.'/', $res->content);
         // Results from course1 are returned before results from course2.
         $this->assertTrue(strpos($res->content, $cm11->name) < strpos($res->content, $cm21->name));
 
@@ -3107,21 +3170,21 @@ class core_course_courselib_testcase extends advanced_testcase {
         $context = context_course::instance($course1->id);
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */0, /*$ctx = */$context->id, /*$rec = */1, /*$page = */0);
-        $this->assertRegExp('/'.$cm11->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm12->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm13->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm21->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm31->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm11->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm12->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm13->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm21->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm31->name.'/', $res->content);
 
         // Searching FROM the course context returns visible modules in all courses.
         $context = context_course::instance($course2->id);
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */$context->id, /*$ctx = */0, /*$rec = */1, /*$page = */0);
-        $this->assertRegExp('/'.$cm11->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm12->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm13->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm21->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm31->name.'/', $res->content); // No access to course3.
+        $this->assertMatchesRegularExpression('/'.$cm11->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm12->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm13->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm21->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm31->name.'/', $res->content); // No access to course3.
         // Results from course2 are returned before results from course1.
         $this->assertTrue(strpos($res->content, $cm21->name) < strpos($res->content, $cm11->name));
 
@@ -3132,7 +3195,7 @@ class core_course_courselib_testcase extends advanced_testcase {
         $context = context_course::instance($course1->id);
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */$context->id, /*$ctx = */0, /*$rec = */1, /*$page = */0);
-        $this->assertRegExp('/'.$cm12->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm12->name.'/', $res->content);
 
         // Create more modules and try pagination.
         $cm14 = $this->getDataGenerator()->create_module('assign', array('course' => $course1->id,
@@ -3145,27 +3208,27 @@ class core_course_courselib_testcase extends advanced_testcase {
         $context = context_course::instance($course1->id);
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */0, /*$ctx = */$context->id, /*$rec = */1, /*$page = */0);
-        $this->assertRegExp('/'.$cm11->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm12->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm13->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm21->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm14->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm15->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm16->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm31->name.'/', $res->content); // No access to course3.
+        $this->assertMatchesRegularExpression('/'.$cm11->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm12->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm13->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm21->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm14->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm15->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm16->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm31->name.'/', $res->content); // No access to course3.
         $this->assertEmpty($res->prevpageurl);
         $this->assertNotEmpty($res->nextpageurl);
 
         $res = course_get_tagged_course_modules(core_tag_tag::get_by_name(0, 'Cat'),
                 /*$exclusivemode = */false, /*$fromctx = */0, /*$ctx = */$context->id, /*$rec = */1, /*$page = */1);
-        $this->assertNotRegExp('/'.$cm11->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm12->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm13->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm21->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm14->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm15->name.'/', $res->content);
-        $this->assertRegExp('/'.$cm16->name.'/', $res->content);
-        $this->assertNotRegExp('/'.$cm31->name.'/', $res->content); // No access to course3.
+        $this->assertDoesNotMatchRegularExpression('/'.$cm11->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm12->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm13->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm21->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm14->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm15->name.'/', $res->content);
+        $this->assertMatchesRegularExpression('/'.$cm16->name.'/', $res->content);
+        $this->assertDoesNotMatchRegularExpression('/'.$cm31->name.'/', $res->content); // No access to course3.
         $this->assertNotEmpty($res->prevpageurl);
         $this->assertEmpty($res->nextpageurl);
     }
@@ -3251,7 +3314,7 @@ class core_course_courselib_testcase extends advanced_testcase {
         $this->assertTrue($navoptions->blogs);
         $this->assertFalse($navoptions->notes);
         $this->assertTrue($navoptions->participants);
-        $this->assertTrue($navoptions->badges);
+        $this->assertFalse($navoptions->badges);
 
         // Disable some options.
         $CFG->badges_allowcoursebadges = 0;
@@ -3264,6 +3327,13 @@ class core_course_courselib_testcase extends advanced_testcase {
         $this->assertFalse($navoptions->notes);
         $this->assertFalse($navoptions->participants);
         $this->assertFalse($navoptions->badges);
+
+        // Re-enable some options to check badges are displayed as expected.
+        $CFG->badges_allowcoursebadges = 1;
+        assign_capability('moodle/badges:createbadge', CAP_ALLOW, $roleid, $context);
+
+        $navoptions = course_get_user_navigation_options($context);
+        $this->assertTrue($navoptions->badges);
     }
 
     /**
@@ -5519,7 +5589,8 @@ class core_course_courselib_testcase extends advanced_testcase {
                 [
                     'shortname DESC, xyz ASC',
                     'Invalid field in the sort parameter, allowed fields: id, idnumber, summary, summaryformat, ' .
-                    'startdate, enddate, category, shortname, fullname, timeaccess, component, visible.',
+                    'startdate, enddate, category, shortname, fullname, timeaccess, component, visible, ' .
+                    'showactivitydates, showcompletionconditions.',
             ],
             'Sort uses invalid value for the sorting direction' =>
                 [

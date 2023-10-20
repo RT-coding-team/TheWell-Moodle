@@ -62,7 +62,8 @@ class tool_dataprivacy_data_request_form extends \core\form\persistent {
                 'valuehtmlcallback' => function($value) {
                     global $OUTPUT;
 
-                    $allusernames = get_all_user_name_fields(true);
+                    $userfieldsapi = \core_user\fields::for_name();
+                    $allusernames = $userfieldsapi->get_sql('', false, '', '', false)->selects;
                     $fields = 'id, email, ' . $allusernames;
                     $user = \core_user::get_user($value, $fields);
                     $useroptiondata = [
@@ -96,10 +97,11 @@ class tool_dataprivacy_data_request_form extends \core\form\persistent {
         $mform->setType('userid', PARAM_INT);
 
         // Subject access request type.
-        $options = [
-            api::DATAREQUEST_TYPE_EXPORT => get_string('requesttypeexport', 'tool_dataprivacy'),
-            api::DATAREQUEST_TYPE_DELETE => get_string('requesttypedelete', 'tool_dataprivacy')
-        ];
+        $options = [];
+        if ($this->manage || api::can_create_data_download_request_for_self()) {
+            $options[api::DATAREQUEST_TYPE_EXPORT] = get_string('requesttypeexport', 'tool_dataprivacy');
+        }
+        $options[api::DATAREQUEST_TYPE_DELETE] = get_string('requesttypedelete', 'tool_dataprivacy');
 
         $mform->addElement('select', 'type', get_string('requesttype', 'tool_dataprivacy'), $options);
         $mform->addHelpButton('type', 'requesttype', 'tool_dataprivacy');
@@ -173,7 +175,7 @@ class tool_dataprivacy_data_request_form extends \core\form\persistent {
             $errors['type'] = get_string('errorrequestalreadyexists', 'tool_dataprivacy');
         }
 
-        // Check if current user can create data deletion request.
+        // Check if current user can create data requests.
         if ($data->type == api::DATAREQUEST_TYPE_DELETE) {
             if ($userid == $USER->id) {
                 if (!api::can_create_data_deletion_request_for_self()) {
@@ -182,6 +184,10 @@ class tool_dataprivacy_data_request_form extends \core\form\persistent {
             } else if (!api::can_create_data_deletion_request_for_other()
                 && !api::can_create_data_deletion_request_for_children($userid)) {
                 $errors['type'] = get_string('errorcannotrequestdeleteforother', 'tool_dataprivacy');
+            }
+        } else if ($data->type == api::DATAREQUEST_TYPE_EXPORT) {
+            if ($userid == $USER->id && !api::can_create_data_download_request_for_self()) {
+                $errors['type'] = get_string('errorcannotrequestexportforself', 'tool_dataprivacy');
             }
         }
 

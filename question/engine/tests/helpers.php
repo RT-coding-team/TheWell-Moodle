@@ -479,15 +479,20 @@ abstract class data_loading_method_test_base extends advanced_testcase {
 
 abstract class question_testcase extends advanced_testcase {
 
+    /**
+     * Tolerance accepted in some unit tests when float operations are involved.
+     */
+    const GRADE_DELTA = 0.00000005;
+
     public function assert($expectation, $compare, $notused = '') {
 
         if (get_class($expectation) === 'question_pattern_expectation') {
-            $this->assertRegExp($expectation->pattern, $compare,
+            $this->assertMatchesRegularExpression($expectation->pattern, $compare,
                     'Expected regex ' . $expectation->pattern . ' not found in ' . $compare);
             return;
 
         } else if (get_class($expectation) === 'question_no_pattern_expectation') {
-            $this->assertNotRegExp($expectation->pattern, $compare,
+            $this->assertDoesNotMatchRegularExpression($expectation->pattern, $compare,
                     'Unexpected regex ' . $expectation->pattern . ' found in ' . $compare);
             return;
 
@@ -1299,6 +1304,24 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
     protected function get_contains_hint_expectation($hinttext) {
         // Does not currently verify hint text.
         return new question_contains_tag_with_attribute('div', 'class', 'hint');
+    }
+
+    /**
+     * Returns an expectation that a string contains a corrupted question notification.
+     *
+     * @return question_pattern_expectation an expectation for use with check_current_output.
+     */
+    protected function get_contains_corruption_notification() {
+        return new question_pattern_expectation('/' . preg_quote(get_string('corruptedquestion', 'qtype_multianswer'), '/') . '/');
+    }
+
+    /**
+     * Returns an expectation that a string contains a corrupted subquestion message.
+     *
+     * @return question_pattern_expectation an expectation for use with check_current_output.
+     */
+    protected function get_contains_corrupted_subquestion_message() {
+        return new question_pattern_expectation('/' . preg_quote(get_string('missingsubquestion', 'qtype_multianswer'), '/') . '/');
     }
 }
 
