@@ -73,6 +73,7 @@ Feature: View structural changes in recent activity block
     And I press "Save and return to course"
 
     And I am on the "ForumSeparateGroupsG2" "forum activity editing" page
+
     And I set the following fields to these values:
       | Access restrictions | Grouping: Grouping 2 |
     And I press "Save and return to course"

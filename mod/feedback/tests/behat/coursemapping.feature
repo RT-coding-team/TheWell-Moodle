@@ -34,6 +34,7 @@ Feature: Mapping courses in a feedback
       | activity   | name             | course               | idnumber  | anonymous | publish_stats | section |
       | feedback   | Course feedback  | Acceptance test site | feedback0 | 1         | 1             | 1       |
       | feedback   | Another feedback | C1                   | feedback1 | 1         | 1             | 0       |
+    And I enable "feedback" "block" plugin
     And the following "blocks" exist:
       | blockname | contextlevel | reference | pagetypepattern | defaultregion |
       | feedback  | Course       | C1        | course-view-*   | side-pre      |
@@ -64,7 +65,6 @@ Feature: Mapping courses in a feedback
     And I am on "Course 1" course homepage
     And I follow "Another feedback"
     And I should not see "Mapped courses"
-    And I should not see "Map feedback to courses"
 
   @javascript
   Scenario: Site feedback is not mapped to any course
@@ -132,7 +132,7 @@ Feature: Mapping courses in a feedback
     And I log in as "manager"
     And I am on site homepage
     And I follow "Course feedback"
-    And I follow "Map feedback to courses"
+    And I follow "Mapped courses"
     And I set the field "Courses" to "Course 2, Course 3"
     And I press "Save changes"
     And I should see "Course mapping has been changed"
@@ -229,7 +229,7 @@ Feature: Mapping courses in a feedback
     And I add the "Main menu" block
     And I click on "Delete" "link" in the "Course feedback" activity
     And I press "Yes"
-    And I follow "Turn editing off"
+    And I turn editing mode off
     And I am on site homepage
     Then "Feedback" "block" should not exist
     And I am on "Course 1" course homepage

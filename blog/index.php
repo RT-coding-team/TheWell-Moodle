@@ -71,7 +71,7 @@ if (isset($userid) && empty($courseid) && empty($modid)) {
 }
 $PAGE->set_context($context);
 
-if (isset($userid) && $USER->id == $userid) {
+if (isset($userid) && $USER->id == $userid && !$PAGE->has_secondary_navigation()) {
     $blognode = $PAGE->navigation->find('siteblog', null);
     if ($blognode) {
         $blognode->make_inactive();
@@ -116,7 +116,7 @@ if ($courseid != SITEID) {
 }
 
 if (!empty($userid)) {
-    $user = core_user::get_user($userid);
+    $user = core_user::get_user($userid, '*', MUST_EXIST);
     $PAGE->navigation->extend_for_user($user);
 }
 
@@ -153,7 +153,11 @@ if ($usernode && $courseid != SITEID) {
 if ($courseid != SITEID) {
     $PAGE->set_heading($course->fullname);
     echo $OUTPUT->header();
+
     if (!empty($user)) {
+        $backurl = new moodle_url('/user/view.php', ['id' => $user->id, 'course' => $courseid]);
+        echo $OUTPUT->single_button($backurl, get_string('back'), 'get', ['class' => 'mb-3']);
+
         $headerinfo = array('heading' => fullname($user), 'user' => $user);
         echo $OUTPUT->context_header($headerinfo, 2);
     }

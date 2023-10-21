@@ -16,7 +16,7 @@ Feature: Edit activities in main menu block
       | site_main_menu | System       | 1         | site-index      | side-pre      |
     And I log in as "admin"
     And I am on site homepage
-    And I navigate to "Turn editing on" in current page administration
+    And I turn editing mode on
     When I set the field "Edit title" in the "My forum name" "block_site_main_menu > Activity" to "New forum name"
     Then I should not see "My forum name"
     And I should see "New forum name"
@@ -37,7 +37,7 @@ Feature: Edit activities in main menu block
       | forum    | Acceptance test site | 0       | My forum name |
     And I log in as "admin"
     And I am on site homepage
-    And I navigate to "Turn editing on" in current page administration
+    And I turn editing mode on
     And "My forum name" activity in site main menu block should have "Hide" editing icon
     And "My forum name" activity in site main menu block should not have "Show" editing icon
     And "My forum name" activity in site main menu block should not have "Make available" editing icon
@@ -61,11 +61,11 @@ Feature: Edit activities in main menu block
     And I click on "Edit settings" "link" in the "My forum name" activity in site main menu block
     And I expand all fieldsets
     And the "Availability" select box should contain "Show on course page"
-    And the "Availability" select box should contain "Hide from students"
-    And the field "Availability" matches value "Make available but not shown on course page"
+    And the "Availability" select box should contain "Hide on course page"
+    And the field "Availability" matches value "Make available but don't show on course page"
     And I press "Save and return to course"
     And "My forum name" activity in site main menu block should be available but hidden from course page
-    And I navigate to "Turn editing off" in current page administration
+    And I turn editing mode off
     And "My forum name" activity in site main menu block should be available but hidden from course page
     And I log out
     And I should not see "My forum name" in the "Main menu" "block"

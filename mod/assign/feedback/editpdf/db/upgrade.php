@@ -74,13 +74,7 @@ function xmldb_assignfeedback_editpdf_upgrade($oldversion) {
     // Automatically generated Moodle v3.9.0 release upgrade line.
     // Put any upgrade step following this.
 
-    // Automatically generated Moodle v3.10.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.11.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    if ($oldversion < 2021051701) {
+    if ($oldversion < 2021060400) {
         // Remove submissions from the processing queue that have been processed.
         $sql = 'DELETE
                   FROM {assignfeedback_editpdf_queue}
@@ -95,10 +89,13 @@ function xmldb_assignfeedback_editpdf_upgrade($oldversion) {
         $DB->execute($sql);
 
         // Editpdf savepoint reached.
-        upgrade_plugin_savepoint(true, 2021051701, 'assignfeedback', 'editpdf');
+        upgrade_plugin_savepoint(true, 2021060400, 'assignfeedback', 'editpdf');
     }
 
-    if ($oldversion < 2021051702) {
+    // Automatically generated Moodle v4.0.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2022041901) {
         // Conversion records need to be removed in order for conversions to restart.
         $DB->delete_records('file_conversion');
 
@@ -106,8 +103,14 @@ function xmldb_assignfeedback_editpdf_upgrade($oldversion) {
         $task = new \assignfeedback_editpdf\task\bump_submission_for_stale_conversions();
         \core\task\manager::queue_adhoc_task($task);
 
-        upgrade_plugin_savepoint(true, 2021051702, 'assignfeedback', 'editpdf');
+        upgrade_plugin_savepoint(true, 2022041901, 'assignfeedback', 'editpdf');
     }
 
+    if ($oldversion < 2022041902) {
+        $task = new \assignfeedback_editpdf\task\remove_orphaned_editpdf_files();
+        \core\task\manager::queue_adhoc_task($task);
+
+        upgrade_plugin_savepoint(true, 2022041902, 'assignfeedback', 'editpdf');
+    }
     return true;
 }

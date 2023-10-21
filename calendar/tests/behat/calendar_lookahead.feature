@@ -22,11 +22,12 @@ Feature: Limit displayed upcoming events
 
   Scenario: I view calendar details for a future event
     Given I am on "Course 1" course homepage with editing mode on
-    And I follow "This month"
+    And I follow "Full calendar"
     And I click on "a.next" "css_element"
     And I click on "a.next" "css_element"
     When I create a calendar event:
       | Type of event     | course |
+      | Course            | Course 1 |
       | Event title       | Two months away event |
     And I am on "Course 1" course homepage
     Then I should not see "Two months away event"

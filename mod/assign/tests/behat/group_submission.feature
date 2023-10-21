@@ -37,7 +37,7 @@ Feature: Group assignment submissions
       | submissiondrafts | 0                           |
       | teamsubmission   | 1                           |
     And I am on the "Test assignment name" Activity page logged in as teacher1
-    When I navigate to "View all submissions" in current page administration
+    When I follow "View all submissions"
     Then I should see "Default group" in the "Student 0" "table_row"
     And I should see "Default group" in the "Student 1" "table_row"
     And I should see "Default group" in the "Student 2" "table_row"
@@ -46,7 +46,7 @@ Feature: Group assignment submissions
     And I set the following fields to these values:
       | Group mode | Separate groups |
     And I press "Save and return to course"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | Group mode | Separate groups |
     And I press "Save and display"
@@ -55,7 +55,7 @@ Feature: Group assignment submissions
       | student0 | G1    |
       | student1 | G1    |
     And I am on the "Test assignment name" "assign activity" page
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I set the field "Separate groups" to "Group 1"
     And I should see "Group 1" in the "Student 0" "table_row"
     And I should see "Group 1" in the "Student 1" "table_row"
@@ -84,7 +84,7 @@ Feature: Group assignment submissions
       | assign                | user      | onlinetext                          |
       | Test assignment name  | student1  | I'm the student's first submission  |
     And I am on the "Test assignment name" Activity page logged in as teacher1
-    When I navigate to "View all submissions" in current page administration
+    When I follow "View all submissions"
     Then "Student 1" row "Status" column of "generaltable" table should contain "Submitted for grading"
     And "Student 2" row "Status" column of "generaltable" table should contain "Submitted for grading"
     And "Student 3" row "Status" column of "generaltable" table should not contain "Submitted for grading"
@@ -93,7 +93,7 @@ Feature: Group assignment submissions
       | assign                | user      | onlinetext                          |
       | Test assignment name  | student3  | I'm the student's first submission  |
     And I am on the "Test assignment name" Activity page
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And "Student 1" row "Status" column of "generaltable" table should contain "Submitted for grading"
     And "Student 2" row "Status" column of "generaltable" table should contain "Submitted for grading"
     And "Student 3" row "Status" column of "generaltable" table should contain "Submitted for grading"
@@ -119,7 +119,7 @@ Feature: Group assignment submissions
       | assign                | user      | onlinetext                          |
       | Test assignment name  | student1  | I'm the student's first submission  |
     And I am on the "Test assignment name" Activity page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the following fields to these values:
       | Grade out of 100 | 50.0 |
@@ -129,7 +129,7 @@ Feature: Group assignment submissions
       | Allow another attempt | 1 |
     And I press "Save changes"
     When I am on the "Test assignment name" "assign activity" page
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     Then "Student 1" row "Status" column of "generaltable" table should contain "Reopened"
     And "Student 2" row "Status" column of "generaltable" table should contain "Reopened"
 
@@ -215,7 +215,7 @@ Feature: Group assignment submissions
     And I click on "Assignments" "link" in the "Activities" "block"
     And I should see "Submitted for grading"
     And I am on the "Test assignment name" Activity page logged in as teacher1
-    When I navigate to "View all submissions" in current page administration
+    When I follow "View all submissions"
     Then "Student 1" row "Status" column of "generaltable" table should contain "Submitted for grading"
     And "Student 2" row "Status" column of "generaltable" table should contain "Submitted for grading"
 

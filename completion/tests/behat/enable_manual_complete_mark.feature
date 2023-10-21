@@ -22,7 +22,7 @@ Feature: Allow students to manually mark an activity as complete
       | course   | C1                     |
       | name     | Test forum name        |
     And I am on the "Course 1" course page logged in as teacher1
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | Enable completion tracking | Yes |
     And I press "Save and display"

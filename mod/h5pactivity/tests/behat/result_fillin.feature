@@ -20,7 +20,9 @@ Feature: View fill the blanks attempt report
     And the following "activity" exists:
       | activity        | h5pactivity                          |
       | course          | C1                                   |
+      | section         | 1                                    |
       | name            | Awesome H5P package                  |
+      | intro           | Description                          |
       | grademethod     | 2                                    |
       | packagefilepath | h5p/tests/fixtures/filltheblanks.h5p |
 
@@ -37,7 +39,7 @@ Feature: View fill the blanks attempt report
     And I switch to the main frame
     And I reload the page
     # Check attempt.
-    When I follow "View my attempts"
+    When I navigate to "Attempts report" in current page administration
     And I follow "View report"
     Then I should see "Of which countries are Berlin, Washington, Beijing, Canberra and Brasilia the capitals?"
     And I should see "brigadoon" in the "brasilia" "table_row"

@@ -84,11 +84,12 @@ Feature: A user with access to multiple groups should be able to post a copy of 
 
   Scenario: Teacher is unable to post a copy of a message to all groups in a no group forum
     Given I am on the "No group forum" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     Then I should not see "Post a copy to all groups"
 
   Scenario: Posts to all groups that have groupings should only display within the grouping and not to other groups
-    Given I am on the "Course 2" course page logged in as teacher1
+    Given I log in as "teacher1"
+    And I am on "Course 2" course homepage
     And I add a new discussion to "Groupings forum" forum with:
       | Subject | Discussion 1 |
       | Message | test |

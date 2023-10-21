@@ -27,10 +27,10 @@ Feature: The activity results block doesn't display student scores for unsupport
     And I am on "Course 1" course homepage
     And I configure the "Activity results" block
     And I set the following fields to these values:
-      | id_config_showbest | 1 |
-      | id_config_showworst | 0 |
-      | id_config_gradeformat | Percentages |
-      | id_config_nameformat | Display full names |
+      | config_showbest | 1 |
+      | config_showworst | 0 |
+      | config_gradeformat | Percentages |
+      | config_nameformat | Display full names |
     And I press "Save changes"
     When I am on the "Test assignment" "assign activity editing" page
     And I set the following fields to these values:

@@ -564,6 +564,8 @@ class feedback_test extends \advanced_testcase {
 
     /**
      * Test that overwriting a submission file deletes any associated conversions.
+     *
+     * @covers \core_files\conversion::get_conversions_for_file
      */
     public function test_submission_file_overridden() {
         $this->resetAfterTest();

@@ -54,7 +54,7 @@ Feature: Hidden grade items should be hidden when grade category is locked, but 
     And I should not see "Hidden item"
 
   Scenario: Hidden grade items in overridden category should show
-    Given I am on the "Course 1" "grades > gradebook setup" page logged in as teacher1
+    Given I am on the "Course 1" "grades > gradebook setup" page
     And I press "Add category"
     And I set the following fields to these values:
       | Category name | Test overridden category B|

@@ -26,6 +26,7 @@ namespace core_course\local\repository;
 
 defined('MOODLE_INTERNAL') || die();
 
+use core_component;
 use core_course\local\entity\content_item;
 use core_course\local\entity\lang_string_title;
 use core_course\local\entity\string_title;
@@ -94,9 +95,9 @@ class content_item_readonly_repository implements content_item_readonly_reposito
         // modname:link, i.e. lti:http://etc...
         // We need to grab the module name out to create the componentname.
         $modname = (strpos($item->name, ':') !== false) ? explode(':', $item->name)[0] : $item->name;
-
+        $purpose = plugin_supports('mod', $modname, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
         return new content_item($item->id, $item->name, $item->title, $item->link, $item->icon, $item->help ?? '',
-            $item->archetype, 'mod_' . $modname);
+            $item->archetype, 'mod_' . $modname, $purpose);
     }
 
     /**
@@ -202,16 +203,18 @@ class content_item_readonly_repository implements content_item_readonly_reposito
             // If the module chooses to implement the hook, this may be thrown away.
             $help = $this->get_core_module_help_string($mod->name);
             $archetype = plugin_supports('mod', $mod->name, FEATURE_MOD_ARCHETYPE, MOD_ARCHETYPE_OTHER);
+            $purpose = plugin_supports('mod', $mod->name, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
 
             $contentitem = new content_item(
                 $mod->id,
                 $mod->name,
                 new lang_string_title("modulename", $mod->name),
                 new \moodle_url(''), // No course scope, so just an empty link.
-                $OUTPUT->pix_icon('icon', '', $mod->name, ['class' => 'icon']),
+                $OUTPUT->pix_icon('monologo', '', $mod->name, ['class' => 'icon activityicon']),
                 $help,
                 $archetype,
-                'mod_' . $mod->name
+                'mod_' . $mod->name,
+                $purpose,
             );
 
             $modcontentitemreference = clone($contentitem);
@@ -265,16 +268,26 @@ class content_item_readonly_repository implements content_item_readonly_reposito
             // If the module chooses to implement the hook, this may be thrown away.
             $help = $this->get_core_module_help_string($mod->name);
             $archetype = plugin_supports('mod', $mod->name, FEATURE_MOD_ARCHETYPE, MOD_ARCHETYPE_OTHER);
+            $purpose = plugin_supports('mod', $mod->name, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
 
+            $icon = 'monologo';
+            // Quick check for monologo icons.
+            // Plugins that don't have monologo icons will be displayed as is and CSS filter will not be applied.
+            $hasmonologoicons = core_component::has_monologo_icon('mod', $mod->name);
+            $iconclass = '';
+            if (!$hasmonologoicons) {
+                $iconclass = 'nofilter';
+            }
             $contentitem = new content_item(
                 $mod->id,
                 $mod->name,
                 new lang_string_title("modulename", $mod->name),
                 new \moodle_url($urlbase, ['add' => $mod->name]),
-                $OUTPUT->pix_icon('icon', '', $mod->name, ['class' => 'icon']),
+                $OUTPUT->pix_icon($icon, '', $mod->name, ['class' => "activityicon $iconclass"]),
                 $help,
                 $archetype,
-                'mod_' . $mod->name
+                'mod_' . $mod->name,
+                $purpose,
             );
 
             // Legacy vs new hooks.

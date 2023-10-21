@@ -228,7 +228,8 @@ $tasks = array(
         'hour' => '*',
         'day' => '*',
         'dayofweek' => '*',
-        'month' => '*'
+        'month' => '*',
+        'disabled' => true,
     ),
     array(
         'classname' => 'core\task\registration_cron_task',
@@ -418,5 +419,14 @@ $tasks = array(
         'day' => '*',
         'dayofweek' => '*',
         'month' => '*',
+    ),
+    array(
+        'classname' => 'core_reportbuilder\task\send_schedules',
+        'blocking' => 0,
+        'minute' => '*',
+        'hour' => '*',
+        'day' => '*',
+        'month' => '*',
+        'dayofweek' => '*',
     ),
 );

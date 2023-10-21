@@ -25,7 +25,7 @@ Feature: Restrict sections availability through completion or grade conditions
   Scenario: Show section greyed-out to student when completion condition is not satisfied
     Given I log in as "teacher1"
     And I am on "Course 1" course homepage with editing mode on
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | Enable completion tracking | Yes |
     And I press "Save and display"
@@ -61,7 +61,7 @@ Feature: Restrict sections availability through completion or grade conditions
       | minval | 20               |
     And I press "Save changes"
     When I am on the "Course 1" course page logged in as "student1"
-    Then I should see "Not available unless: You achieve a required score in Grade assignment"
+    Then I should see "Not available unless: You achieve higher than a certain score in Grade assignment"
     And "Test page name" activity should be hidden
     And I am on the "Grade assignment" "assign activity" page
     And I press "Add submission"
@@ -71,7 +71,7 @@ Feature: Restrict sections availability through completion or grade conditions
     And I should see "Submitted for grading"
     And I log out
     And I am on the "Grade assignment" "assign activity" page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Grade" "link" in the "Student First" "table_row"
     And I set the following fields to these values:
       | Grade | 21 |
@@ -79,4 +79,4 @@ Feature: Restrict sections availability through completion or grade conditions
     And I follow "Edit settings"
     And I am on the "Course 1" Course page logged in as student1
     And "Test page name" activity should be visible
-    And I should not see "Not available unless: You achieve a required score in Grade assignment"
+    And I should not see "Not available unless: You achieve higher than a certain score in Grade assignment"

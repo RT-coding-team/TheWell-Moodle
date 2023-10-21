@@ -89,7 +89,8 @@ class behat_user extends behat_base {
      * Convert page names to URLs for steps like 'When I am on the "[identifier]" "[page type]" page'.
      *
      * Recognised page names are:
-     * | Page Type | Identifier meaning | Description                           |
+     * | Page Type | Identifier meaning | Description                                |
+     * | editing   | username or email  | User editing page (/user/editadvanced.php) |
      * | profile   | username or email  | User profile page (/user/profile.php) |
      *
      * @param string $type identifies which type of page this is, e.g. 'Editing'.
@@ -98,7 +99,15 @@ class behat_user extends behat_base {
      * @throws Exception with a meaningful error message if the specified page cannot be found.
      */
     protected function resolve_page_instance_url(string $type, string $identifier): moodle_url {
+
         switch (strtolower($type)) {
+            case 'editing':
+                $userid = $this->get_user_id_by_identifier($identifier);
+                if (!$userid) {
+                    throw new Exception('The specified user with username or email "' .
+                        $identifier . '" does not exist');
+                }
+                return new moodle_url('/user/editadvanced.php', ['id' => $userid]);
             case 'profile':
                 $userid = $this->get_user_id_by_identifier($identifier);
                 if (!$userid) {

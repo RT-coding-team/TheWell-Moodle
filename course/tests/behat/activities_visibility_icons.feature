@@ -59,8 +59,8 @@ Feature: Toggle activities visibility from the course page
     And I click on "Edit settings" "link" in the "Test forum name" activity
     And I expand all fieldsets
     And the "Availability" select box should contain "Show on course page"
-    And the "Availability" select box should not contain "Make available but not shown on course page"
-    And the field "Availability" matches value "Hide from students"
+    And the "Availability" select box should not contain "Make available but don't show on course page"
+    And the field "Availability" matches value "Hide on course page"
     And I press "Save and return to course"
     And "Test forum name" activity should be hidden
     And I turn editing mode off
@@ -98,10 +98,10 @@ Feature: Toggle activities visibility from the course page
     And I open "Test forum name" actions menu
     And I click on "Edit settings" "link" in the "Test forum name" activity
     And I expand all fieldsets
-    And the "Availability" select box should contain "Hide from students"
-    And the "Availability" select box should contain "Make available but not shown on course page"
+    And the "Availability" select box should contain "Hide on course page"
+    And the "Availability" select box should contain "Make available but don't show on course page"
     And the "Availability" select box should not contain "Show on course page"
-    And I set the field "Availability" to "Make available but not shown on course page"
+    And I set the field "Availability" to "Make available but don't show on course page"
     And I press "Save and return to course"
     And "Test forum name" activity should be available but hidden from course page
     And I turn editing mode off
@@ -111,7 +111,7 @@ Feature: Toggle activities visibility from the course page
     And "Test forum name" activity should be hidden
     And I click on "Test forum name" "link" in the "Recent activity" "block"
     And I should see "Test forum name"
-    And I should see "(There are no discussion topics yet in this forum)"
+    And I should see "There are no discussion topics yet in this forum"
 
   @javascript
   Scenario: Activities can be made available but not visible on a course page
@@ -137,11 +137,10 @@ Feature: Toggle activities visibility from the course page
     And I click on "Edit settings" "link" in the "Test assignment name" activity
     And I expand all fieldsets
     And the "Availability" select box should contain "Show on course page"
-    And the "Availability" select box should contain "Hide from students"
-    And the field "Availability" matches value "Make available but not shown on course page"
+    And the "Availability" select box should contain "Hide on course page"
+    And the field "Availability" matches value "Make available but don't show on course page"
     And I press "Save and return to course"
     And "Test assignment name" activity should be available but hidden from course page
-    And I change window size to "large"
     And I turn editing mode off
     And "Test assignment name" activity should be available but hidden from course page
     And I log out

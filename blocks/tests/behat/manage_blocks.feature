@@ -33,23 +33,23 @@ Feature: Block appearances
     And I press "Save changes"
 
   Scenario: Block settings can be modified so that a block apprears on any page
-    When I follow "Test survey name"
+    When I click on "Test survey name" "link" in the "region-main" "region"
     Then I should see "Comments" in the "Comments" "block"
     And I am on "Course 1" course homepage
     And I configure the "Comments" block
     And I set the following fields to these values:
       | Display on page types | Any course page |
     And I press "Save changes"
-    And I press "Turn editing off"
-    And I follow "Test survey name"
+    And I turn editing mode off
+    And I click on "Test survey name" "link" in the "region-main" "region"
     And I should not see "Comments"
 
   Scenario: Block settings can be modified so that a block can be hidden
-    When I follow "Test book name"
+    When I click on "Test book name" "link" in the "region-main" "region"
     And I configure the "Comments" block
     And I set the following fields to these values:
       | Visible | No |
     And I press "Save changes"
-    And I press "Turn editing off"
-    And I follow "Test book name"
+    And I am on "Course 1" course homepage with editing mode off
+    And I click on "Test book name" "link" in the "region-main" "region"
     Then I should not see "Comments"

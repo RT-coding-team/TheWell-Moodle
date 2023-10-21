@@ -1,4 +1,4 @@
-@mod @mod_forum @core_grades
+@mod @mod_forum @core_grades @javascript
 Feature: I can grade a students interaction across a forum
   In order to assess a student's contributions
   As a teacher
@@ -32,7 +32,6 @@ Feature: I can grade a students interaction across a forum
     And I change window size to "large"
     And I am on "Course 1" course homepage with editing mode on
 
-  @javascript
   Scenario: Ensure that forum grade settings do not leak to Ratings
     Given I am on the "Test Forum 1" "forum activity editing" page
     And I expand all fieldsets
@@ -61,7 +60,6 @@ Feature: I can grade a students interaction across a forum
     And I set the field "Whole forum grading > Grade to pass" to "4"
     When I press "Save and return to course"
     And I navigate to "View > Grader report" in the course gradebook
-    And I turn editing mode on
 
     # There shouldn't be any Ratings grade item.
     Then I should see "Test Forum 1 whole forum"
@@ -74,7 +72,6 @@ Feature: I can grade a students interaction across a forum
     Then the field "Grade to pass" matches value "4"
     And I should see "Tutor" in the "Parent category" "fieldset"
 
-  @javascript
   Scenario: Ensure that Ratings settings do not leak to Forum grading
     Given I am on the "Test Forum 1" "forum activity editing" page
     And I expand all fieldsets
@@ -115,7 +112,6 @@ Feature: I can grade a students interaction across a forum
     And I set the field "Ratings > Grade to pass" to "4"
     When I press "Save and return to course"
     And I navigate to "View > Grader report" in the course gradebook
-    And I turn editing mode on
 
     # There shouldn't be any Whole forum grade gradeitem.
     Then I should see "Test Forum 1 rating"
@@ -130,6 +126,7 @@ Feature: I can grade a students interaction across a forum
 
   Scenario: Setting both a rating and a whole forum grade does not bleed
     Given I am on the "Test Forum 1" "forum activity editing" page
+    And I expand all fieldsets
 
     And I set the field "Ratings > Aggregate type" to "Count of ratings"
     And I set the field "Ratings > Type" to "Point"
@@ -142,7 +139,6 @@ Feature: I can grade a students interaction across a forum
     And I set the field "Whole forum grading > Grade to pass" to "4"
     And I press "Save and return to course"
     And I navigate to "View > Grader report" in the course gradebook
-    And I turn editing mode on
 
     # There shouldn't be any Whole forum grade gradeitem.
     Then I should see "Test Forum 1 rating"

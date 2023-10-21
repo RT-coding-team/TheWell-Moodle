@@ -22,7 +22,9 @@ Feature: Change grading options in an H5P activity
     And the following "activity" exists:
       | activity        | h5pactivity                                |
       | course          | C1                                         |
+      | section         | 1                                          |
       | name            | Awesome H5P package                        |
+      | intro           | Description                                |
       | packagefilepath | h5p/tests/fixtures/multiple-choice-2-6.h5p |
     And the following "mod_h5pactivity > attempts" exist:
       | user     | h5pactivity         | attempt | interactiontype   | rawscore | maxscore | duration | completion | success |

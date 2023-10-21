@@ -16,6 +16,7 @@ Feature: Enable Block Completion in a course using manual self completion
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
       | student1 | C1     | student        |
+    And I enable "selfcompletion" "block" plugin
     And the following "blocks" exist:
       | blockname        | contextlevel | reference | pagetypepattern | defaultregion |
       | completionstatus | Course       | C1        | course-view-*   | side-pre      |

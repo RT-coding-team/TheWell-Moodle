@@ -29,7 +29,7 @@ Feature: In an assignment, teachers grade multiple students on one page
       | Test assignment name  | student1  | I'm the student1 submission  |
 
     And I am on the "Test assignment name" Activity page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     When I click on "Grade" "link" in the "Student 1" "table_row"
     And I press "Save changes"
     And I am on the "Test assignment name" "assign activity" page
@@ -53,7 +53,7 @@ Feature: In an assignment, teachers grade multiple students on one page
     And the following config values are set as admin:
       | enableoutcomes | 1 |
     When I am on the "Course 1" "grades > outcomes" page logged in as teacher1
-    And I follow "Edit outcomes"
+    And I press "Manage outcomes"
     And I press "Add a new outcome"
     And I follow "Add a new scale"
     And I set the following fields to these values:
@@ -61,7 +61,7 @@ Feature: In an assignment, teachers grade multiple students on one page
       | Scale | Noob, Nub, 1337, HaXor |
     And I press "Save changes"
     And I am on the "Course 1" "grades > outcomes" page
-    And I follow "Edit outcomes"
+    And I press "Manage outcomes"
     And I press "Add a new outcome"
     And I set the following fields to these values:
       | Full name | M8d skillZ! |
@@ -86,16 +86,14 @@ Feature: In an assignment, teachers grade multiple students on one page
       | Online text | I'm the student2 submission |
     And I press "Save changes"
     And I am on the "Test assignment name" "assign activity" page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the following fields to these values:
       | Grade out of 100 | 50.0 |
       | M8d skillZ! | 1337 |
       | Feedback comments | I'm the teacher first feedback |
     And I press "Save changes"
-    And I click on "Edit settings" "link"
-    And I follow "Test assignment name"
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     Then I click on "Quick grading" "checkbox"
     And I set the field "User grade" to "60.0"
     And I press "Save all quick grading changes"
@@ -114,7 +112,7 @@ Feature: In an assignment, teachers grade multiple students on one page
     And I click on "Course 1" "link" in the "region-main" "region"
     And I should not see "1337"
     And I am on the "Test assignment name" "assign activity" page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Hide User picture" "link"
     And I click on "Hide Full name" "link"
     And I click on "Hide Email address" "link"

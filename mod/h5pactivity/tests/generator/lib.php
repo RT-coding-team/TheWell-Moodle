@@ -58,6 +58,9 @@ class mod_h5pactivity_generator extends testing_module_generator {
         } else if (strpos($record->packagefilepath, $CFG->dirroot) !== 0) {
             $record->packagefilepath = "{$CFG->dirroot}/{$record->packagefilepath}";
         }
+        if (strpos($record->packagefilepath, $CFG->dirroot) !== 0) {
+            $record->packagefilepath = "{$CFG->dirroot}/{$record->packagefilepath}";
+        }
         if (!isset($record->grade)) {
             $record->grade = 100;
         }

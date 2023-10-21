@@ -56,7 +56,7 @@ class behat_grades extends behat_base {
             } else {
                 $plugins = array_combine(
                     array_keys($plugins),
-                    array_keys($plugins)
+                    array_keys($plugins),
                 );
 
                 // This plugin is not in the list of plugins. Check the pluginname string.

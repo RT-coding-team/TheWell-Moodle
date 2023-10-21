@@ -47,21 +47,21 @@ Feature: A user can control their own subscription preferences for a forum
       | Subscription mode | Optional subscription |
     And I press "Save and return to course"
     When I am on the "Test forum name" "forum activity" page logged in as student1
-    Then I should see "Subscribe to this forum"
-    And I should not see "Unsubscribe from this forum"
-    And I follow "Subscribe to this forum"
-    And I should see "Student One will be notified of new posts in 'Test forum name'"
-    And I should see "Unsubscribe from this forum"
-    And I should not see "Subscribe to this forum"
+    Then I should see "Subscribe to forum"
+    And I should not see "Unsubscribe from forum"
+    And I follow "Subscribe to forum"
+    And I should see "You will be notified of new posts in the forum 'Test forum name'"
+    And I should see "Unsubscribe from forum"
+    And I should not see "Subscribe to forum"
 
   Scenario: An Automatic forum can be unsubscribed from
     Given I set the following fields to these values:
       | Subscription mode | Auto subscription |
     And I press "Save and return to course"
     When I am on the "Test forum name" "forum activity" page logged in as student1
-    Then I should see "Unsubscribe from this forum"
-    And I should not see "Subscribe to this forum"
-    And I follow "Unsubscribe from this forum"
+    Then I should see "Unsubscribe from forum"
+    And I should not see "Subscribe to forum"
+    And I follow "Unsubscribe from forum"
     And I should see "Student One will NOT be notified of new posts in 'Test forum name'"
-    And I should see "Subscribe to this forum"
-    And I should not see "Unsubscribe from this forum"
+    And I should see "Subscribe to forum"
+    And I should not see "Unsubscribe from forum"

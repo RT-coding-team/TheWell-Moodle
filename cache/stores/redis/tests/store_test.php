@@ -34,6 +34,7 @@ require_once(__DIR__.'/../lib.php');
  * define('TEST_CACHESTORE_REDIS_TESTSERVERS', '127.0.0.1');
  *
  * @package   cachestore_redis
+ * @covers    \cachestore_redis
  * @copyright Copyright (c) 2015 Moodlerooms Inc. (http://www.moodlerooms.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -69,12 +70,30 @@ class store_test extends \cachestore_tests {
     /**
      * Creates the required cachestore for the tests to run against Redis.
      *
+     * @param array $extraconfig Extra configuration options for Redis instance, if any
+     * @param bool $ttl True to use a cache definition with TTL enabled
      * @return cachestore_redis
      */
-    protected function create_cachestore_redis() {
-        /** @var cache_definition $definition */
-        $definition = cache_definition::load_adhoc(cache_store::MODE_APPLICATION, 'cachestore_redis', 'phpunit_test');
-        $store = new cachestore_redis('Test', cachestore_redis::unit_test_configuration());
+    protected function create_cachestore_redis(array $extraconfig = [], bool $ttl = false): cachestore_redis {
+        if ($ttl) {
+            /** @var cache_definition $definition */
+            $definition = cache_definition::load('core/wibble', [
+                'mode' => 1,
+                'simplekeys' => true,
+                'simpledata' => true,
+                'ttl' => 10,
+                'component' => 'core',
+                'area' => 'wibble',
+                'selectedsharingoption' => 2,
+                'userinputsharingkey' => '',
+                'sharingoptions' => 15,
+            ]);
+        } else {
+            /** @var cache_definition $definition */
+            $definition = cache_definition::load_adhoc(cache_store::MODE_APPLICATION, 'cachestore_redis', 'phpunit_test');
+        }
+        $configuration = array_merge(cachestore_redis::unit_test_configuration(), $extraconfig);
+        $store = new cachestore_redis('Test', $configuration);
         $store->initialise($definition);
 
         $this->store = $store;
@@ -121,4 +140,84 @@ class store_test extends \cachestore_tests {
         $this->assertFalse($store->release_lock('lock', '321'));
         $this->assertTrue($store->release_lock('lock', '123'));
     }
+
+    /**
+     * Tests the get_last_io_bytes function when not using compression (just returns unknown).
+     */
+    public function test_get_last_io_bytes(): void {
+        $store = $this->create_cachestore_redis();
+
+        $store->set('foo', [1, 2, 3, 4]);
+        $this->assertEquals(\cache_store::IO_BYTES_NOT_SUPPORTED, $store->get_last_io_bytes());
+        $store->get('foo');
+        $this->assertEquals(\cache_store::IO_BYTES_NOT_SUPPORTED, $store->get_last_io_bytes());
+    }
+
+    /**
+     * Tests the get_last_io_bytes byte count when using compression.
+     */
+    public function test_get_last_io_bytes_compressed(): void {
+        $store = $this->create_cachestore_redis(['compressor' => cachestore_redis::COMPRESSOR_PHP_GZIP]);
+
+        $alphabet = 'abcdefghijklmnopqrstuvwxyz';
+
+        $store->set('small', $alphabet);
+        $store->set('large', str_repeat($alphabet, 10));
+
+        $store->get('small');
+        // Interesting 'compression'.
+        $this->assertEquals(54, $store->get_last_io_bytes());
+        $store->get('large');
+        // This one is actually smaller than uncompressed value!
+        $this->assertEquals(57, $store->get_last_io_bytes());
+        $store->get_many(['small', 'large']);
+        $this->assertEquals(111, $store->get_last_io_bytes());
+
+        $store->set('small', str_repeat($alphabet, 2));
+        $this->assertEquals(56, $store->get_last_io_bytes());
+        $store->set_many([
+                ['key' => 'small', 'value' => $alphabet],
+                ['key' => 'large', 'value' => str_repeat($alphabet, 10)]
+        ]);
+        $this->assertEquals(111, $store->get_last_io_bytes());
+    }
+
+    /**
+     * Data provider for whether cache uses TTL or not.
+     *
+     * @return array Array with true and false options
+     */
+    public static function ttl_or_not(): array {
+        return [
+            [false],
+            [true]
+        ];
+    }
+
+    /**
+     * Tests the delete_many function.
+     *
+     * The behaviour is different with TTL enabled so we need to test with that kind of definition
+     * as well as a 'normal' one.
+     *
+     * @param bool $ttl True to test using a TTL definition
+     * @dataProvider ttl_or_not
+     */
+    public function test_delete_many(bool $ttl): void {
+        $store = $this->create_cachestore_redis([], $ttl);
+
+        // Check it works to delete selected items.
+        $store->set('foo', 'frog');
+        $store->set('bar', 'amphibian');
+        $store->set('hmm', 'undead');
+        $this->store->delete_many(['foo', 'bar']);
+        $this->assertFalse($store->get('foo'));
+        $this->assertFalse($store->get('bar'));
+        $this->assertEquals('undead', $store->get('hmm'));
+
+        // If called with no keys it should do nothing.
+        $store->delete_many([]);
+        $this->assertEquals('undead', $store->get('hmm'));
+    }
+
 }

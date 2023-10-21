@@ -83,7 +83,7 @@ $string['errorthresholdlow'] = 'Notification threshold must be at least 1 day.';
 $string['errorwithbulkoperation'] = 'There was an error while processing your bulk enrolment change.';
 $string['eventuserenrolmentcreated'] = 'User enrolled in course';
 $string['eventuserenrolmentdeleted'] = 'User unenrolled from course';
-$string['eventuserenrolmentupdated'] = 'User unenrolment updated';
+$string['eventuserenrolmentupdated'] = 'User enrolment updated';
 $string['expirynotify'] = 'Notify before enrolment expires';
 $string['expirynotify_help'] = 'This setting determines whether enrolment expiry notification messages are sent.';
 $string['expirynotifyall'] = 'Enroller and enrolled user';
@@ -119,7 +119,6 @@ $string['periodend'] = 'until {$a}';
 $string['periodnone'] = 'enrolled {$a}';
 $string['periodstart'] = 'from {$a}';
 $string['periodstartend'] = 'from {$a->start} until {$a->end}';
-$string['proceedtocourse'] = 'Proceed to course content';
 $string['recovergrades'] = 'Recover user\'s old grades if possible';
 $string['rolefromthiscourse'] = '{$a->role} (Assigned in this course)';
 $string['rolefrommetacourse'] = '{$a->role} (Inherited from parent course)';
@@ -166,3 +165,6 @@ $string['privacy:metadata:user_enrolments:timemodified'] = 'The time when the us
 $string['privacy:metadata:user_enrolments:userid'] = 'The ID of the user';
 $string['youenrolledincourse'] = 'You are enrolled in the course.';
 $string['youunenrolledfromcourse'] = 'You are unenrolled from the course "{$a}".';
+
+// Deprecated since Moodle 4.0.
+$string['proceedtocourse'] = 'Proceed to course content';

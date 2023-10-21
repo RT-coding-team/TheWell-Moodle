@@ -20,7 +20,9 @@ Feature: View essay attempt report
     And the following "activity" exists:
       | activity        | h5pactivity                        |
       | course          | C1                                 |
+      | section         | 1                                  |
       | name            | Awesome H5P package                |
+      | intro           | Description                        |
       | grademethod     | 2                                  |
       | packagefilepath | h5p/tests/fixtures/basic_essay.h5p |
 
@@ -35,7 +37,7 @@ Feature: View essay attempt report
     And I switch to the main frame
     And I reload the page
     # Check attempt.
-    When I follow "View my attempts"
+    When I navigate to "Attempts report" in current page administration
     And I follow "View report"
     Then I should see "This is a smurfing smurf"
     And I should not see "<strong>smurf</strong>"

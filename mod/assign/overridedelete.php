@@ -79,16 +79,22 @@ $title = get_string('deletecheck', null, $stroverride);
 
 $PAGE->set_url($url);
 $PAGE->set_pagelayout('admin');
+$PAGE->add_body_class('limitedwidth');
 $PAGE->navbar->add($title);
 $PAGE->set_title($title);
 $PAGE->set_heading($course->fullname);
+$PAGE->activityheader->set_attrs([
+    "title" => format_string($assign->get_instance()->name, true, ['context' => $context]),
+    "description" => "",
+    "hidecompletion" => true
+]);
+$PAGE->set_secondary_active_tab('mod_assign_useroverrides');
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(format_string($assign->get_instance()->name, true, array('context' => $context)));
 
 if ($override->groupid) {
     $group = $DB->get_record('groups', array('id' => $override->groupid), 'id, name');
-    $confirmstr = get_string("overridedeletegroupsure", "assign", $group->name);
+    $confirmstr = get_string("overridedeletegroupsure", "assign", format_string($group->name, true, ['context' => $context]));
 } else {
     $userfieldsapi = \core_user\fields::for_name();
     $namefields = $userfieldsapi->get_sql('', false, '', '', false)->selects;

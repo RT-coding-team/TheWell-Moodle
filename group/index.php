@@ -95,7 +95,7 @@ switch ($action) {
 
             foreach($groupmemberroles as $roleid=>$roledata) {
                 $shortroledata = new stdClass();
-                $shortroledata->name = $roledata->name;
+                $shortroledata->name = html_entity_decode($roledata->name, ENT_QUOTES, 'UTF-8');
                 $shortroledata->users = array();
                 foreach($roledata->users as $member) {
                     $shortmember = new stdClass();
@@ -170,10 +170,7 @@ $PAGE->set_heading($course->fullname);
 $PAGE->set_pagelayout('standard');
 echo $OUTPUT->header();
 
-// Add tabs
-$currenttab = 'groups';
-require('tabs.php');
-
+echo $OUTPUT->render_participants_tertiary_nav($course);
 echo $OUTPUT->heading(format_string($course->shortname, true, array('context' => $context)) .' '.$strgroups, 3);
 
 $groups = groups_get_all_groups($courseid);
@@ -186,7 +183,7 @@ if ($groups) {
     foreach ($groups as $group) {
         $selected = false;
         $usercount = $DB->count_records('groups_members', array('groupid' => $group->id));
-        $groupname = format_string($group->name) . ' (' . $usercount . ')';
+        $groupname = format_string($group->name, true, ['context' => $context, 'escape' => false]) . ' (' . $usercount . ')';
         if (in_array($group->id, $groupids)) {
             $selected = true;
             if ($singlegroup) {
@@ -237,8 +234,9 @@ if ($singlegroup) {
 
                 $users[] = $shortmember;
             }
+
             $members[] = (object)[
-                'role' => s($roledata->name),
+                'role' => html_entity_decode($roledata->name, ENT_QUOTES, 'UTF-8'),
                 'rolemembers' => $users
             ];
         }

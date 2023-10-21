@@ -43,13 +43,13 @@ Feature: Using the activity grade form element
     And I set the field "Ratings > scale[modgrade_scale]" to "ABCDEF"
     And I press "Save and display"
     And I should not see "You cannot change the type, as grades already exist for this item"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     And I should not see "Some grades have already been awarded, so the grade type"
     And I set the field "Ratings > scale[modgrade_scale]" to "Letter scale"
     And I press "Save and display"
     And I should not see "You cannot change the scale, as grades already exist for this item"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     And I should not see "Some grades have already been awarded, so the grade type"
     And I set the field "id_scale_modgrade_type" to "Point"
@@ -73,7 +73,7 @@ Feature: Using the activity grade form element
     # Try saving the form and visiting it back to verify that everything is working ok.
     And I press "Save and display"
     And I should not see "When selecting a ratings aggregate type you must also select"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     And the field "Ratings > Aggregate type" matches value "Average of ratings"
     And the field "id_scale_modgrade_type" matches value "Scale"
@@ -82,13 +82,13 @@ Feature: Using the activity grade form element
   @javascript
   Scenario: Attempting to change the scale when grades already exist in non-rating activity
     Given I am on the "Test assignment name" "assign activity" page logged in as "teacher1"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | grade[modgrade_type] | Scale |
       | grade[modgrade_scale] | ABCDEF |
     And I press "Save and display"
     And I am on the "Test assignment name" "assign activity" page
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the field "Grade" to "C"
     And I press "Save changes"
@@ -97,7 +97,7 @@ Feature: Using the activity grade form element
     Then I should see "Some grades have already been awarded, so the grade type and scale cannot be changed"
     # Try saving the form and visiting it back to verify everything is working ok.
     And I press "Save and display"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     And the field "grade[modgrade_type]" matches value "Scale"
     And the field "grade[modgrade_scale]" matches value "ABCDEF"
@@ -120,7 +120,7 @@ Feature: Using the activity grade form element
   @javascript
   Scenario: Attempting to change the maximum grade when no rescaling option has been chosen
     Given I am on the "Test assignment name" "assign activity" page logged in as teacher1
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I click on "Grade" "link" in the "Student 1" "table_row"
     And I set the field "Grade out of 100" to "50"
     And I press "Save changes"

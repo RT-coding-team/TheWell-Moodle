@@ -33,7 +33,8 @@ Feature: Enable Block Completion in a course using manual completion by others
     And I should see "Status: Not yet started" in the "Course completion status" "block"
     And I should see "No" in the "Teacher" "table_row"
     And I am on the "Course 1" course page logged in as teacher1
-    And I navigate to "Reports > Course completion" in current page administration
+    And I navigate to "Reports" in current page administration
+    And I click on "Course completion" "link" in the "region-main" "region"
     And I follow "Click to mark user complete"
     # Running completion task just after clicking sometimes fail, as record
     # should be created before the task runs.
@@ -60,7 +61,8 @@ Feature: Enable Block Completion in a course using manual completion by others
     And I should see "No" in the "Teacher" "table_row"
     And I should see "No" in the "Non-editing teacher" "table_row"
     And I am on the "Course 1" course page logged in as teacher1
-    And I navigate to "Reports > Course completion" in current page administration
+    And I navigate to "Reports" in current page administration
+    And I click on "Course completion" "link" in the "region-main" "region"
     And I follow "Click to mark user complete"
     And I am on the "Course 1" course page logged in as student1
     And I should see "Status: In progress" in the "Course completion status" "block"
@@ -70,7 +72,8 @@ Feature: Enable Block Completion in a course using manual completion by others
     And I should see "Yes" in the "Marked complete by Teacher" "table_row"
     And I should see "No" in the "Marked complete by Non-editing teacher" "table_row"
     And I am on the "Course 1" course page logged in as teacher2
-    And I navigate to "Reports > Course completion" in current page administration
+    And I navigate to "Reports" in current page administration
+    And I click on "Course completion" "link" in the "region-main" "region"
     And I follow "Click to mark user complete"
     # Running completion task just after clicking sometimes fail, as record
     # should be created before the task runs.

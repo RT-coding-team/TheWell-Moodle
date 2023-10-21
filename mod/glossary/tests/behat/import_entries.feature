@@ -25,7 +25,7 @@ Feature: Importing glossary entries
 
   @javascript @block_recent_activity
   Scenario: Importing glossary entries and checking the Recent activity block
-    Given I navigate to "Import entries" in current page administration
+    Given I press "Import entries"
     And I upload "mod/glossary/tests/fixtures/texfilter_glossary_en.xml" file to "File to import" filemanager
     When I press "Submit"
     Then I should see "103" in the "Total entries:" "table_row"
@@ -36,7 +36,7 @@ Feature: Importing glossary entries
 
   @javascript @block_tags
   Scenario: Importing glossary entries and checking Tags block
-    Given I navigate to "Import entries" in current page administration
+    Given I press "Import entries"
     And I upload "mod/glossary/tests/fixtures/musicians.xml" file to "File to import" filemanager
     When I press "Submit"
     And I am on "Course 1" course homepage

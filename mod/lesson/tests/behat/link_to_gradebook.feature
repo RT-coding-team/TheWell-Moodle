@@ -71,7 +71,7 @@ Feature: link to gradebook on the end of lesson page
 
   Scenario: No link if Show gradebook to student disabled
     Given I am on "Course 1" course homepage
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | Show gradebook to students | No |
     And I press "Save and display"

@@ -48,8 +48,8 @@ Feature: Set availability dates for an assignment
       | blockname      | contextlevel | reference | pagetypepattern | defaultregion |
       | calendar_month | Course       | C1        | course-view-*   | site-post     |
     When I am on the "C1" Course page logged in as student1
-    And I hover over day "2" of this month in the calendar
-    Then I should see "C1: Assignment name is due"
+    And I hover over day "2" of this month in the mini-calendar block
+    Then I should see "Assignment name is due"
 
   Scenario: Student can submit an assignment before the due date
     Given the following "activity" exists:
@@ -73,7 +73,7 @@ Feature: Set availability dates for an assignment
 
     And I am on the "Assignment name" Activity page logged in as teacher1
     And I should see "1" in the "Submitted" "table_row"
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I should see "Submitted for grading" in the "Student 1" "table_row"
 
   Scenario: Student can submit an assignment after the due date and the submission is marked as late
@@ -100,9 +100,52 @@ Feature: Set availability dates for an assignment
 
     And I am on the "Assignment name" Activity page logged in as teacher1
     And I should see "1" in the "Submitted" "table_row"
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I should see "Submitted for grading" in the "Student 1" "table_row"
     And I should see "2 days 5 hours late" in the "Student 1" "table_row"
+
+  Scenario: Student can submit an assignment before the time limit runs out
+    Given the following config values are set as admin:
+      | config          | value | plugin |
+      | enabletimelimit | 1     | assign |
+    And the following "activity" exists:
+      | activity                            | assign          |
+      | course                              | C1              |
+      | name                                | Assignment name |
+      | assignsubmission_onlinetext_enabled | 1               |
+      | assignsubmission_file_enabled       | 0               |
+      | submissiondrafts                    | 0               |
+      | timelimit                           | 20              |
+    When I am on the "Assignment name" Activity page logged in as student1
+    And I should see "20 secs" in the "Time limit" "table_row"
+    And "Begin assignment" "link" should exist
+    And I follow "Begin assignment"
+    And I wait "1" seconds
+    And I set the field "Online text" to "This is my submission"
+    And I press "Save changes"
+    Then I should see "Submitted for grading" in the "Submission status" "table_row"
+    And I should see "secs under the time limit" in the "Time remaining" "table_row"
+
+  Scenario: Assignment with time limit and due date shows how late assignment is submitted relative to due date
+    Given the following config values are set as admin:
+      | config          | value | plugin |
+      | enabletimelimit | 1     | assign |
+    And the following "activity" exists:
+      | activity                            | assign                            |
+      | course                              | C1                                |
+      | name                                | Assignment name                   |
+      | assignsubmission_onlinetext_enabled | 1                                 |
+      | assignsubmission_file_enabled       | 0                                 |
+      | submissiondrafts                    | 0                                 |
+      | timelimit                           | 2                                 |
+      | duedate                             | ##2 days 5 hours 30 minutes ago## |
+    When I am on the "Assignment name" Activity page logged in as student1
+    And I should see "2 secs" in the "Time limit" "table_row"
+    And "Begin assignment" "link" should exist
+    And I follow "Begin assignment"
+    And I set the field "Online text" to "This is my submission"
+    And I press "Save changes"
+    Then I should see "Assignment was submitted 2 days 5 hours late" in the "Time remaining" "table_row"
 
   Scenario: Student cannot submit an assignment after the cut-off date
     Given the following "activity" exists:
@@ -121,6 +164,33 @@ Feature: Set availability dates for an assignment
 
     And I am on the "Assignment name" Activity page logged in as teacher1
     And I should see "0" in the "Submitted" "table_row"
-    And I navigate to "View all submissions" in current page administration
+    And I follow "View all submissions"
     And I should see "No submission" in the "Student 1" "table_row"
     And I should see "Assignment is overdue by: 2 days 5 hours" in the "Student 1" "table_row"
+
+  Scenario: Late submission will be calculated only when the student starts the assignments
+    # Note: This test has the potential to randomly fail on slower machines.
+    # The timelimit needs to be sufficient to allow the page to load and be interacted with completely.
+    Given the following config values are set as admin:
+      | config          | value | plugin |
+      | enabletimelimit | 1     | assign |
+    And the following "activity" exists:
+      | activity                            | assign          |
+      | course                              | C1              |
+      | name                                | Assignment name |
+      | assignsubmission_onlinetext_enabled | 1               |
+      | assignsubmission_file_enabled       | 0               |
+      | submissiondrafts                    | 0               |
+      | timelimit                           | 2               |
+      | allowsubmissionsfromdate_enabled    | 0               |
+      | duedate_enabled                     | 0               |
+      | cutoffdate_enabled                  | 0               |
+      | gradingduedate_enabled              | 0               |
+
+    When I am on the "Assignment name" Activity page logged in as student1
+    And I wait "3" seconds
+    And I click on "Begin assignment" "link"
+    And I set the field "Online text" to "This is my submission"
+    And I press "Save changes"
+    Then I should see "Submitted for grading" in the "Submission status" "table_row"
+    And I should see "under the time limit" in the "Time remaining" "table_row"

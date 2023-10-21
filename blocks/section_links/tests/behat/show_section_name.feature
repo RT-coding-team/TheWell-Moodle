@@ -18,6 +18,7 @@ Feature: The Section links block can be configured to display section name in ad
       | student1 | C1     | student        |
     And the following config values are set as admin:
       | showsectionname | 1 | block_section_links |
+      | unaddableblocks | | theme_boost|
     And the following "blocks" exist:
       | blockname     | contextlevel | reference | pagetypepattern | defaultregion |
       | section_links | Course       | C1        | course-view-*   | side-pre      |

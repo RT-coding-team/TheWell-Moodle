@@ -203,7 +203,7 @@ class core_backup_renderer extends plugin_renderer_base {
                         $table->data = array();
                     }
                     $name = get_string('pluginname', $activity->modulename);
-                    $icon = new image_icon('icon', '', $activity->modulename, ['class' => 'iconlarge icon-pre']);
+                    $icon = new image_icon('monologo', '', $activity->modulename, ['class' => 'iconlarge icon-pre']);
                     $table->data[] = array(
                         $this->output->render($icon).$name,
                         $activity->title,
@@ -786,6 +786,10 @@ class core_backup_renderer extends plugin_renderer_base {
             'extraclasses' => 'rcs-search mb-3 w-25',
             'inputname' => restore_course_search::$VAR_SEARCH,
             'searchstring' => get_string('searchcourses'),
+            'buttonattributes' => [
+                (object) ['key' => 'name', 'value' => 'searchcourses'],
+                (object) ['key' => 'value', 'value' => 1],
+            ],
             'query' => $component->get_search(),
         ];
         $output .= $this->output->render_from_template('core/search_input', $data);
@@ -955,6 +959,10 @@ class core_backup_renderer extends plugin_renderer_base {
             'extraclasses' => 'rcs-search mb-3 w-25',
             'inputname' => restore_category_search::$VAR_SEARCH,
             'searchstring' => get_string('searchcoursecategories'),
+            'buttonattributes' => [
+                (object) ['key' => 'name', 'value' => 'searchcourses'],
+                (object) ['key' => 'value', 'value' => 1],
+            ],
             'query' => $component->get_search(),
         ];
         $output .= $this->output->render_from_template('core/search_input', $data);

@@ -18,6 +18,8 @@ Feature: Displaying the link to the Participants page
     And I log in as "admin"
     And I am on site homepage
     And I turn editing mode on
+    And the following config values are set as admin:
+      | unaddableblocks | | theme_boost|
     And I add the "Navigation" block if not present
     And I configure the "Navigation" block
     And I set the following fields to these values:
@@ -37,12 +39,10 @@ Feature: Displaying the link to the Participants page
 
   @javascript
   Scenario: Course participants link is displayed to users depending on role permissions settings
-    And the following "activities" exist:
+    Given the following "activities" exist:
       | activity | course | name            |
       | forum    | C1     | Test forum name |
-    And I log in as "admin"
-    And I am on "Course1" course homepage with editing mode on
-    And I navigate to "Users > Enrolment methods" in current page administration
+    And I am on the "Course1" "enrolment methods" page logged in as admin
     And I click on "Edit" "link" in the "Guest access" "table_row"
     And I set the following fields to these values:
       | Allow guest access | Yes |
@@ -51,7 +51,6 @@ Feature: Displaying the link to the Participants page
     Then I should not see "Participants" in the "Navigation" "block"
     And I am on the "Test forum name" "forum activity" page
     And I should not see "Participants" in the "Navigation" "block"
-    And I log out
     And the following "role capability" exists:
       | role                           | guest |
       | moodle/course:viewparticipants | allow |

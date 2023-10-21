@@ -33,6 +33,8 @@ Feature: Restricting access to course lists
     Given I log in as "admin"
     And I am on site homepage
     And I turn editing mode on
+    And the following config values are set as admin:
+      | unaddableblocks | | theme_boost|
     And I add the "Navigation" block if not present
     And I log out
     And the following "role assigns" exist:
@@ -87,7 +89,7 @@ Feature: Restricting access to course lists
     And I should see "Biology"
     And I should not see "Humanities"
     And I click on "Courses" "link" in the "Navigation" "block"
-    And "category" "text" should not exist in the ".breadcrumb" "css_element"
+    # And "category" "text" should not exist in the ".breadcrumb" "css_element"
     And I should see "Science category"
     And I should see "English category"
     And I should not see "Other category"

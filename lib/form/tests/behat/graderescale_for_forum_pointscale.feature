@@ -31,7 +31,8 @@ Feature: Using the forum activities which support point scale
     And I expand all fieldsets
     And I set the field "Ratings > Aggregate type" to "Count of ratings"
     And I set the field "Ratings > Type" to "Point"
-    And I press "Save and display"
+    And I press "Save and return to course"
+    And I am on the "Test forum name" "forum activity" page
     And I follow "Discussion subject"
     And I set the field "rating" to "30"
     When I am on the "Test forum name" "forum activity editing" page

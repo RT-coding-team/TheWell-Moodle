@@ -21,7 +21,7 @@ Feature: Posting to forums in a course with no groups behaves correctly
 
   Scenario: Teachers can post in standard forum
     Given I am on the "Standard forum" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     Then I should not see "Post a copy to all groups"
     And I set the following fields to these values:
       | Subject | Teacher -> All participants |
@@ -32,7 +32,7 @@ Feature: Posting to forums in a course with no groups behaves correctly
 
   Scenario: Teachers can post in forum with separate groups
     Given I am on the "Separate forum" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     Then I should not see "Post a copy to all groups"
     And I set the following fields to these values:
       | Subject | Teacher -> All participants |
@@ -43,7 +43,7 @@ Feature: Posting to forums in a course with no groups behaves correctly
 
   Scenario: Teachers can post in forum with visible groups
     Given I am on the "Visible forum" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     Then I should not see "Post a copy to all groups"
     And I set the following fields to these values:
       | Subject | Teacher -> All participants |
@@ -54,7 +54,7 @@ Feature: Posting to forums in a course with no groups behaves correctly
 
   Scenario: Students can post in standard forum
     Given I am on the "Standard forum" "forum activity" page logged in as student1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     Then I should not see "Post a copy to all groups"
     And I set the following fields to these values:
       | Subject | Student -> All participants |
@@ -66,9 +66,9 @@ Feature: Posting to forums in a course with no groups behaves correctly
   Scenario: Students cannot post in forum with separate groups
     When I am on the "Separate forum" "forum activity" page logged in as student1
     Then I should see "You are not able to create a discussion because you are not a member of any group."
-    And I should not see "Add a new discussion topic"
+    And I should not see "Add discussion topic"
 
   Scenario: Students cannot post in forum with visible groups
     When I am on the "Visible forum" "forum activity" page logged in as student1
     Then I should see "You are not able to create a discussion because you are not a member of any group."
-    And I should not see "Add a new discussion topic"
+    And I should not see "Add discussion topic"

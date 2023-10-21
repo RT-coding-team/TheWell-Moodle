@@ -21,11 +21,21 @@ Feature: Create a glossary entry.
       | course | C1 |
       | name | Test glossary |
 
+  Scenario: Glossary entry edition of custom tags works as expected
+    Given I am on the "Test glossary" "glossary activity" page logged in as "teacher1"
+    When I press "Add entry"
+    And I set the following fields to these values:
+      | Concept    | Dummy first entry               |
+      | Definition | Dream is the start of a journey |
+      | Keyword(s) | "                               |
+    And I press "Save changes"
+    Then I should see "One or more keywords contain a special character which cannot be used."
+
   @javascript @_file_upload
   Scenario: Create glossary entry with attached file
     Given I am on the "Test glossary" "glossary activity" page logged in as student1
     # As a student, add a glossary entry with attachment
-    And I press "Add a new entry"
+    And I press "Add entry"
     And I set the following fields to these values:
       | Concept    | Entry 1                                   |
       | Definition | Definition of Entry 1                     |

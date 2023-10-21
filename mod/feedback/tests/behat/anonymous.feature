@@ -41,23 +41,19 @@ Feature: Anonymous feedback
   Scenario: Guests can see anonymous feedback on front page but can not complete
     When I follow "Site feedback"
     Then I should not see "Answer the questions"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
 
   Scenario: Complete anonymous feedback on the front page as an authenticated user
     And I log in as "user1"
     And I am on site homepage
     When I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like our site?"
     And I set the following fields to these values:
       | Yes | 1 |
     And I press "Submit your answers"
-    And I should not see "Submitted answers"
+    And I should not see "Analysis"
     And I press "Continue"
 
   @javascript
@@ -68,9 +64,7 @@ Feature: Anonymous feedback
     And I log in as "user1"
     And I am on site homepage
     When I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like our site?"
     And I set the following fields to these values:
@@ -80,14 +74,12 @@ Feature: Anonymous feedback
     And I log in as "user2"
     And I am on site homepage
     And I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I set the following fields to these values:
       | No | 1 |
     And I press "Submit your answers"
-    And I follow "Submitted answers"
+    And I follow "Analysis"
     And I should see "Submitted answers: 2"
     And I should see "Questions: 1"
     # And I should not see "multichoice2" # TODO MDL-29303 do not show labels to users who can not edit feedback
@@ -99,7 +91,7 @@ Feature: Anonymous feedback
     And I log in as "manager"
     And I am on site homepage
     And I follow "Site feedback"
-    And I navigate to "Show responses" in current page administration
+    And I navigate to "Responses" in current page administration
     And I should not see "Username"
     And I should see "Anonymous entries (2)"
     And I follow "Response number: 1"
@@ -111,15 +103,13 @@ Feature: Anonymous feedback
     Given the following config values are set as admin:
       | feedback_allowfullanonymous | 1 |
     When I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like our site?"
     And I set the following fields to these values:
       | Yes | 1 |
     And I press "Submit your answers"
-    And I should not see "Submitted answers"
+    And I should not see "Analysis"
     And I press "Continue"
 
   @javascript
@@ -130,9 +120,7 @@ Feature: Anonymous feedback
       | role                         | guest |
       | mod/feedback:viewanalysepage | allow |
     When I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like our site?"
     And I set the following fields to these values:
@@ -141,15 +129,13 @@ Feature: Anonymous feedback
     And I press "Continue"
     # Starting new feedback
     When I follow "Site feedback"
-    And I follow "Preview"
-    And I should see "Do you like our site?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like our site?"
     And I set the following fields to these values:
       | No | 1 |
     And I press "Submit your answers"
-    And I follow "Submitted answers"
+    And I follow "Analysis"
     And I should see "Submitted answers: 2"
     And I should see "Questions: 1"
     # And I should not see "multichoice2" # TODO MDL-29303
@@ -160,7 +146,7 @@ Feature: Anonymous feedback
     And I log in as "manager"
     And I am on site homepage
     And I follow "Site feedback"
-    And I navigate to "Show responses" in current page administration
+    And I navigate to "Responses" in current page administration
     And I should see "Anonymous entries (2)"
     And I follow "Response number: 1"
     And I should see "Response number: 1 (Anonymous)"
@@ -180,9 +166,7 @@ Feature: Anonymous feedback
     And I log out
 
     And I am on the "Course feedback" "feedback activity" page logged in as user1
-    And I follow "Preview"
-    Then I should see "Do you like this course?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like this course?"
     And I set the following fields to these values:
@@ -190,15 +174,13 @@ Feature: Anonymous feedback
     And I press "Submit your answers"
     And I log out
     And I am on the "Course feedback" "feedback activity" page logged in as user2
-    And I follow "Preview"
-    And I should see "Do you like this course?"
-    And I press "Continue"
+    And I should not see "Preview questions"
     And I follow "Answer the questions"
     And I should see "Do you like this course?"
     And I set the following fields to these values:
       | No | 1 |
     And I press "Submit your answers"
-    And I follow "Submitted answers"
+    And I follow "Analysis"
     And I should see "Submitted answers: 2"
     And I should see "Questions: 1"
     # And I should not see "multichoice2" # TODO MDL-29303
@@ -212,7 +194,7 @@ Feature: Anonymous feedback
     And I should see "Do you like this course?"
     And I press "Continue"
     And I should not see "Answer the questions"
-    And I navigate to "Show responses" in current page administration
+    And I navigate to "Responses" in current page administration
     And I should not see "Username"
     And I should see "Anonymous entries (2)"
     And I follow "Response number: 1"
@@ -233,7 +215,7 @@ Feature: Anonymous feedback
 
   Scenario: Collecting new non-anonymous feedback from a previously anonymous feedback activity
     When I am on the "Course feedback" "feedback activity" page logged in as teacher
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I set the following fields to these values:
       | Allow multiple submissions | Yes |
     And I press "Save and display"
@@ -264,13 +246,13 @@ Feature: Anonymous feedback
     And I log out
     # Now check the responses are correct.
     And I am on the "Course feedback" "feedback activity" page logged in as teacher
-    And I follow "Show responses"
+    And I follow "Responses"
     And I should see "Anonymous entries (1)"
     And I should see "Non anonymous entries (1)"
     And I click on "," "link" in the "Username 1" "table_row"
     And I should see "(Username 1)"
     And I should see "usertext"
-    And I follow "Back"
+    And I navigate to "Responses" in current page administration
     And I follow "Response number: 1"
     And I should see "Response number: 1 (Anonymous)"
     Then I should see "anontext"

@@ -136,7 +136,7 @@ try {
     }
     cli_heading(get_string('cleaningtempdata'));
     fulldelete($path);
-    print_error('generalexceptionmessage', 'error', '', $e->getMessage());
+    print_error('generalexceptionmessage', 'error', '', $e);
 }
 
 cli_heading(get_string('restoredcourseid', 'backup', $courseid));

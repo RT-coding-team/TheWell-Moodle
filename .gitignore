@@ -54,5 +54,8 @@ moodle-plugin-ci.phar
 node_modules/
 .env
 config.php
+/admin/tool/componentlibrary/docs
+/admin/tool/componentlibrary/hugo/site/data/my-index.json
+.hugo_build.lock
 phpcs.xml
 jsconfig.json

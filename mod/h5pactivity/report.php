@@ -86,6 +86,7 @@ $event->trigger();
 $shortname = format_string($course->shortname, true, ['context' => $context]);
 $pagetitle = strip_tags($shortname.': '.format_string($moduleinstance->name));
 $PAGE->set_title(format_string($pagetitle));
+$PAGE->activityheader->disable();
 
 $navbar = [];
 if ($manager->can_view_all_attempts()) {
@@ -129,6 +130,8 @@ echo $OUTPUT->header();
 
 groups_print_activity_menu($cm, $PAGE->url);
 
+echo html_writer::start_div('mt-4');
 echo $report->print();
+echo html_writer::end_div();
 
 echo $OUTPUT->footer();

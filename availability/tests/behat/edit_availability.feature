@@ -45,7 +45,7 @@ Feature: edit_availability
       | intro       | pageintro                   |
     And I am on "Course 1" course homepage with editing mode on
     And I follow "Page1"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     Then "Restrict access" "fieldset" should not exist
 
     Given I am on "Course 1" course homepage
@@ -89,13 +89,13 @@ Feature: edit_availability
     And I should see "Date" in the "Restrict access" "fieldset"
     And ".availability-item .availability-eye img" "css_element" should be visible
     And ".availability-item .availability-delete img" "css_element" should be visible
-    And the "alt" attribute of ".availability-item .availability-eye img" "css_element" should contain "Displayed greyed-out"
+    And the "alt" attribute of ".availability-item .availability-eye img" "css_element" should contain "Displayed if student"
 
     # Toggle the eye icon.
     When I click on ".availability-item .availability-eye img" "css_element"
     Then the "alt" attribute of ".availability-item .availability-eye img" "css_element" should contain "Hidden entirely"
     When I click on ".availability-item .availability-eye img" "css_element"
-    Then the "alt" attribute of ".availability-item .availability-eye img" "css_element" should contain "Displayed greyed-out"
+    Then the "alt" attribute of ".availability-item .availability-eye img" "css_element" should contain "Displayed if student"
 
     # Click the delete button.
     When I click on ".availability-item .availability-delete img" "css_element"
@@ -216,7 +216,7 @@ Feature: edit_availability
 
     # Check the button still works after saving and editing.
     And I press "Save and display"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     And the "Add group/grouping access restriction" "button" should be disabled
     And I should see "Grouping" in the "Restrict access" "fieldset"

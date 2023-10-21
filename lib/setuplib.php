@@ -499,11 +499,12 @@ function print_error($errorcode, $module = 'error', $link = '', $a = null, $debu
 
 /**
  * Returns detailed information about specified exception.
- * @param exception $ex
- * @return object
+ *
+ * @param Throwable $ex any sort of exception or throwable.
+ * @return stdClass standardised info to display. Fields are clear if you look at the end of this function.
  */
-function get_exception_info($ex) {
-    global $CFG, $DB, $SESSION;
+function get_exception_info($ex): stdClass {
+    global $CFG;
 
     if ($ex instanceof moodle_exception) {
         $errorcode = $ex->errorcode;
@@ -613,24 +614,12 @@ function get_exception_info($ex) {
 }
 
 /**
- * Generate a V4 UUID.
- *
- * Unique is hard. Very hard. Attempt to use the PECL UUID function if available, and if not then revert to
- * constructing the uuid using mt_rand.
- *
- * It is important that this token is not solely based on time as this could lead
- * to duplicates in a clustered environment (especially on VMs due to poor time precision).
- *
- * @see https://tools.ietf.org/html/rfc4122
- *
  * @deprecated since Moodle 3.8 MDL-61038 - please do not use this function any more.
  * @see \core\uuid::generate()
- *
- * @return string The uuid.
  */
 function generate_uuid() {
-    debugging('generate_uuid() is deprecated. Please use \core\uuid::generate() instead.', DEBUG_DEVELOPER);
-    return \core\uuid::generate();
+    throw new coding_exception('generate_uuid() cannot be used anymore. Please use ' .
+        '\core\uuid::generate() instead.');
 }
 
 /**
@@ -658,6 +647,9 @@ function generate_uuid() {
  */
 function get_docs_url($path = null) {
     global $CFG;
+    if ($path === null) {
+        $path = '';
+    }
 
     // Absolute URLs are used unmodified.
     if (substr($path, 0, 7) === 'http://' || substr($path, 0, 8) === 'https://') {
@@ -805,6 +797,53 @@ function initialise_cfg() {
         // and normalises values to string if possible.
         $CFG->{$name} = $value;
     }
+}
+
+/**
+ * Cache any immutable config locally to avoid constant DB lookups.
+ *
+ * Only to be used only from lib/setup.php
+ */
+function initialise_local_config_cache() {
+    global $CFG;
+
+    $bootstrapcachefile = $CFG->localcachedir . '/bootstrap.php';
+
+    if (!empty($CFG->siteidentifier) && !file_exists($bootstrapcachefile)) {
+        $contents = "<?php
+// ********** This file is generated DO NOT EDIT **********
+\$CFG->siteidentifier = " . var_export($CFG->siteidentifier, true) . ";
+\$CFG->bootstraphash = " . var_export(hash_local_config_cache(), true) . ";
+// Only if the file is not stale and has not been defined.
+if (\$CFG->bootstraphash === hash_local_config_cache() && !defined('SYSCONTEXTID')) {
+    define('SYSCONTEXTID', ".SYSCONTEXTID.");
+}
+";
+
+        $temp = $bootstrapcachefile . '.tmp' . uniqid();
+        file_put_contents($temp, $contents);
+        @chmod($temp, $CFG->filepermissions);
+        rename($temp, $bootstrapcachefile);
+    }
+}
+
+/**
+ * Calculate a proper hash to be able to invalidate stale cached configs.
+ *
+ * Only to be used to verify bootstrap.php status.
+ *
+ * @return string md5 hash of all the sensible bits deciding if cached config is stale or no.
+ */
+function hash_local_config_cache() {
+    global $CFG;
+
+    // This is pretty much {@see moodle_database::get_settings_hash()} that is used
+    // as identifier for the database meta information MUC cache. Should be enough to
+    // react against any of the normal changes (new prefix, change of DB type) while
+    // *incorrectly* keeping the old dataroot directory unmodified with stale data.
+    // This may need more stuff to be considered if it's discovered that there are
+    // more variables making the file stale.
+    return md5($CFG->dbtype . $CFG->dbhost . $CFG->dbuser . $CFG->dbname . $CFG->prefix);
 }
 
 /**
@@ -1395,7 +1434,7 @@ function disable_output_buffering() {
  */
 function is_major_upgrade_required() {
     global $CFG;
-    $lastmajordbchanges = 2019050100.01;
+    $lastmajordbchanges = 2022022200.00;
 
     $required = empty($CFG->version);
     $required = $required || (float)$CFG->version < $lastmajordbchanges;
@@ -1673,7 +1712,7 @@ function get_request_storage_directory($exceptiononerror = true, bool $forcecrea
  * @param   bool    $forcecreate Force creation of a new parent directory
  * @return  string  The full path to directory if successful, false if not; may throw exception
  */
-function make_request_directory($exceptiononerror = true, bool $forcecreate = false) {
+function make_request_directory(bool $exceptiononerror = true, bool $forcecreate = false) {
     $basedir = get_request_storage_directory($exceptiononerror, $forcecreate);
     return make_unique_writable_directory($basedir, $exceptiononerror);
 }
@@ -1860,7 +1899,7 @@ function set_access_log_user() {
                 apache_note('MOODLEUSER', $logname);
             }
 
-            if ($logmethod == 'header') {
+            if ($logmethod == 'header' && !headers_sent()) {
                 header("X-MOODLEUSER: $logname");
             }
         }

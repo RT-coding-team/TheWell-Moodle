@@ -64,7 +64,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
 
   Scenario: Teacher with accessallgroups can select any group when posting
     Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     Then the "Group" select box should contain "All participants"
     And the "Group" select box should contain "Group A"
@@ -75,7 +75,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
   Scenario: Teacher with accessallgroups can post in groups they are a member of
     Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     And I select "Group A" from the "Visible groups" singleselect
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     Then I should see "Post a copy to all groups"
     And I set the following fields to these values:
@@ -104,7 +104,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
   Scenario: Teacher with accessallgroups can post in groups they are not a member of
     Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
     And I select "Group A" from the "Visible groups" singleselect
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     Then I should see "Post a copy to all groups"
     And I set the following fields to these values:
@@ -132,7 +132,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
 
   Scenario: Teacher with accessallgroups can post to all groups
     Given I am on the "Standard forum name" "forum activity" page logged in as teacher1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And I set the following fields to these values:
       | Subject                   | Teacher 1 -> Post to all  |
@@ -181,7 +181,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
   Scenario: Students in one group can only post in their group
     When I am on the "Standard forum name" "forum activity" page logged in as student1
     Then I should see "Group A"
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And I should see "Group A"
     And I should not see "Group B"
@@ -198,7 +198,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
   Scenario: Students in multiple group can post in all of their group individually
     When I am on the "Standard forum name" "forum activity" page logged in as student2
     And I select "Group A" from the "Visible groups" singleselect
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And the "Group" select box should not contain "All participants"
     And the "Group" select box should contain "Group A"
@@ -219,7 +219,7 @@ Feature: Posting to all groups in a visible group discussion is restricted to us
     And I should not see "Student -> B"
     # Now try posting in Group A (starting at Group B)
     And I select "Group B" from the "Visible groups" singleselect
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And the "Group" select box should not contain "All participants"
     And the "Group" select box should contain "Group A"

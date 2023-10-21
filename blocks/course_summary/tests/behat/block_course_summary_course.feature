@@ -16,6 +16,7 @@ Feature: Course summary block used in a course
       | user        | course | role    |
       | student1    | C101   | student |
       | teacher1    | C101   | editingteacher |
+    And I enable "course_summary" "block" plugin
     And the following "blocks" exist:
       | blockname      | contextlevel | reference | pagetypepattern | defaultregion |
       | course_summary | Course       | C101      | course-view-*   | side-pre      |

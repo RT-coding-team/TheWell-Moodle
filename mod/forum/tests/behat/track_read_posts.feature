@@ -101,7 +101,7 @@ Feature: A teacher can set one of 3 possible options for tracking read forum pos
       | message | Test post message |
     When I am on the "Course 1" course page logged in as student1
     Then I should see "1 unread post"
-    And I follow "1 unread post"
+    And I am on the "Test forum name" "forum activity" page
     And I should not see "Don't track unread posts"
     And I follow "Test post subject"
     And I am on "Course 1" course homepage
@@ -125,7 +125,7 @@ Feature: A teacher can set one of 3 possible options for tracking read forum pos
       | message | Test post message |
     When I am on the "Course 1" course page logged in as student2
     Then I should see "1 unread post"
-    And I follow "1 unread post"
+    And I am on the "Test forum name" "forum activity" page
     And I should not see "Don't track unread posts"
     And I follow "Test post subject"
     And I am on "Course 1" course homepage

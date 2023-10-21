@@ -39,13 +39,14 @@ Feature: Edited forum posts handle tags correctly
   @javascript
   Scenario: Forum post edition of standard tags works as expected
     Given I log in as "admin"
+    And I change window size to "large"
     And I navigate to "Appearance > Manage tags" in site administration
     And I follow "Default collection"
     And I follow "Add standard tags"
     And I set the field "Enter comma-separated list of new tags" to "OT1, OT2, OT3"
     And I press "Continue"
     And I am on the "Test forum name" "forum activity" page logged in as teacher1
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And I expand all fieldsets
     And I open the autocomplete suggestions list

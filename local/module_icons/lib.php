@@ -103,20 +103,22 @@ function local_module_icons_coursemodule_edit_post_actions($moduleinfo, $course)
  *
  * @param  object $coursemodule The course module details
  * @param  object $info         The course module info to modify
- * @return object               The modified module info
+ * @return array                The modified module info
  */
-function local_module_icons_modify_coursemodule_info($coursemodule, $info) {
-    global $DB;
+function local_module_icons_coursemodule_modify_icon($coursemodule) {
+    global $OUTPUT, $DB;
+    $icon = [];
     $record = $DB->get_record(
         'local_module_icons',
         ['course_id' => $coursemodule->course, 'course_module_id' => $coursemodule->id]
     );
     if ($record && ($record->icon !== 'moodle-system')) {
         $filename = substr($record->icon, 0, strrpos($record->icon, '.'));
-        $info->icon = 'mi/' . $filename;
+        $icon['url'] = $OUTPUT->image_url('mi/' . $filename);
+        $icon['purpose'] = 'custom-module-icon';
     }
 
-    return $info;
+    return $icon;
 }
 /**
  * Extend global navigation

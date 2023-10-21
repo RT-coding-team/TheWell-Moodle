@@ -26,11 +26,11 @@ Feature: A user can control their default discussion subscription settings
 
   Scenario: Creating a new discussion in an optional forum follows user preferences
     Given I am on the "Test forum name" "forum activity" page logged in as student1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     Then "input[name=discussionsubscribe][checked=checked]" "css_element" should exist
     And I am on the "Test forum name" "forum activity" page logged in as student2
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And "input[name=discussionsubscribe]:not([checked=checked])" "css_element" should exist
 
@@ -53,11 +53,11 @@ Feature: A user can control their default discussion subscription settings
       | Subscription mode | Auto subscription |
     And I press "Save and return to course"
     And I am on the "Test forum name" "forum activity" page logged in as student1
-    When I click on "Add a new discussion topic" "link"
+    When I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     Then "input[name=discussionsubscribe][checked=checked]" "css_element" should exist
     And I am on the "Test forum name" "forum activity" page logged in as student2
-    And I click on "Add a new discussion topic" "link"
+    And I click on "Add discussion topic" "link"
     And I click on "Advanced" "button"
     And "input[name=discussionsubscribe][checked=checked]" "css_element" should exist
 

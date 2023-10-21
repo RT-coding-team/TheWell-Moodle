@@ -13,10 +13,10 @@ Writer/WriterAbstract.php. The changes replace rawurldecode() with
 rawurlencode() in lines 143 and 144.
 by Meirza <meirza.arson@moodle.com>
 
-2022/01/05
+2021/09/01
 ----------
-Update to v3.3.0 (MDL-73497)
-by Paul Holden <paulh@moodle.com> (backport from MDL-71707 by stronk7)
+Update to v3.3.0 (MDL-71707)
+by Paul Holden <paulh@moodle.com>
 
 2020/12/07
 ----------
