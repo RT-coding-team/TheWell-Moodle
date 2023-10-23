@@ -925,16 +925,6 @@ class course_modinfo {
                                 }
                             }
                         }
-                        if ((!property_exists($mod[$seq], 'icon')) || (!$mod[$seq]->icon)) {
-                            /**
-                             * Catch activities that haven't set an icon yet, and check
-                             * if they have a custom icon
-                             */
-                             $info = new stdClass();
-                             if (!empty($info->icon)) {
-                                 $mod[$seq]->icon = $info->icon;
-                             }
-                        }
                         // When there is no modname_get_coursemodule_info function,
                         // ... but showdescriptions is enabled, then we use the 'intro',
                         // ... and 'introformat' fields in the module table.
