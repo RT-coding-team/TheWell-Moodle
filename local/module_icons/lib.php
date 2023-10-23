@@ -114,7 +114,8 @@ function local_module_icons_coursemodule_modify_icon($coursemodule) {
     );
     if ($record && ($record->icon !== 'moodle-system')) {
         $filename = substr($record->icon, 0, strrpos($record->icon, '.'));
-        $icon['url'] = $OUTPUT->image_url('mi/' . $filename);
+        $icon['icon'] = 'mi/' . $filename;
+        $icon['url'] = $OUTPUT->image_url($icon['icon']);
         $icon['purpose'] = 'custom-module-icon';
     }
 
