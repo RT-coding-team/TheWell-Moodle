@@ -106,12 +106,13 @@ class provider_test extends provider_testcase {
 
         $usercontext = \context_user::instance($user->id);
 
+        /** @var \core_privacy\tests\request\content_writer $writer */
         $writer = writer::with_context($usercontext);
         $this->assertFalse($writer->has_any_data());
         $approvedlist = new approved_contextlist($user, 'auth_mnet', [$usercontext->id]);
         provider::export_user_data($approvedlist);
 
-        $data = $writer->get_data([get_string('pluginname', 'auth_mnet'), $hostrecord->name, $logrecord->coursename]);
+        $data = (array)$writer->get_data([get_string('pluginname', 'auth_mnet'), $hostrecord->name, $logrecord->coursename]);
 
         $this->assertEquals($logrecord->remoteid, reset($data)->remoteid);
         $this->assertEquals(transform::datetime($logrecord->time),  reset($data)->time);

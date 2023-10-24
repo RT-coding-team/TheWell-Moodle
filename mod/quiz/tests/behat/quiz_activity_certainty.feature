@@ -55,7 +55,7 @@ Feature: Set a quiz with certainty-based marking
     And I click on "C=3 (Quite sure: >80%)" "radio" in the "Third question" "question"
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     # As student1, confirm the results of own attempt
     And the following should exist in the "quizreviewsummary" table:
       | -1-              | -2-                                                                                                                 |

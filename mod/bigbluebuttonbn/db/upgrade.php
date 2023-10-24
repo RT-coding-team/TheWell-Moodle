@@ -419,7 +419,7 @@ function xmldb_bigbluebuttonbn_upgrade($oldversion = 0) {
     // Automatically generated Moodle v4.0.0 release upgrade line.
     // Put any upgrade step following this.
 
-    if ($oldversion < 2022041901) {
+    if ($oldversion < 2022050600) {
 
         set_config('bigbluebuttonbn_default_dpa_accepted', false);
 
@@ -436,8 +436,89 @@ function xmldb_bigbluebuttonbn_upgrade($oldversion = 0) {
         }
 
         // Bigbluebuttonbn savepoint reached.
-        upgrade_mod_savepoint(true, 2022041901, 'bigbluebuttonbn');
+        upgrade_mod_savepoint(true, 2022050600, 'bigbluebuttonbn');
     }
+    if ($oldversion < 2022080400) {
+
+        // Define field lockonjoin to be dropped from bigbluebuttonbn.
+        $table = new xmldb_table('bigbluebuttonbn');
+        $field = new xmldb_field('lockonjoin');
+        // Conditionally launch drop field lockonjoin.
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+        $field = new xmldb_field('lockonjoinconfigurable');
+        // Conditionally launch drop field lockonjoinconfigurable.
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+        // Bigbluebuttonbn savepoint reached.
+        upgrade_mod_savepoint(true, 2022080400, 'bigbluebuttonbn');
+    }
+    if ($oldversion < 2022101900) {
+        $table = new xmldb_table('bigbluebuttonbn');
+
+        $field = new xmldb_field('guestallowed', XMLDB_TYPE_INTEGER, '2', null, null, null, '0', 'completionengagementemojis');
+        // Conditionally launch add field guestallowed.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('mustapproveuser', XMLDB_TYPE_INTEGER, '2', null, null, null, '1', 'guestallowed');
+        // Conditionally launch add field mustapproveuser.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('guestlinkuid', XMLDB_TYPE_CHAR, '1024', null, null, null, null, 'mustapproveuser');
+        // Conditionally launch add field guestlinkuid.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $field = new xmldb_field('guestpassword', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'guestlinkuid');
+        // Conditionally launch add field guestpassword.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2022101900, 'bigbluebuttonbn');
+    }
+    // Automatically generated Moodle v4.1.0 release upgrade line.
+    // Put any upgrade step following this.
+    if ($oldversion < 2023011800) {
+
+        // Define index course_bbbid_ix (not unique) to be added to bigbluebuttonbn_logs.
+        $table = new xmldb_table('bigbluebuttonbn_logs');
+        $index = new xmldb_index('course_bbbid_ix', XMLDB_INDEX_NOTUNIQUE, ['courseid', 'bigbluebuttonbnid']);
+
+        // Conditionally launch add index course_bbbid_ix.
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Bigbluebuttonbn savepoint reached.
+        upgrade_mod_savepoint(true, 2023011800, 'bigbluebuttonbn');
+    }
+    if ($oldversion < 2023021300) {
+
+        // Define field lockedlayout to be dropped from bigbluebuttonbn.
+        $table = new xmldb_table('bigbluebuttonbn');
+        $field = new xmldb_field('lockedlayout');
+
+        // Conditionally launch drop field lockedlayout.
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+
+        // Bigbluebuttonbn savepoint reached.
+        upgrade_mod_savepoint(true, 2023021300, 'bigbluebuttonbn');
+    }
+
+    // Automatically generated Moodle v4.2.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.3.0 release upgrade line.
+    // Put any upgrade step following this.
 
     return true;
 }

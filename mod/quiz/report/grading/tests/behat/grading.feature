@@ -166,7 +166,7 @@ Feature: Basic use of the Manual grading report
     And I should see "Separate groups: All participants"
     Then I should see "Sorry, but you need to be part of a group to see this page."
 
-  @javascript
+  @javascript @editor_atto
   Scenario: Manual grading report with attempts to be graded
     Given the following "questions" exist:
       | questioncategory | qtype | name     | user  | questiontext    |
@@ -180,19 +180,19 @@ Feature: Basic use of the Manual grading report
     And I set the field with xpath "//*[contains(concat(' ', @class, ' '), ' editor_atto_content ')]" to "This is my attempt 1"
     And I follow "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I click on "Finish review" "link"
     And I press "Re-attempt quiz"
     And I set the field with xpath "//*[contains(concat(' ', @class, ' '), ' editor_atto_content ')]" to "This is my attempt 2"
     And I follow "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I click on "Finish review" "link"
     And I press "Re-attempt quiz"
     And I set the field with xpath "//*[contains(concat(' ', @class, ' '), ' editor_atto_content ')]" to "This is my attempt 3"
     And I follow "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I log out
 
     And I am on the "Quiz 2" "mod_quiz > Manual grading report" page logged in as "teacher1"

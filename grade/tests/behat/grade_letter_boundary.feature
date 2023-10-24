@@ -27,8 +27,8 @@ Feature: We can customise the letter boundary of a course.
     And I navigate to "More > Grade letters" in the course gradebook
     And I click on "Edit" "button"
     And I set the following fields to these values:
-      | id_override | 1 |
-      | id_gradeboundary10 | 57 |
+      | Override site defaults   | 1  |
+      | Letter grade boundary 10 | 57 |
     And I press "Save changes"
     And I navigate to "View > Grader report" in the course gradebook
     And I turn editing mode on
@@ -37,5 +37,5 @@ Feature: We can customise the letter boundary of a course.
     And I am on "Course 1" course homepage with editing mode off
     And I navigate to "View > Grader report" in the course gradebook
     Then the following should exist in the "user-grades" table:
-      | -1-       | -4- | -5- |
-      | Student 1 | D   | D   |
+      | -1-       |  -1-                    |-3-  | -4- |
+      | Student 1 |  student1@example.com   | D   | D   |

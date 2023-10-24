@@ -31,10 +31,10 @@ define(
         'core/str',
         'core/templates',
         'mod_lti/form-field',
-        'core/modal_factory',
+        'core/modal',
         'core/modal_events'
     ],
-    function($, notification, str, templates, FormField, ModalFactory, ModalEvents) {
+    function($, notification, str, templates, FormField, Modal, ModalEvents) {
         var dialogue;
         var doneCallback;
         var contentItem = {
@@ -62,10 +62,11 @@ define(
                 }
 
                 str.get_string('selectcontent', 'lti').then(function(title) {
-                    return ModalFactory.create({
+                    return Modal.create({
                         title: title,
                         body: bodyPromise,
-                        large: true
+                        large: true,
+                        show: true,
                     });
                 }).then(function(modal) {
                     dialogue = modal;
@@ -77,9 +78,6 @@ define(
                         // Fetch notifications.
                         notification.fetchNotifications();
                     });
-
-                    // Display the dialogue.
-                    modal.show();
                     return;
                 }).catch(notification.exception);
             }
@@ -89,6 +87,7 @@ define(
          * Array of form fields for LTI tool configuration.
          */
         var ltiFormFields = [
+            new FormField('selectcontentstatus', FormField.TYPES.TEXT, true, ''),
             new FormField('name', FormField.TYPES.TEXT, false, ''),
             new FormField('introeditor', FormField.TYPES.EDITOR, false, ''),
             new FormField('toolurl', FormField.TYPES.TEXT, true, ''),
@@ -102,7 +101,9 @@ define(
             new FormField('launchcontainer', FormField.TYPES.SELECT, true, 0),
             new FormField('grade_modgrade_point', FormField.TYPES.TEXT, false, ''),
             new FormField('lineitemresourceid', FormField.TYPES.TEXT, true, ''),
-            new FormField('lineitemtag', FormField.TYPES.TEXT, true, '')
+            new FormField('lineitemtag', FormField.TYPES.TEXT, true, ''),
+            new FormField('lineitemsubreviewurl', FormField.TYPES.TEXT, true, ''),
+            new FormField('lineitemsubreviewparams', FormField.TYPES.TEXT, true, '')
         ];
 
         /**
@@ -160,7 +161,8 @@ define(
         var configToVariant = (config) => {
             const variant = {};
             ['name', 'toolurl', 'securetoolurl', 'instructorcustomparameters', 'icon', 'secureicon',
-                'launchcontainer', 'lineitemresourceid', 'lineitemtag'].forEach(
+                'launchcontainer', 'lineitemresourceid', 'lineitemtag', 'lineitemsubreviewurl',
+                'lineitemsubreviewparams', 'selectcontentstatus'].forEach(
                 function(name) {
                     variant[name] = config[name] || '';
                 }
@@ -227,6 +229,9 @@ define(
                     field.setFieldValue(value);
                 }
                 field.setFieldValue(value);
+
+                // Update the UI element which signifies content has been selected.
+                document.querySelector("#id_selectcontentindicator").innerHTML = returnData.selectcontentindicator;
             }
 
             if (doneCallback) {

@@ -208,6 +208,20 @@ abstract class section_renderer extends core_course_renderer {
     }
 
     /**
+     * Render the enable bulk editing button.
+     * @param course_format $format the course format
+     * @return string|null the enable bulk button HTML (or null if no bulk available).
+     */
+    public function bulk_editing_button(course_format $format): ?string {
+        if (!$format->show_editor() || !$format->supports_components()) {
+            return null;
+        }
+        $widgetclass = $format->get_output_classname('content\\bulkedittoggler');
+        $widget = new $widgetclass($format);
+        return $this->render($widget);
+    }
+
+    /**
      * Generate the edit control action menu
      *
      * @deprecated since 4.0 MDL-72656 - use core_course output components instead.
@@ -906,7 +920,7 @@ abstract class section_renderer extends core_course_renderer {
         if (!($sectioninfo = $modinfo->get_section_info($displaysection)) || !$sectioninfo->uservisible) {
             // This section doesn't exist or is not available for the user.
             // We actually already check this in course/view.php but just in case exit from this function as well.
-            print_error(
+            throw new \moodle_exception(
                 'unknowncoursesection',
                 'error',
                 course_get_url($course),

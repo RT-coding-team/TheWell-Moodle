@@ -28,13 +28,13 @@ require_once("lib.php");
 $id = required_param('id', PARAM_INT);    // Course Module ID.
 
 if (! $cm = get_coursemodule_from_id('survey', $id)) {
-    print_error('invalidcoursemodule');
+    throw new \moodle_exception('invalidcoursemodule');
 }
 
 $cm = cm_info::create($cm);
 
 if (! $course = $DB->get_record("course", array("id" => $cm->course))) {
-    print_error('coursemisconf');
+    throw new \moodle_exception('coursemisconf');
 }
 
 $PAGE->set_url('/mod/survey/view.php', array('id' => $id));
@@ -44,11 +44,11 @@ $context = context_module::instance($cm->id);
 require_capability('mod/survey:participate', $context);
 
 if (! $survey = $DB->get_record("survey", array("id" => $cm->instance))) {
-    print_error('invalidsurveyid', 'survey');
+    throw new \moodle_exception('invalidsurveyid', 'survey');
 }
 
 if (! $template = $DB->get_record("survey", array("id" => $survey->template))) {
-    print_error('invalidtmptid', 'survey');
+    throw new \moodle_exception('invalidtmptid', 'survey');
 }
 
 $showscales = ($template->name != 'ciqname');
@@ -79,11 +79,6 @@ if ($surveyalreadydone && $showscales) {
 $PAGE->add_body_class('limitedwidth');
 
 echo $OUTPUT->header();
-
-// Render the activity information.
-$completiondetails = \core_completion\cm_completion_details::get_instance($cm, $USER->id);
-$activitydates = \core\activity_dates::get_dates_for_module($cm, $USER->id);
-echo $OUTPUT->activity_information($cm, $completiondetails, $activitydates);
 
 // Check to see if groups are being used in this survey.
 if ($groupmode = groups_get_activity_groupmode($cm)) {   // Groups are being used.

@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'qformat_xhtml';
-$plugin->version   = 2022041900;
+$plugin->version   = 2023100900;
 
-$plugin->requires  = 2022041200;
+$plugin->requires  = 2023100400;
 
 $plugin->maturity  = MATURITY_STABLE;

@@ -49,8 +49,12 @@ class  ADODB_odbc_mssql extends ADODB_odbc {
 	var $ansiOuter = true; // for mssql7 or later
 	var $identitySQL = 'select SCOPE_IDENTITY()'; // 'select SCOPE_IDENTITY'; # for mssql 2000
 	var $hasInsertID = true;
-	var $connectStmt = 'SET CONCAT_NULL_YIELDS_NULL OFF'; # When SET CONCAT_NULL_YIELDS_NULL is ON,
-														  # concatenating a null value with a string yields a NULL result
+	/**
+	 * When SET CONCAT_NULL_YIELDS_NULL is ON, concatenating a null value with
+	 * a string yields a NULL result.
+	 * @var string SQL statement executed after successful connection.
+	 */
+	public $connectStmt = 'SET CONCAT_NULL_YIELDS_NULL OFF'; #
 
 	// crashes php...
 	function ServerInfo()
@@ -81,8 +85,7 @@ class  ADODB_odbc_mssql extends ADODB_odbc {
 			return $this->GetOne($this->identitySQL);
 	}
 
-
-	function MetaForeignKeys($table, $owner=false, $upper=false)
+	public function metaForeignKeys($table, $owner = '', $upper = false, $associative = false)
 	{
 	global $ADODB_FETCH_MODE;
 

@@ -254,7 +254,7 @@ class MoodleQuickForm_filemanager extends HTML_QuickForm_element implements temp
 
         // security - never ever allow guest/not logged in user to upload anything or use this element!
         if (isguestuser() or !isloggedin()) {
-            print_error('noguest');
+            throw new \moodle_exception('noguest');
         }
 
         if ($this->_flagFrozen) {
@@ -453,7 +453,6 @@ class form_filemanager implements renderable {
 
         $this->options->userprefs = array();
         $this->options->userprefs['recentviewmode'] = get_user_preferences('filemanager_recentviewmode', '');
-        user_preference_allow_ajax_update('filemanager_recentviewmode', PARAM_INT);
 
         // building file picker options
         $params = new stdClass();

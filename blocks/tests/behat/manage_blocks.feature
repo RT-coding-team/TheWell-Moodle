@@ -15,9 +15,9 @@ Feature: Block appearances
       | user | course | role |
       | teacher1 | C1 | editingteacher |
     And the following "activities" exist:
-      | activity | name             | course | idnumber | section | template |
-      | survey   | Test survey name | C1     | survey1  | 1       | 4        |
-      | book     | Test book name   | C1     | book1    | 1       |          |
+      | activity | name             | course | idnumber | template |
+      | survey   | Test survey name | C1     | survey1  | 4        |
+      | book     | Test book name   | C1     | book1    |          |
     And the following "mod_book > chapter" exists:
       | book    | Test book name         |
       | title   | Book title             |

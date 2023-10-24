@@ -1,4 +1,4 @@
-@tool @tool_behat
+@tool @tool_behat @javascript
 Feature: Set up contextual data for tests
   In order to write tests quickly
   As a developer
@@ -14,7 +14,6 @@ Feature: Set up contextual data for tests
     When I log in as "testuser2"
     Then I should see "TestFirstname"
 
-  @javascript
   Scenario: Add a bunch of courses and categories
     Given the following "categories" exist:
       | name | category | idnumber |
@@ -43,7 +42,6 @@ Feature: Set up contextual data for tests
     And I follow "Category 1"
     And I should see "Course 3"
 
-  @javascript
   Scenario: Add a bunch of groups and groupings
     Given the following "courses" exist:
       | fullname | shortname |
@@ -60,11 +58,10 @@ Feature: Set up contextual data for tests
     And I am on the "Course 1" "groups" page
     Then I should see "Group 1"
     And I should see "Group 2"
-    And I select "Groupings" from the "jump" singleselect
+    And I set the field "Participants tertiary navigation" to "Groupings"
     And I should see "Grouping 1"
     And I should see "Grouping 2"
 
-  @javascript
   Scenario: Role overrides
     Given the following "users" exist:
       | username | firstname | lastname | email |
@@ -156,7 +153,6 @@ Feature: Set up contextual data for tests
     And the following "activities" exist:
       | activity   | name                   | intro                         | course | idnumber    |
       | assign     | Test assignment name   | Test assignment description   | C1     | assign1     |
-      | assignment | Test assignment22 name | Test assignment22 description | C1     | assignment1 |
       | book       | Test book name         | Test book description         | C1     | book1       |
       | chat       | Test chat name         | Test chat description         | C1     | chat1       |
       | choice     | Test choice name       | Test choice description       | C1     | choice1     |
@@ -216,7 +212,6 @@ Feature: Set up contextual data for tests
     And I follow "Settings"
     And the field "Type" matches value "Scale"
 
-  @javascript
   Scenario: Add relations between users and groups
     Given the following "users" exist:
       | username | firstname | lastname | email |
@@ -276,16 +271,16 @@ Feature: Set up contextual data for tests
       | student1 | CHC    |
     When I log in as "admin"
     And I navigate to "Users > Accounts > Cohorts" in site administration
-    Then the following should exist in the "cohorts" table:
+    Then the following should exist in the "reportbuilder-table" table:
       | Name            | Cohort size |
       | System cohort A | 1           |
       | System cohort B | 2           |
     And I should not see "Cohort in category"
     And I am on course index
     And I follow "Cat 1"
-    And I follow "Cohorts"
+    And I navigate to "Cohorts" in current page administration
     And I should not see "System cohort"
-    And the following should exist in the "cohorts" table:
+    And the following should exist in the "reportbuilder-table" table:
       | Name               | Cohort size |
       | Cohort in category | 1           |
       | Empty cohort       | 0           |
@@ -323,22 +318,25 @@ Feature: Set up contextual data for tests
       | Test Grade Item 3 | C1 | Grade sub category 2 |
     When I am on the "Course 1" "grades > gradebook setup" page logged in as "admin"
     Then I should see "Test Grade Item 1"
-    And I follow "Edit   Test Grade Item 1"
+    And I click on grade item menu "Test Grade Item 1" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
     And I expand all fieldsets
     And I should see "Course 1"
-    And I press "Cancel"
+    And I click on "Cancel" "button" in the "Edit grade item" "dialogue"
     And I should see "Grade category 1"
     And I should see "Test Grade Item 2"
-    And I follow "Edit   Test Grade Item 2"
+    And I click on grade item menu "Test Grade Item 2" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
     And I expand all fieldsets
     And I should see "Grade category 1"
-    And I press "Cancel"
+    And I click on "Cancel" "button" in the "Edit grade item" "dialogue"
     And I should see "Grade sub category 2"
     And I should see "Test Grade Item 3"
-    And I follow "Edit   Test Grade Item 3"
+    And I click on grade item menu "Test Grade Item 3" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
     And I expand all fieldsets
     And I should see "Grade sub category 2"
-    And I press "Cancel"
+    And I click on "Cancel" "button" in the "Edit grade item" "dialogue"
 
   Scenario: Add a bunch of scales
     Given the following "courses" exist:
@@ -394,9 +392,10 @@ Feature: Set up contextual data for tests
       | enableoutcomes | 1 |
     When I am on the "Course 1" "grades > gradebook setup" page logged in as "admin"
     Then I should see "Test Outcome Grade Item 1"
-    And I follow "Edit   Test Outcome Grade Item 1"
+    And I click on grade item menu "Test Outcome Grade Item 1" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
+    And I click on "Show more..." "link" in the "Edit outcome item" "dialogue"
     And the field "Outcome" matches value "Grade outcome 1"
-    And I expand all fieldsets
     And I should see "Grade category 1" in the "Grade category" "form_row"
     And I press "Cancel"
 

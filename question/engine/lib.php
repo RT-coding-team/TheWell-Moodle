@@ -654,6 +654,11 @@ class question_display_options {
     public $questionidentifier = null;
 
     /**
+     * @var ?bool $versioninfo Should we display the version in the question info?
+     */
+    public ?bool $versioninfo = null;
+
+    /**
      * Set all the feedback-related fields {@link $feedback}, {@link generalfeedback},
      * {@link rightanswer} and {@link manualcomment} to
      * {@link question_display_options::HIDDEN}.
@@ -963,8 +968,8 @@ abstract class question_utils {
                     'converted to roman numerals.', $number);
         }
 
-        return self::$thousands[$number / 1000 % 10] . self::$hundreds[$number / 100 % 10] .
-                self::$tens[$number / 10 % 10] . self::$units[$number % 10];
+        return self::$thousands[floor($number / 1000) % 10] . self::$hundreds[floor($number / 100) % 10] .
+                self::$tens[floor($number / 10) % 10] . self::$units[$number % 10];
     }
 
     /**

@@ -65,13 +65,6 @@ class data_portfolio_caller extends portfolio_module_caller_base {
      */
     public function __construct($callbackargs) {
         parent::__construct($callbackargs);
-        // set up the list of fields to export
-        $this->selectedfields = array();
-        foreach ($callbackargs as $key => $value) {
-            if (strpos($key, 'field_') === 0) {
-                $this->selectedfields[] = substr($key, 6);
-            }
-        }
     }
 
     /**
@@ -968,6 +961,10 @@ function data_get_tag_title_field($dataid) {
     $validfieldtypes = array('text', 'textarea', 'menu', 'radiobutton', 'checkbox', 'multimenu', 'url');
     $fields = $DB->get_records('data_fields', ['dataid' => $dataid]);
     $template = $DB->get_field('data', 'addtemplate', ['id' => $dataid]);
+    if (empty($template)) {
+        $data = $DB->get_record('data', ['id' => $dataid]);
+        $template = data_generate_default_template($data, 'addtemplate', 0, false, false);
+    }
 
     $filteredfields = [];
 
@@ -1018,6 +1015,7 @@ function data_get_tag_title_field($dataid) {
  */
 function data_get_tag_title_for_entry($field, $entry) {
     global $CFG, $DB;
+
     if (!isset($field->type)) {
         return null;
     }

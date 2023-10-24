@@ -16,6 +16,7 @@
 
 namespace mod_page;
 
+use core_external\external_api;
 use externallib_advanced_testcase;
 use mod_page_external;
 
@@ -76,7 +77,7 @@ class externallib_test extends externallib_advanced_testcase {
         $sink = $this->redirectEvents();
 
         $result = mod_page_external::view_page($page->id);
-        $result = \external_api::clean_returnvalue(mod_page_external::view_page_returns(), $result);
+        $result = external_api::clean_returnvalue(mod_page_external::view_page_returns(), $result);
 
         $events = $sink->get_events();
         $this->assertCount(1, $events);
@@ -147,7 +148,7 @@ class externallib_test extends externallib_advanced_testcase {
         $returndescription = mod_page_external::get_pages_by_courses_returns();
 
         // Create what we expect to be returned when querying the two courses.
-        $expectedfields = array('id', 'coursemodule', 'course', 'name', 'intro', 'introformat', 'introfiles',
+        $expectedfields = array('id', 'coursemodule', 'course', 'name', 'intro', 'introformat', 'introfiles', 'lang',
                                 'content', 'contentformat', 'contentfiles', 'legacyfiles', 'legacyfileslast', 'display',
                                 'displayoptions', 'revision', 'timemodified', 'section', 'visible', 'groupmode', 'groupingid');
 
@@ -161,6 +162,7 @@ class externallib_test extends externallib_advanced_testcase {
         $page1->groupingid = 0;
         $page1->introfiles = [];
         $page1->contentfiles = [];
+        $page1->lang = '';
 
         $page2->coursemodule = $page2->cmid;
         $page2->introformat = 1;
@@ -171,6 +173,7 @@ class externallib_test extends externallib_advanced_testcase {
         $page2->groupingid = 0;
         $page2->introfiles = [];
         $page2->contentfiles = [];
+        $page2->lang = '';
 
         foreach ($expectedfields as $field) {
             $expected1[$field] = $page1->{$field};
@@ -181,14 +184,14 @@ class externallib_test extends externallib_advanced_testcase {
 
         // Call the external function passing course ids.
         $result = mod_page_external::get_pages_by_courses(array($course2->id, $course1->id));
-        $result = \external_api::clean_returnvalue($returndescription, $result);
+        $result = external_api::clean_returnvalue($returndescription, $result);
 
         $this->assertEquals($expectedpages, $result['pages']);
         $this->assertCount(0, $result['warnings']);
 
         // Call the external function without passing course id.
         $result = mod_page_external::get_pages_by_courses();
-        $result = \external_api::clean_returnvalue($returndescription, $result);
+        $result = external_api::clean_returnvalue($returndescription, $result);
         $this->assertEquals($expectedpages, $result['pages']);
         $this->assertCount(0, $result['warnings']);
 
@@ -207,7 +210,7 @@ class externallib_test extends externallib_advanced_testcase {
         $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
 
         $result = mod_page_external::get_pages_by_courses(array($course2->id, $course1->id));
-        $result = \external_api::clean_returnvalue($returndescription, $result);
+        $result = external_api::clean_returnvalue($returndescription, $result);
 
         $this->assertCount(1, $result['pages'][0]['introfiles']);
         $this->assertEquals($filename, $result['pages'][0]['introfiles'][0]['filename']);
@@ -218,7 +221,7 @@ class externallib_test extends externallib_advanced_testcase {
 
         // Call the external function without passing course id.
         $result = mod_page_external::get_pages_by_courses();
-        $result = \external_api::clean_returnvalue($returndescription, $result);
+        $result = external_api::clean_returnvalue($returndescription, $result);
         $this->assertEquals($expectedpages, $result['pages']);
 
         // Call for the second course we unenrolled the user from, expected warning.

@@ -42,20 +42,19 @@ if ($confirmdelete !== 0) {
 $PAGE->set_url($url);
 
 if (! $cm = get_coursemodule_from_id('chat', $id)) {
-    print_error('invalidcoursemodule');
+    throw new \moodle_exception('invalidcoursemodule');
 }
 if (! $chat = $DB->get_record('chat', array('id' => $cm->instance))) {
-    print_error('invalidcoursemodule');
+    throw new \moodle_exception('invalidcoursemodule');
 }
 if (! $course = $DB->get_record('course', array('id' => $chat->course))) {
-    print_error('coursemisconf');
+    throw new \moodle_exception('coursemisconf');
 }
 
+require_login($course, false, $cm);
 $context = context_module::instance($cm->id);
 $PAGE->set_context($context);
 $PAGE->set_heading($course->fullname);
-
-require_login($course, false, $cm);
 
 if (empty($chat->studentlogs) && !has_capability('mod/chat:readlog', $context)) {
     notice(get_string('nopermissiontoseethechatlog', 'chat'));

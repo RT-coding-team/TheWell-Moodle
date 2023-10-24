@@ -33,13 +33,16 @@ use core_reportbuilder\local\report\filter;
 abstract class base {
 
     /** @var string $entityname Internal reference to name of entity */
-    private $entityname = '';
+    private $entityname = null;
 
     /** @var lang_string $entitytitle Used as a title for the entity in reports */
     private $entitytitle = null;
 
-    /** @var array $tablealiases Database tables that this entity uses and their default aliases */
+    /** @var array $tablealiases Database tables that this entity uses and their aliases */
     private $tablealiases = [];
+
+    /** @var array $tablejoinaliases Database tables that have already been joined to the report and their aliases */
+    private $tablejoinaliases = [];
 
     /** @var string[] $joins List of SQL joins for the entity */
     private $joins = [];
@@ -87,7 +90,7 @@ abstract class base {
      *
      * @return string
      */
-    protected function get_default_entity_name(): string {
+    private function get_default_entity_name(): string {
         $namespace = explode('\\', get_called_class());
 
         return end($namespace);
@@ -98,13 +101,8 @@ abstract class base {
      *
      * @param string $entityname
      * @return self
-     * @throws coding_exception
      */
     final public function set_entity_name(string $entityname): self {
-        if ($entityname === '' || $entityname !== clean_param($entityname, PARAM_ALPHANUMEXT)) {
-            throw new coding_exception('Entity name must be comprised of alphanumeric character, underscore or dash');
-        }
-
         $this->entityname = $entityname;
         return $this;
     }
@@ -115,7 +113,7 @@ abstract class base {
      * @return string
      */
     final public function get_entity_name(): string {
-        return $this->entityname ?: $this->get_default_entity_name();
+        return $this->entityname ?? $this->get_default_entity_name();
     }
 
     /**
@@ -139,7 +137,8 @@ abstract class base {
     }
 
     /**
-     * Override the default alias for given database table used in entity queries
+     * Override the default alias for given database table used in entity queries, to avoid table alias clashes that may occur
+     * if multiple entities of a report each define the same default alias for one of their tables
      *
      * @param string $tablename
      * @param string $alias
@@ -152,6 +151,21 @@ abstract class base {
         }
 
         $this->tablealiases[$tablename] = $alias;
+        return $this;
+    }
+
+    /**
+     * Override multiple default database table aliases used in entity queries as per {@see set_table_alias}, typically when
+     * you're adding an entity multiple times to a report you'd want to override the table aliases in the second instance to
+     * avoid clashes with the first
+     *
+     * @param array $aliases Array of tablename => alias values
+     * @return self
+     */
+    final public function set_table_aliases(array $aliases): self {
+        foreach ($aliases as $tablename => $alias) {
+            $this->set_table_alias($tablename, $alias);
+        }
         return $this;
     }
 
@@ -169,6 +183,31 @@ abstract class base {
         }
 
         return $this->tablealiases[$tablename] ?? $defaulttablealiases[$tablename];
+    }
+
+    /**
+     * Set the alias for given database table that has already been added to the report. Enables entities to avoid additional
+     * joins on the same table by allowing re-use of existing table aliases in their own queries, {@see has_table_join_alias}
+     *
+     * @param string $tablename
+     * @param string $alias
+     * @return self
+     */
+    final public function set_table_join_alias(string $tablename, string $alias): self {
+        $this->tablejoinaliases[$tablename] = $alias;
+
+        // Internally set the same table alias for the entity.
+        return $this->set_table_alias($tablename, $alias);
+    }
+
+    /**
+     * Determine whether defined table join alias was specified. Call {@see get_table_alias} to retrieve said value
+     *
+     * @param string $tablename
+     * @return bool
+     */
+    final public function has_table_join_alias(string $tablename): bool {
+        return array_key_exists($tablename, $this->tablejoinaliases);
     }
 
     /**
@@ -200,8 +239,32 @@ abstract class base {
      *
      * @return string[]
      */
-    final protected function get_joins(): array {
+    final public function get_joins(): array {
         return array_values($this->joins);
+    }
+
+    /**
+     * Helper method for returning joins necessary for retrieving tags related to the current entity
+     *
+     * Both 'tag' and 'tag_instance' aliases must be returned by the entity {@see get_default_table_aliases} method
+     *
+     * @param string $component
+     * @param string $itemtype
+     * @param string $itemidfield
+     * @return string[]
+     */
+    final protected function get_tag_joins_for_entity(string $component, string $itemtype, string $itemidfield): array {
+        $taginstancealias = $this->get_table_alias('tag_instance');
+        $tagalias = $this->get_table_alias('tag');
+
+        return [
+            "LEFT JOIN {tag_instance} {$taginstancealias}
+                    ON {$taginstancealias}.component = '{$component}'
+                   AND {$taginstancealias}.itemtype = '{$itemtype}'
+                   AND {$taginstancealias}.itemid = {$itemidfield}",
+            "LEFT JOIN {tag} {$tagalias}
+                    ON {$tagalias}.id = {$taginstancealias}.tagid",
+        ];
     }
 
     /**

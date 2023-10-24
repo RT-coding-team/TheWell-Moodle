@@ -133,7 +133,7 @@ class profile_field_base {
      * @param MoodleQuickForm $mform instance of the moodleform class
      */
     public function edit_field_add($mform) {
-        print_error('mustbeoveride', 'debug', '', 'edit_field_add');
+        throw new \moodle_exception('mustbeoveride', 'debug', '', 'edit_field_add');
     }
 
     /**
@@ -258,7 +258,7 @@ class profile_field_base {
      * @param MoodleQuickForm $mform instance of the moodleform class
      */
     public function edit_field_set_default($mform) {
-        if (!empty($this->field->defaultdata)) {
+        if (isset($this->field->defaultdata)) {
             $mform->setDefault($this->inputname, $this->field->defaultdata);
         }
     }
@@ -745,29 +745,6 @@ function profile_save_data(stdClass $usernew): void {
 }
 
 /**
- * Display profile fields.
- *
- * @deprecated since Moodle 3.11 MDL-71051 - please do not use this function any more.
- * @todo MDL-71413 This will be deleted in Moodle 4.3.
- *
- * @param int $userid
- */
-function profile_display_fields($userid) {
-    debugging('Function profile_display_fields() is deprecated because it is no longer used and will be '.
-        'removed in future versions of Moodle', DEBUG_DEVELOPER);
-
-    $categories = profile_get_user_fields_with_data_by_category($userid);
-    foreach ($categories as $categoryid => $fields) {
-        foreach ($fields as $formfield) {
-            if ($formfield->is_visible() and !$formfield->is_empty()) {
-                echo html_writer::tag('dt', format_string($formfield->field->name));
-                echo html_writer::tag('dd', $formfield->display_data());
-            }
-        }
-    }
-}
-
-/**
  * Retrieves a list of profile fields that must be displayed in the sign-up form.
  *
  * @return array list of profile fields info
@@ -979,4 +956,39 @@ function profile_has_required_custom_fields_set($userid) {
     }
 
     return true;
+}
+
+/**
+ * Return the list of valid custom profile user fields.
+ *
+ * @return array array of profile field names
+ */
+function get_profile_field_names(): array {
+    $profilefields = profile_get_user_fields_with_data(0);
+    $profilefieldnames = [];
+    foreach ($profilefields as $field) {
+        $profilefieldnames[] = $field->inputname;
+    }
+    return $profilefieldnames;
+}
+
+/**
+ * Return the list of profile fields
+ * in a format they can be used for choices in a group select menu.
+ *
+ * @return array array of category name with its profile fields
+ */
+function get_profile_field_list(): array {
+    $customfields = profile_get_user_fields_with_data_by_category(0);
+    $data = [];
+    foreach ($customfields as $category) {
+        foreach ($category as $field) {
+            $categoryname = $field->get_category_name();
+            if (!isset($data[$categoryname])) {
+                $data[$categoryname] = [];
+            }
+            $data[$categoryname][$field->inputname] = $field->field->name;
+        }
+    }
+    return $data;
 }

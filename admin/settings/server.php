@@ -61,6 +61,17 @@ if ($hassiteconfig) {
     $temp->add($setting);
     $temp->add(new admin_setting_configtext('supportpage', new lang_string('supportpage', 'admin'),
         new lang_string('configsupportpage', 'admin'), '', PARAM_URL));
+    $temp->add(new admin_setting_configselect('supportavailability', new lang_string('supportavailability', 'admin'),
+        new lang_string('configsupportavailability', 'admin'), CONTACT_SUPPORT_AUTHENTICATED,
+        [
+            CONTACT_SUPPORT_ANYONE => new lang_string('availabletoanyone', 'admin'),
+            CONTACT_SUPPORT_AUTHENTICATED => new lang_string('availabletoauthenticated', 'admin'),
+            CONTACT_SUPPORT_DISABLED => new lang_string('disabled', 'admin'),
+        ]
+    ));
+    $temp->add(new admin_setting_configtext('servicespage', new lang_string('servicespage', 'admin'),
+        new lang_string('configservicespage', 'admin'), '', PARAM_URL));
+
     $ADMIN->add('server', $temp);
 
     // Session handling.
@@ -172,6 +183,11 @@ if ($hassiteconfig) {
         new lang_string('configproxypassword', 'admin'), ''));
     $temp->add(new admin_setting_configtext('proxybypass', new lang_string('proxybypass', 'admin'),
         new lang_string('configproxybypass', 'admin'), 'localhost, 127.0.0.1'));
+    $temp->add(new admin_setting_configcheckbox('proxylogunsafe', new lang_string('proxylogunsafe', 'admin'),
+        new lang_string('configproxylogunsafe_help', 'admin'), 0));
+    $temp->add(new admin_setting_configcheckbox('proxyfixunsafe', new lang_string('proxyfixunsafe', 'admin'),
+        new lang_string('configproxyfixunsafe_help', 'admin'), 0));
+
     $ADMIN->add('server', $temp);
 
     $temp = new admin_settingpage('maintenancemode', new lang_string('sitemaintenancemode', 'admin'));
@@ -248,6 +264,14 @@ if ($hassiteconfig) {
         ]
     ));
 
+    $temp->add(new admin_setting_configduration(
+        'xapicleanupperiod',
+        new lang_string('xapicleanupperiod', 'xapi'),
+        new lang_string('xapicleanupperiod_help', 'xapi'),
+        WEEKSECS * 8,
+        WEEKSECS
+    ));
+
     $ADMIN->add('server', $temp);
 
     $temp->add(new admin_setting_configduration('filescleanupperiod',
@@ -313,6 +337,20 @@ if ($hassiteconfig) {
         1
     );
     $setting->set_updatedcallback('theme_reset_static_caches');
+    $temp->add($setting);
+
+    $setting = new admin_setting_configduration(
+        'cron_keepalive',
+        new lang_string('cron_keepalive', 'admin'),
+        new lang_string('cron_keepalive_desc', 'admin'),
+        \core\cron::DEFAULT_MAIN_PROCESS_KEEPALIVE,
+        // The default unit is minutes.
+        MINSECS,
+    );
+
+    // Set an upper limit.
+    $setting->set_max_duration(\core\cron::MAX_MAIN_PROCESS_KEEPALIVE);
+
     $temp->add($setting);
 
     $temp->add(
@@ -415,6 +453,12 @@ if ($hassiteconfig) {
     // Outgoing mail configuration.
     $temp = new admin_settingpage('outgoingmailconfig', new lang_string('outgoingmailconfig', 'admin'));
 
+    if (!empty($CFG->noemailever)) {
+        $noemaileverwarning = new \core\output\notification(get_string('noemaileverwarning', 'admin'),
+        \core\output\notification::NOTIFY_ERROR);
+        $temp->add(new admin_setting_heading('outgoingmaildisabled', '', $OUTPUT->render($noemaileverwarning)));
+    }
+
     $temp->add(new admin_setting_heading('smtpheading', new lang_string('smtp', 'admin'),
         new lang_string('smtpdetail', 'admin')));
 
@@ -437,8 +481,34 @@ if ($hassiteconfig) {
         'CRAM-MD5' => 'CRAM-MD5',
     ];
 
+    // Get all the issuers.
+    $issuers = \core\oauth2\api::get_all_issuers();
+    $enabledissuers = [];
+    foreach ($issuers as $issuer) {
+        // Get the enabled issuer only.
+        if ($issuer->get('enabled')) {
+            $enabledissuers[] = $issuer;
+        }
+    }
+
+    if (count($enabledissuers) > 0) {
+        $authtypeoptions['XOAUTH2'] = 'XOAUTH2';
+    }
+
     $temp->add(new admin_setting_configselect('smtpauthtype', new lang_string('smtpauthtype', 'admin'),
         new lang_string('configsmtpauthtype', 'admin'), 'LOGIN', $authtypeoptions));
+
+    if (count($enabledissuers) > 0) {
+        $oauth2services = [
+            '' => new lang_string('none', 'admin'),
+        ];
+        foreach ($enabledissuers as $issuer) {
+            $oauth2services[$issuer->get('id')] = s($issuer->get('name'));
+        }
+
+        $temp->add(new admin_setting_configselect('smtpoauthservice', new lang_string('issuer', 'auth_oauth2'),
+            new lang_string('configsmtpoauthservice', 'admin'), '', $oauth2services));
+    }
 
     $temp->add(new admin_setting_configtext('smtpuser', new lang_string('smtpuser', 'admin'),
         new lang_string('configsmtpuser', 'admin'), '', PARAM_NOTAGS));
@@ -452,8 +522,12 @@ if ($hassiteconfig) {
     $temp->add(new admin_setting_heading('noreplydomainheading', new lang_string('noreplydomain', 'admin'),
         new lang_string('noreplydomaindetail', 'admin')));
 
+    $default = clean_param('noreply@' . get_host_from_url($CFG->wwwroot), PARAM_EMAIL);
+    if (!$default) {
+        $default = null;
+    }
     $temp->add(new admin_setting_configtext('noreplyaddress', new lang_string('noreplyaddress', 'admin'),
-        new lang_string('confignoreplyaddress', 'admin'), 'noreply@' . get_host_from_url($CFG->wwwroot), PARAM_EMAIL));
+        new lang_string('confignoreplyaddress', 'admin'), $default, PARAM_EMAIL));
 
     $temp->add(new admin_setting_configtextarea('allowedemaildomains',
         new lang_string('allowedemaildomains', 'admin'),

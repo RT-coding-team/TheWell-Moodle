@@ -39,7 +39,7 @@ $user = optional_param('user', 0, PARAM_INT);
 $rolec = optional_param('rolec', 0, PARAM_INT);
 
 if (!$cmid && !$courseid) {
-    print_error('invalidarguments');
+    throw new \moodle_exception('invalidarguments');
 }
 
 // Process self completion
@@ -64,6 +64,7 @@ if ($courseid) {
         require_sesskey();
 
         completion_criteria::factory(array('id'=>$rolec, 'criteriatype'=>COMPLETION_CRITERIA_TYPE_ROLE)); //TODO: this is dumb, because it does not fetch the data?!?!
+        /** @var completion_criteria_role $criteria */
         $criteria = completion_criteria_role::fetch(array('id'=>$rolec));
 
         if ($criteria and user_has_role_assignment($USER->id, $criteria->role, $context->id)) {
@@ -92,12 +93,12 @@ if ($courseid) {
             $completion = $completion->get_completion($USER->id, COMPLETION_CRITERIA_TYPE_SELF);
 
             if (!$completion) {
-                print_error('noselfcompletioncriteria', 'completion');
+                throw new \moodle_exception('noselfcompletioncriteria', 'completion');
             }
 
             // Check if the user has already marked themselves as complete
             if ($completion->is_complete()) {
-                print_error('useralreadymarkedcomplete', 'completion');
+                throw new \moodle_exception('useralreadymarkedcomplete', 'completion');
             }
 
             $completion->mark_complete();
@@ -128,7 +129,7 @@ switch($targetstate) {
     case COMPLETION_INCOMPLETE:
         break;
     default:
-        print_error('unsupportedstate');
+        throw new \moodle_exception('unsupportedstate');
 }
 
 // Get course-modules entry
@@ -140,7 +141,7 @@ require_login($course, false, $cm);
 require_capability('moodle/course:togglecompletion', context_module::instance($cmid));
 
 if (isguestuser() or !confirm_sesskey()) {
-    print_error('error');
+    throw new \moodle_exception('error');
 }
 
 // Set up completion object and check it is enabled.

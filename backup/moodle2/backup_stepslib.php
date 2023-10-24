@@ -341,7 +341,7 @@ class backup_module_structure_step extends backup_structure_step {
             'visibleold', 'groupmode', 'groupingid',
             'completion', 'completiongradeitemnumber', 'completionpassgrade',
             'completionview', 'completionexpected',
-            'availability', 'showdescription', 'downloadcontent'));
+            'availability', 'showdescription', 'downloadcontent', 'lang'));
 
         $tags = new backup_nested_element('tags');
         $tag = new backup_nested_element('tag', array('id'), array('name', 'rawname'));
@@ -459,7 +459,7 @@ class backup_course_structure_step extends backup_structure_step {
             'timecreated', 'timemodified',
             'requested',
             'showactivitydates',
-            'showcompletionconditions',
+            'showcompletionconditions', 'pdfexportfont',
             'enablecompletion', 'completionstartonenrol', 'completionnotify'));
 
         $category = new backup_nested_element('category', array('id'), array(
@@ -939,6 +939,9 @@ class backup_badges_structure_step extends backup_structure_step {
         $manual_award = new backup_nested_element('manual_award', array('id'), array('badgeid',
                 'recipientid', 'issuerid', 'issuerrole', 'datemet'));
 
+        $tags = new backup_nested_element('tags');
+        $tag = new backup_nested_element('tag', ['id'], ['name', 'rawname']);
+
         // Build the tree.
 
         $badges->add_child($badge);
@@ -953,6 +956,8 @@ class backup_badges_structure_step extends backup_structure_step {
         $relatedbadges->add_child($relatedbadge);
         $badge->add_child($manual_awards);
         $manual_awards->add_child($manual_award);
+        $badge->add_child($tags);
+        $tags->add_child($tag);
 
         // Define sources.
 
@@ -979,6 +984,12 @@ class backup_badges_structure_step extends backup_structure_step {
         $parameter->set_source_sql($parametersql, $parameterparams);
 
         $manual_award->set_source_table('badge_manual_award', array('badgeid' => backup::VAR_PARENTID));
+
+        $tag->set_source_sql('SELECT t.id, t.name, t.rawname
+                                FROM {tag} t
+                                JOIN {tag_instance} ti ON ti.tagid = t.id
+                               WHERE ti.itemtype = ?
+                                 AND ti.itemid = ?', [backup_helper::is_sqlparam('badge'), backup::VAR_PARENTID]);
 
         // Define id annotations.
 
@@ -1286,7 +1297,6 @@ class backup_userscompletion_structure_step extends backup_structure_step {
     protected function define_structure() {
 
         // Define each element separated
-
         $completions = new backup_nested_element('completions');
 
         $completion = new backup_nested_element('completion', array('id'), array(
@@ -1304,8 +1314,22 @@ class backup_userscompletion_structure_step extends backup_structure_step {
 
         $completion->annotate_ids('user', 'userid');
 
-        // Return the root element (completions)
+        $completionviews = new backup_nested_element('completionviews');
+        $completionview = new backup_nested_element('completionview', ['id'], ['userid', 'timecreated']);
+
+        // Build the tree.
+        $completionviews->add_child($completionview);
+
+        // Define sources.
+        $completionview->set_source_table('course_modules_viewed', ['coursemoduleid' => backup::VAR_MODID]);
+
+        // Define id annotations.
+        $completionview->annotate_ids('user', 'userid');
+
+        $completions->add_child($completionviews);
+        // Return the root element (completions).
         return $completions;
+
     }
 }
 
@@ -1328,7 +1352,11 @@ class backup_groups_structure_step extends backup_structure_step {
 
         $group = new backup_nested_element('group', array('id'), array(
             'name', 'idnumber', 'description', 'descriptionformat', 'enrolmentkey',
-            'picture', 'timecreated', 'timemodified'));
+            'picture', 'visibility', 'participation', 'timecreated', 'timemodified'));
+
+        $groupcustomfields = new backup_nested_element('groupcustomfields');
+        $groupcustomfield = new backup_nested_element('groupcustomfield', ['id'], [
+            'shortname', 'type', 'value', 'valueformat', 'groupid']);
 
         $members = new backup_nested_element('group_members');
 
@@ -1341,6 +1369,10 @@ class backup_groups_structure_step extends backup_structure_step {
             'name', 'idnumber', 'description', 'descriptionformat', 'configdata',
             'timecreated', 'timemodified'));
 
+        $groupingcustomfields = new backup_nested_element('groupingcustomfields');
+        $groupingcustomfield = new backup_nested_element('groupingcustomfield', ['id'], [
+            'shortname', 'type', 'value', 'valueformat', 'groupingid']);
+
         $groupinggroups = new backup_nested_element('grouping_groups');
 
         $groupinggroup = new backup_nested_element('grouping_group', array('id'), array(
@@ -1349,12 +1381,16 @@ class backup_groups_structure_step extends backup_structure_step {
         // Build the tree
 
         $groups->add_child($group);
+        $groups->add_child($groupcustomfields);
+        $groupcustomfields->add_child($groupcustomfield);
         $groups->add_child($groupings);
 
         $group->add_child($members);
         $members->add_child($member);
 
         $groupings->add_child($grouping);
+        $groupings->add_child($groupingcustomfields);
+        $groupingcustomfields->add_child($groupingcustomfield);
         $grouping->add_child($groupinggroups);
         $groupinggroups->add_child($groupinggroup);
 
@@ -1381,6 +1417,10 @@ class backup_groups_structure_step extends backup_structure_step {
             if ($userinfo) {
                 $member->set_source_table('groups_members', array('groupid' => backup::VAR_PARENTID));
             }
+
+            $courseid = $this->task->get_courseid();
+            $groupcustomfield->set_source_array($this->get_group_custom_fields_for_backup($courseid));
+            $groupingcustomfield->set_source_array($this->get_grouping_custom_fields_for_backup($courseid));
         }
 
         // Define id annotations (as final)
@@ -1395,6 +1435,40 @@ class backup_groups_structure_step extends backup_structure_step {
 
         // Return the root element (groups)
         return $groups;
+    }
+
+    /**
+     * Get custom fields array for group
+     * @param int $courseid
+     * @return array
+     */
+    protected function get_group_custom_fields_for_backup(int $courseid): array {
+        global $DB;
+        $handler = \core_group\customfield\group_handler::create();
+        $fieldsforbackup = [];
+        if ($groups = $DB->get_records('groups', ['courseid' => $courseid], '', 'id')) {
+            foreach ($groups as $group) {
+                $fieldsforbackup = array_merge($fieldsforbackup, $handler->get_instance_data_for_backup($group->id));
+            }
+        }
+        return $fieldsforbackup;
+    }
+
+    /**
+     * Get custom fields array for grouping
+     * @param int $courseid
+     * @return array
+     */
+    protected function get_grouping_custom_fields_for_backup(int $courseid): array {
+        global $DB;
+        $handler = \core_group\customfield\grouping_handler::create();
+        $fieldsforbackup = [];
+        if ($groupings = $DB->get_records('groupings', ['courseid' => $courseid], '', 'id')) {
+            foreach ($groupings as $grouping) {
+                $fieldsforbackup = array_merge($fieldsforbackup, $handler->get_instance_data_for_backup($grouping->id));
+            }
+        }
+        return $fieldsforbackup;
     }
 }
 
@@ -1845,10 +1919,10 @@ class backup_activity_competencies_structure_step extends backup_structure_step 
         $wrapper->add_child($competencies);
 
         $competency = new backup_nested_element('competency', null, array('idnumber', 'ruleoutcome',
-            'sortorder', 'frameworkidnumber'));
+            'sortorder', 'frameworkidnumber', 'overridegrade'));
         $competencies->add_child($competency);
 
-        $sql = 'SELECT c.idnumber, cmc.ruleoutcome, cmc.sortorder, f.idnumber AS frameworkidnumber
+        $sql = 'SELECT c.idnumber, cmc.ruleoutcome, cmc.overridegrade, cmc.sortorder, f.idnumber AS frameworkidnumber
                   FROM {' . \core_competency\course_module_competency::TABLE . '} cmc
                   JOIN {' . \core_competency\competency::TABLE . '} c ON c.id = cmc.competencyid
                   JOIN {' . \core_competency\competency_framework::TABLE . '} f ON f.id = c.competencyframeworkid
@@ -2984,5 +3058,37 @@ class backup_contentbankcontent_structure_step extends backup_structure_step {
 
         // Return the root element (contents).
         return $contents;
+    }
+}
+
+/**
+ * Structure step in charge of constructing the xapistate.xml file for all the xAPI states found in a given context.
+ */
+class backup_xapistate_structure_step extends backup_structure_step {
+
+    /**
+     * Define structure for content bank step
+     */
+    protected function define_structure() {
+
+        // Define each element separated.
+        $states = new backup_nested_element('states');
+        $state = new backup_nested_element(
+            'state',
+            ['id'],
+            ['component', 'userid', 'itemid', 'stateid', 'statedata', 'registration', 'timecreated', 'timemodified']
+        );
+
+        // Build the tree.
+        $states->add_child($state);
+
+        // Define sources.
+        $state->set_source_table('xapi_states', ['itemid' => backup::VAR_CONTEXTID]);
+
+        // Define annotations.
+        $state->annotate_ids('user', 'userid');
+
+        // Return the root element (contents).
+        return $states;
     }
 }

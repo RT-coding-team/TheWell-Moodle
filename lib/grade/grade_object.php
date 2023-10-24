@@ -160,7 +160,7 @@ abstract class grade_object {
         if ($instances = grade_object::fetch_all_helper($table, $classname, $params)) {
             if (count($instances) > 1) {
                 // we should not tolerate any errors here - problems might appear later
-                print_error('morethanonerecordinfetch','debug');
+                throw new \moodle_exception('morethanonerecordinfetch', 'debug');
             }
             return reset($instances);
         } else {
@@ -401,7 +401,7 @@ abstract class grade_object {
      * Given an associated array or object, cycles through each key/variable
      * and assigns the value to the corresponding variable in this object.
      *
-     * @param stdClass $instance The object to set the properties on
+     * @param grade_object $instance The object to set the properties on
      * @param array $params An array of properties to set like $propertyname => $propertyvalue
      * @return array|stdClass Either an associative array or an object containing property name, property value pairs
      */

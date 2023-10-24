@@ -94,7 +94,7 @@ $PAGE->activityheader->disable();
 $PAGE->navbar->add($straction);
 switch ($context->contextlevel) {
     case CONTEXT_SYSTEM:
-        print_error('cannotoverridebaserole', 'error');
+        throw new \moodle_exception('cannotoverridebaserole', 'error');
         break;
     case CONTEXT_USER:
         $fullname = fullname($user, has_capability('moodle/site:viewfullnames', $context));
@@ -125,7 +125,7 @@ if (empty($overridableroles[$roleid])) {
     $a = new stdClass;
     $a->roleid = $roleid;
     $a->context = $contextname;
-    print_error('cannotoverriderolehere', '', $context->get_url(), $a);
+    throw new \moodle_exception('cannotoverriderolehere', '', $context->get_url(), $a);
 }
 
 // If we are actually overriding a role, create the table object, and save changes if appropriate.

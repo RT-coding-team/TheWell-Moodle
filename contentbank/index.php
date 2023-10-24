@@ -32,13 +32,16 @@ $context = context::instance_by_id($contextid, MUST_EXIST);
 
 $cb = new \core_contentbank\contentbank();
 if (!$cb->is_context_allowed($context)) {
-    print_error('contextnotallowed', 'core_contentbank');
+    throw new \moodle_exception('contextnotallowed', 'core_contentbank');
 }
 
 require_capability('moodle/contentbank:access', $context);
 
-$statusmsg = optional_param('statusmsg', '', PARAM_ALPHANUMEXT);
-$errormsg = optional_param('errormsg', '', PARAM_ALPHANUMEXT);
+// If notifications had been sent we don't pay attention to message parameter.
+if (empty($SESSION->notifications)) {
+    $statusmsg = optional_param('statusmsg', '', PARAM_ALPHANUMEXT);
+    $errormsg = optional_param('errormsg', '', PARAM_ALPHANUMEXT);
+}
 
 $title = get_string('contentbank');
 \core_contentbank\helper::get_page_ready($context, $title);
@@ -118,10 +121,10 @@ echo $OUTPUT->heading($title, 2);
 echo $OUTPUT->box_start('generalbox');
 
 // If needed, display notifications.
-if ($errormsg !== '' && get_string_manager()->string_exists($errormsg, 'core_contentbank')) {
+if (!empty($errormsg) && get_string_manager()->string_exists($errormsg, 'core_contentbank')) {
     $errormsg = get_string($errormsg, 'core_contentbank');
     echo $OUTPUT->notification($errormsg);
-} else if ($statusmsg !== '' && get_string_manager()->string_exists($statusmsg, 'core_contentbank')) {
+} else if (!empty($statusmsg) && get_string_manager()->string_exists($statusmsg, 'core_contentbank')) {
     $statusmsg = get_string($statusmsg, 'core_contentbank');
     echo $OUTPUT->notification($statusmsg, 'notifysuccess');
 }

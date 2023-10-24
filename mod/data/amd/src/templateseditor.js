@@ -21,25 +21,93 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import {get_string as getString} from 'core/str';
-import {confirm as confirmDialogue} from 'core/notification';
+import {getString} from 'core/str';
+import {prefetchStrings} from 'core/prefetch';
 import {relativeUrl} from 'core/url';
+import {saveCancel} from 'core/notification';
+import Templates from 'core/templates';
+
+prefetchStrings('admin', ['confirmation']);
+prefetchStrings('mod_data', [
+    'resettemplateconfirmtitle',
+    'enabletemplateeditorcheck',
+    'editorenable'
+]);
+prefetchStrings('core', [
+    'reset',
+]);
 
 /**
  * Template editor constants.
  */
 const selectors = {
     toggleTemplateEditor: 'input[name="useeditor"]',
+    resetTemplateAction: '[data-action="resettemplate"]',
+    resetTemplate: 'input[name="defaultform"]',
+    resetAllTemplates: 'input[name="resetall"]',
+    resetAllCheck: 'input[name="resetallcheck"]',
+    editForm: '#edittemplateform',
 };
 
 /**
  * Register event listeners for the module.
  *
- * @param {int} d The database ID
+ * @param {Number} instanceId The database ID
  * @param {string} mode The template mode
  */
-const registerEventListeners = (d, mode) => {
+const registerEventListeners = (instanceId, mode) => {
+    registerResetButton(mode);
+    registerEditorToggler(instanceId, mode);
+};
+
+const registerResetButton = (mode) => {
+    const editForm = document.querySelector(selectors.editForm);
+    const resetTemplate = document.querySelector(selectors.resetTemplate);
+    const resetAllTemplates = document.querySelector(selectors.resetAllTemplates);
+    const resetTemplateAction = document.querySelector(selectors.resetTemplateAction);
+
+    if (!resetTemplateAction || !resetTemplate || !editForm) {
+        return;
+    }
+    prefetchStrings('mod_data', [
+        mode
+    ]);
+    resetTemplateAction.addEventListener('click', async(event) => {
+        event.preventDefault();
+        const params = {
+            resetallname: "resetallcheck",
+            templatename: await getString(mode, 'mod_data'),
+        };
+        saveCancel(
+            getString('resettemplateconfirmtitle', 'mod_data'),
+            Templates.render('mod_data/template_editor_resetmodal', params),
+            getString('reset', 'core'),
+            () => {
+                resetTemplate.value = "true";
+                editForm.submit();
+            },
+            null,
+            {triggerElement: event.target}
+        );
+    });
+
+    // The reset all checkbox is inside a modal so we need to capture at document level.
+    if (!resetAllTemplates) {
+        return;
+    }
+    document.addEventListener('change', (event) => {
+        if (event.target.matches(selectors.resetAllCheck)) {
+            resetAllTemplates.value = (event.target.checked) ? "true" : "";
+        }
+    });
+};
+
+const registerEditorToggler = (instanceId, mode) => {
     const toggleTemplateEditor = document.querySelector(selectors.toggleTemplateEditor);
+
+    if (!toggleTemplateEditor) {
+        return;
+    }
 
     toggleTemplateEditor.addEventListener('click', async(event) => {
         event.preventDefault();
@@ -48,17 +116,18 @@ const registerEventListeners = (d, mode) => {
 
         if (enableTemplateEditor) {
             // Display a confirmation dialog before enabling the template editor.
-            confirmDialogue(
+            saveCancel(
                 getString('confirmation', 'admin'),
                 getString('enabletemplateeditorcheck', 'mod_data'),
-                getString('yes', 'core'),
-                getString('no', 'core'),
+                getString('editorenable', 'mod_data'),
                 () => {
-                    window.location = relativeUrl('/mod/data/templates.php', {d: d, mode: mode, useeditor: true});
-                }
+                    window.location = relativeUrl('/mod/data/templates.php', {d: instanceId, mode: mode, useeditor: true});
+                },
+                null,
+                {triggerElement: event.target}
             );
         } else {
-            window.location = relativeUrl('/mod/data/templates.php', {d: d, mode: mode, useeditor: false});
+            window.location = relativeUrl('/mod/data/templates.php', {d: instanceId, mode: mode, useeditor: false});
         }
     });
 };
@@ -66,9 +135,9 @@ const registerEventListeners = (d, mode) => {
 /**
  * Initialize the module.
  *
- * @param {int} d The database ID
+ * @param {int} instanceId The database ID
  * @param {string} mode The template mode
  */
-export const init = (d, mode) => {
-    registerEventListeners(d, mode);
+export const init = (instanceId, mode) => {
+    registerEventListeners(instanceId, mode);
 };

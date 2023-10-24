@@ -96,11 +96,11 @@ if ($user->id != -1 and is_mnet_remote_user($user)) {
 }
 
 if ($user->id != $USER->id and is_siteadmin($user) and !is_siteadmin($USER)) {  // Only admins may edit other admins.
-    print_error('useradmineditadmin');
+    throw new \moodle_exception('useradmineditadmin');
 }
 
 if (isguestuser($user->id)) { // The real guest user can not be edited.
-    print_error('guestnoeditprofileother');
+    throw new \moodle_exception('guestnoeditprofileother');
 }
 
 if ($user->deleted) {
@@ -218,7 +218,7 @@ if ($userform->is_cancelled()) {
         // Pass a true old $user here.
         if (!$authplugin->user_update($user, $usernew)) {
             // Auth update failed.
-            print_error('cannotupdateuseronexauth', '', '', $user->auth);
+            throw new \moodle_exception('cannotupdateuseronexauth', '', '', $user->auth);
         }
         user_update_user($usernew, false, false);
 
@@ -226,7 +226,7 @@ if ($userform->is_cancelled()) {
         if (!empty($usernew->newpassword)) {
             if ($authplugin->can_change_password()) {
                 if (!$authplugin->user_update_password($usernew, $usernew->newpassword)) {
-                    print_error('cannotupdatepasswordonextauth', '', '', $usernew->auth);
+                    throw new \moodle_exception('cannotupdatepasswordonextauth', '', '', $usernew->auth);
                 }
                 unset_user_preference('create_password', $usernew); // Prevent cron from generating the password.
 
@@ -332,7 +332,8 @@ if ($user->id == -1 or ($user->id != $USER->id)) {
         $streditmyprofile = get_string('editmyprofile');
         $userfullname = fullname($user, true);
         $PAGE->set_heading($userfullname);
-        $PAGE->set_title("$course->shortname: $streditmyprofile - $userfullname");
+        $coursename = $course->id !== SITEID ? "$course->shortname" : '';
+        $PAGE->set_title("$streditmyprofile: $userfullname" . moodle_page::TITLE_SEPARATOR . $coursename);
         echo $OUTPUT->header();
         echo $OUTPUT->heading($userfullname);
     }

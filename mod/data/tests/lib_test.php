@@ -24,6 +24,8 @@
  */
 namespace mod_data;
 
+use stdClass;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -933,48 +935,6 @@ class lib_test extends \advanced_testcase {
         // Ensure that the value was updated by reference in $database.
         $config = json_decode($database->config);
         $this->assertEquals($value, $config->$key);
-    }
-
-    /**
-     * Test data_view
-     * @return void
-     */
-    public function test_data_view() {
-        global $CFG;
-
-        $CFG->enablecompletion = 1;
-        $this->resetAfterTest();
-
-        $this->setAdminUser();
-        // Setup test data.
-        $course = $this->getDataGenerator()->create_course(array('enablecompletion' => 1));
-        $data = $this->getDataGenerator()->create_module('data', array('course' => $course->id),
-                                                            array('completion' => 2, 'completionview' => 1));
-        $context = \context_module::instance($data->cmid);
-        $cm = get_coursemodule_from_instance('data', $data->id);
-
-        // Trigger and capture the event.
-        $sink = $this->redirectEvents();
-
-        data_view($data, $course, $cm, $context);
-
-        $events = $sink->get_events();
-        // 2 additional events thanks to completion.
-        $this->assertCount(3, $events);
-        $event = array_shift($events);
-
-        // Checking that the event contains the expected values.
-        $this->assertInstanceOf('\mod_data\event\course_module_viewed', $event);
-        $this->assertEquals($context, $event->get_context());
-        $moodleurl = new \moodle_url('/mod/data/view.php', array('id' => $cm->id));
-        $this->assertEquals($moodleurl, $event->get_url());
-        $this->assertEventContextNotUsed($event);
-        $this->assertNotEmpty($event->get_name());
-
-        // Check completion status.
-        $completion = new \completion_info($course);
-        $completiondata = $completion->get_data($cm);
-        $this->assertEquals(1, $completiondata->completionstate);
     }
 
     public function test_mod_data_get_tagged_records() {
@@ -2009,5 +1969,200 @@ class lib_test extends \advanced_testcase {
             'timeviewto' => $time + 2000,
         );
         $generator->create_instance($params);
+    }
+
+    /**
+     * Test for data_generate_default_template(). This method covers different scenarios for checking when the returned value
+     * is empty or not, but doesn't check if the content has the expected value when it's not empty.
+     *
+     * @covers ::data_generate_default_template
+     */
+    public function test_data_generate_default_template(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $activity = $this->getDataGenerator()->create_module(manager::MODULE, ['course' => $course]);
+
+        // Check the result is empty when $data and/or $template are null.
+        $nullactivity = null;
+        $result = data_generate_default_template($nullactivity, 'listtemplate', 0, false, false);
+        $this->assertEmpty($result);
+        $result = data_generate_default_template($activity, null, 0, false, false);
+        $this->assertEmpty($result);
+        $result = data_generate_default_template($nullactivity, null, 0, false, false);
+        $this->assertEmpty($result);
+
+        // Check the result is empty when any of the templates that are empty are given.
+        $emptytemplates = [
+            'csstemplate',
+            'jstemplate',
+            'listtemplateheader',
+            'listtemplatefooter',
+            'rsstitletemplate',
+        ];
+        foreach ($emptytemplates as $emptytemplate) {
+            $result = data_generate_default_template($activity, $emptytemplate, 0, false, false);
+            $this->assertEmpty($result);
+        }
+
+        $templates = [
+            'listtemplate',
+            'singletemplate',
+            'asearchtemplate',
+        ];
+        // Check the result is empty when the database has no fields.
+        foreach ($templates as $template) {
+            $result = data_generate_default_template($activity, $template, 0, false, false);
+            $this->assertEmpty($result);
+            $this->assertEmpty($activity->{$template});
+        }
+
+        // Add a field to the activity.
+        $fieldrecord = new stdClass();
+        $fieldrecord->name = 'field-1';
+        $fieldrecord->type = 'text';
+        $datagenerator = $this->getDataGenerator()->get_plugin_generator('mod_data');
+        $datagenerator->create_field($fieldrecord, $activity);
+
+        // Check the result is not empty when the database has no entries.
+        foreach ($templates as $template) {
+            $result = data_generate_default_template($activity, $template, 0, false, false);
+            $this->assertNotEmpty($result);
+            $this->assertEmpty($activity->{$template});
+        }
+
+        // Check the result is not empty when the database has no entries and the result is saved when $update = true.
+        foreach ($templates as $template) {
+            $result = data_generate_default_template($activity, $template, 0, false, true);
+            $this->assertNotEmpty($result);
+            $this->assertNotEmpty($activity->{$template});
+        }
+    }
+
+    /**
+     * Test for data_replace_field_in_templates().
+     *
+     * @covers ::data_replace_field_in_templates
+     */
+    public function test_data_replace_field_in_templates(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $templatecontent = "Field [[myfield]], [[myfield#id]], [[myfield#name]], [[myfield#description]], ";
+
+        $params = ['course' => $course];
+        foreach (manager::TEMPLATES_LIST as $templatename => $templatefile) {
+            $params[$templatename] = $templatecontent;
+        }
+        $activity = $this->getDataGenerator()->create_module(manager::MODULE, $params);
+
+        $generator = $this->getDataGenerator()->get_plugin_generator(manager::PLUGINNAME);
+        $fieldrecord = (object)['name' => 'myfield', 'type' => 'text', 'description' => 'This is a field'];
+        $generator->create_field($fieldrecord, $activity);
+
+        data_replace_field_in_templates($activity, 'myfield', 'newfieldname');
+        $dbactivity = $DB->get_record(manager::MODULE, ['id' => $activity->id]);
+
+        $newcontent = "Field [[newfieldname]], [[newfieldname#id]], [[newfieldname#name]], [[newfieldname#description]], ";
+        // Field compatible templates.
+        $this->assertEquals($newcontent, $dbactivity->listtemplate);
+        $this->assertEquals($newcontent, $dbactivity->singletemplate);
+        $this->assertEquals($newcontent, $dbactivity->asearchtemplate);
+        $this->assertEquals($newcontent, $dbactivity->addtemplate);
+        $this->assertEquals($newcontent, $dbactivity->rsstemplate);
+        // Other templates.
+        $this->assertEquals($templatecontent, $dbactivity->listtemplateheader);
+        $this->assertEquals($templatecontent, $dbactivity->listtemplatefooter);
+        $this->assertEquals($templatecontent, $dbactivity->csstemplate);
+        $this->assertEquals($templatecontent, $dbactivity->jstemplate);
+        $this->assertEquals($templatecontent, $dbactivity->rsstitletemplate);
+    }
+
+    /**
+     * Test for data_append_new_field_to_templates().
+     *
+     * @covers ::data_append_new_field_to_templates
+     * @dataProvider data_append_new_field_to_templates_provider
+     * @param bool $hasfield if the field is present in the templates
+     * @param bool $hasotherfields if the field is not present in the templates
+     * @param bool $expected the expected return
+     */
+    public function test_data_append_new_field_to_templates(bool $hasfield, bool $hasotherfields, bool $expected) {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $templatecontent = "Template content";
+        if ($hasfield) {
+            $templatecontent .= "Has [[myfield]].";
+        }
+        if ($hasotherfields) {
+            $templatecontent .= "And also ##otherfields##.";
+        }
+
+        $course = $this->getDataGenerator()->create_course();
+        $params = ['course' => $course];
+        foreach (manager::TEMPLATES_LIST as $templatename => $templatefile) {
+            $params[$templatename] = $templatecontent;
+        }
+        $activity = $this->getDataGenerator()->create_module(manager::MODULE, $params);
+
+        $result = data_append_new_field_to_templates($activity, 'myfield');
+        $this->assertEquals($expected, $result);
+
+        // Check fields with auto add fields.
+        $dbactivity = $DB->get_record(manager::MODULE, ['id' => $activity->id]);
+        if ($hasfield || $hasotherfields) {
+            $this->assertEquals($dbactivity->singletemplate, $templatecontent);
+            $this->assertEquals($dbactivity->addtemplate, $templatecontent);
+            $this->assertEquals($dbactivity->rsstemplate, $templatecontent);
+        } else {
+            $regexp = '|Template content.*\[\[myfield\]\]|';
+            // We don't want line breaks for the validations.
+            $this->assertMatchesRegularExpression($regexp, str_replace("\n", '', $dbactivity->singletemplate));
+            $this->assertMatchesRegularExpression($regexp, str_replace("\n", '', $dbactivity->addtemplate));
+            $this->assertMatchesRegularExpression($regexp, str_replace("\n", '', $dbactivity->rsstemplate));
+        }
+        // No auto add field templates.
+        $this->assertEquals($dbactivity->asearchtemplate, $templatecontent);
+        $this->assertEquals($dbactivity->listtemplate, $templatecontent);
+        $this->assertEquals($dbactivity->listtemplateheader, $templatecontent);
+        $this->assertEquals($dbactivity->listtemplatefooter, $templatecontent);
+        $this->assertEquals($dbactivity->csstemplate, $templatecontent);
+        $this->assertEquals($dbactivity->jstemplate, $templatecontent);
+        $this->assertEquals($dbactivity->rsstitletemplate, $templatecontent);
+    }
+
+    /**
+     * Data provider for test_data_append_new_field_to_templates().
+     *
+     * @return array of scenarios
+     */
+    public function data_append_new_field_to_templates_provider(): array {
+        return [
+            'Plain template' => [
+                'hasfield' => false,
+                'hasotherfields' => false,
+                'expected' => true,
+            ],
+            'Field already present' => [
+                'hasfield' => true,
+                'hasotherfields' => false,
+                'expected' => false,
+            ],
+            '##otherfields## tag present' => [
+                'hasfield' => false,
+                'hasotherfields' => true,
+                'expected' => false,
+            ],
+            'Field already present and ##otherfields## tag present' => [
+                'hasfield' => true,
+                'hasotherfields' => true,
+                'expected' => false,
+            ],
+        ];
     }
 }

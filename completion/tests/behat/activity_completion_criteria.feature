@@ -30,8 +30,8 @@ Feature: Allow to mark course as completed without cron for activity completion 
     And I set the field "Enable completion tracking" to "Yes"
     And I click on "Save and display" "button"
     And I am on the "Test assignment name" "assign activity editing" page
-    And I follow "Expand all"
-    And I set the field "Completion tracking" to "Show activity as complete when conditions are met"
+    And I click on "Expand all" "link" in the "region-main" "region"
+    And I set the field "Add requirements" to "1"
     And I set the field "completionusegrade" to "1"
     And I press "Save and return to course"
     And I navigate to "Course completion" in current page administration
@@ -42,8 +42,8 @@ Feature: Allow to mark course as completed without cron for activity completion 
   @javascript
   Scenario: Update course completion when student marks activity as complete
     Given I am on the "Test assignment name" "assign activity editing" page logged in as teacher1
-    And I follow "Expand all"
-    And I set the field "Completion tracking" to "Students can manually mark the activity as completed"
+    And I click on "Expand all" "link" in the "region-main" "region"
+    And I set the field "Students must manually mark the activity as done" to "1"
     And I press "Save and return to course"
     When I am on the "Completion course" course page logged in as student1
     And I should see "Status: Not yet started"
@@ -72,11 +72,12 @@ Feature: Allow to mark course as completed without cron for activity completion 
       | name                                | Test assignment name2       |
       | idnumber                            | assign2                     |
     And I am on the "Test assignment name2" "assign activity editing" page logged in as admin
-    And I follow "Expand all"
-    And I set the field "Completion tracking" to "Show activity as complete when conditions are met"
+    And I click on "Expand all" "link" in the "region-main" "region"
+    And I set the field "Add requirements" to "1"
     And I set the field "completionusegrade" to "1"
     And I press "Save and return to course"
     And I navigate to "Course completion" in current page administration
+    And I should see "Course completion settings" in the "tertiary-navigation" "region"
     And I expand all fieldsets
     And I set the field "Assignment - Test assignment name" to "1"
     And I set the field "Assignment - Test assignment name2" to "1"
@@ -113,7 +114,9 @@ Feature: Allow to mark course as completed without cron for activity completion 
   @javascript
   Scenario: Course completion should not be updated when teacher grades assignment on activity grader report page
     Given I am on the "Completion course" "grades > Single View > View" page logged in as "teacher1"
-    And I select "Student First" from the "Select a user above to view all their grades" singleselect
+    And I click on "Users" "link" in the ".page-toggler" "css_element"
+    And I turn editing mode on
+    And I click on "Student First" in the "user" search widget
     And I set the field "Override for Test assignment name" to "1"
     When I set the following fields to these values:
       | Grade for Test assignment name | 10.00 |

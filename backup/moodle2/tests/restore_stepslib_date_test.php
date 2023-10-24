@@ -16,6 +16,9 @@
 
 namespace core_backup;
 
+use mod_quiz\quiz_attempt;
+use mod_quiz\quiz_settings;
+
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
@@ -141,7 +144,7 @@ class restore_stepslib_date_test extends \restore_date_testcase {
         $fordb->status = BADGE_STATUS_INACTIVE;
         $fordb->nextcron = time();
 
-        $this->badgeid = $DB->insert_record('badge', $fordb, true);
+        $DB->insert_record('badge', $fordb, true);
         // Do a backup and restore.
         $newcourseid = $this->backup_and_restore($course);
         $newcourse = get_course($newcourseid);
@@ -315,6 +318,41 @@ class restore_stepslib_date_test extends \restore_date_testcase {
     }
 
     /**
+     * Checking that the user completion of an activity relating to the view field does not change
+     * when doing a course restore.
+     * @covers ::backup_and_restore
+     */
+    public function test_usercompletion_view_restore() {
+        global $DB;
+        // More completion...
+        $course = $this->getDataGenerator()->create_course(['startdate' => time(), 'enablecompletion' => 1]);
+        $student = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($student->id, $course->id, 'student');
+        $assign = $this->getDataGenerator()->create_module('assign', [
+            'course' => $course->id,
+            'completion' => COMPLETION_TRACKING_AUTOMATIC, // Show activity as complete when conditions are met.
+            'completionview' => 1
+        ]);
+        $cm = $DB->get_record('course_modules', ['course' => $course->id, 'instance' => $assign->id]);
+
+        // Mark the activity as completed.
+        $completion = new \completion_info($course);
+        $completion->set_module_viewed($cm, $student->id);
+
+        $coursemodulecompletion = $DB->get_record('course_modules_viewed', ['coursemoduleid' => $cm->id]);
+
+        // Back up and restore.
+        $newcourseid = $this->backup_and_restore($course);
+        $newcourse = get_course($newcourseid);
+
+        $assignid = $DB->get_field('assign', 'id', ['course' => $newcourseid]);
+        $cm = $DB->get_record('course_modules', ['course' => $newcourse->id, 'instance' => $assignid]);
+        $newcoursemodulecompletion = $DB->get_record('course_modules_viewed', ['coursemoduleid' => $cm->id]);
+
+        $this->assertEquals($coursemodulecompletion->timecreated, $newcoursemodulecompletion->timecreated);
+    }
+
+    /**
      * Ensuring that the timemodified field of the question attempt steps table does not change when
      * a course restore is done.
      */
@@ -344,7 +382,7 @@ class restore_stepslib_date_test extends \restore_date_testcase {
         // Make a user to do the quiz.
         $user1 = $this->getDataGenerator()->create_user();
 
-        $quizobj = \quiz::create($quiz->id, $user1->id);
+        $quizobj = quiz_settings::create($quiz->id, $user1->id);
 
         // Start the attempt.
         $quba = \question_engine::make_questions_usage_by_activity('mod_quiz', $quizobj->get_context());
@@ -358,7 +396,7 @@ class restore_stepslib_date_test extends \restore_date_testcase {
         quiz_attempt_save_started($quizobj, $quba, $attempt);
 
         // Process some responses from the student.
-        $attemptobj = \quiz_attempt::create($attempt->id);
+        $attemptobj = quiz_attempt::create($attempt->id);
 
         $prefix1 = $quba->get_field_prefix(1);
         $prefix2 = $quba->get_field_prefix(2);
@@ -369,7 +407,7 @@ class restore_stepslib_date_test extends \restore_date_testcase {
         $attemptobj->process_submitted_actions($timenow, false, $tosubmit);
 
         // Finish the attempt.
-        $attemptobj = \quiz_attempt::create($attempt->id);
+        $attemptobj = quiz_attempt::create($attempt->id);
         $attemptobj->process_finish($timenow, false);
 
         $questionattemptstepdates = [];
@@ -384,7 +422,7 @@ class restore_stepslib_date_test extends \restore_date_testcase {
 
         // Get the quiz for this new restored course.
         $quizdata = $DB->get_record('quiz', ['course' => $newcourseid]);
-        $quizobj = \quiz::create($quizdata->id, $user1->id);
+        $quizobj = \mod_quiz\quiz_settings::create($quizdata->id, $user1->id);
 
         $questionusage = $DB->get_record('question_usages', [
                 'component' => 'mod_quiz',

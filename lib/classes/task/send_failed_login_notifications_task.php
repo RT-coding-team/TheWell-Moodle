@@ -72,6 +72,7 @@ class send_failed_login_notifications_task extends scheduled_task {
         // Get all the IPs with more than notifyloginthreshold failures since lastnotifyfailure
         // and insert them into the cache_flags temp table.
         $logmang = get_log_manager();
+        /** @var \core\log\sql_internal_table_reader[] $readers */
         $readers = $logmang->get_readers('\core\log\sql_internal_table_reader');
         $reader = reset($readers);
         $readername = key($readers);
@@ -146,7 +147,7 @@ class send_failed_login_notifications_task extends scheduled_task {
             $a->time = userdate($log->timecreated);
             if (empty($log->username)) {
                 // Entries with no valid username. We get attempted username from the event's other field.
-                $other = \tool_log\helper\reader::decode_other($log->other);
+                $other = \tool_log\local\privacy\helper::decode_other($log->other);
                 $a->info = empty($other['username']) ? '' : $other['username'];
                 $a->name = get_string('unknownuser');
             } else {

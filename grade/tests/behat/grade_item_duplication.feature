@@ -1,4 +1,4 @@
-@core @core_grades
+@core @core_grades @javascript
 Feature: We can duplicate grade items that already exist.
   In order to quickly create grade items that have similar settings.
   As a teacher
@@ -30,7 +30,9 @@ Feature: We can duplicate grade items that already exist.
     And I should not see "Duplicate   Assignment1"
     When I duplicate the grade item "Item1"
     Then I should see "Item1 (copy)"
-    And I follow "Edit   Item1 (copy)"
+    And I click on grade item menu "Item1 (copy)" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
+    And I click on "Show more..." "link" in the ".modal-dialog" "css_element"
     And the field "Item name" matches value "Item1 (copy)"
     And the field "ID number" matches value ""
     And the field "Grade type" matches value "Value"

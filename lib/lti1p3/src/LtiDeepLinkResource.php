@@ -4,120 +4,238 @@ namespace Packback\Lti1p3;
 
 class LtiDeepLinkResource
 {
-    private $type = 'ltiResourceLink';
+    private $type = LtiConstants::DL_RESOURCE_LINK_TYPE;
     private $title;
     private $text;
     private $url;
-    private $lineitem;
+    private $line_item;
+    private $icon;
+    private $thumbnail;
     private $custom_params = [];
     private $target = 'iframe';
+    private $iframe;
+    private $window;
+    private $availability_interval;
+    private $submission_interval;
 
-    public static function new()
+    public static function new(): LtiDeepLinkResource
     {
         return new LtiDeepLinkResource();
     }
 
-    public function getType()
+    public function getType(): string
     {
         return $this->type;
     }
 
-    public function setType($value)
+    public function setType(string $value): LtiDeepLinkResource
     {
         $this->type = $value;
 
         return $this;
     }
 
-    public function getTitle()
+    public function getTitle(): ?string
     {
         return $this->title;
     }
 
-    public function setTitle($value)
+    public function setTitle(?string $value): LtiDeepLinkResource
     {
         $this->title = $value;
 
         return $this;
     }
 
-    public function getText()
+    public function getText(): ?string
     {
         return $this->text;
     }
 
-    public function setText($value)
+    public function setText(?string $value): LtiDeepLinkResource
     {
         $this->text = $value;
 
         return $this;
     }
 
-    public function getUrl()
+    public function getUrl(): ?string
     {
         return $this->url;
     }
 
-    public function setUrl($value)
+    public function setUrl(?string $value): LtiDeepLinkResource
     {
         $this->url = $value;
 
         return $this;
     }
 
-    public function getLineitem()
+    public function getLineItem(): ?LtiLineitem
     {
-        return $this->lineitem;
+        return $this->line_item;
     }
 
-    public function setLineitem(LtiLineitem $value)
+    public function setLineItem(?LtiLineitem $value): LtiDeepLinkResource
     {
-        $this->lineitem = $value;
+        $this->line_item = $value;
 
         return $this;
     }
 
-    public function getCustomParams()
+    public function setIcon(?LtiDeepLinkResourceIcon $icon): LtiDeepLinkResource
+    {
+        $this->icon = $icon;
+
+        return $this;
+    }
+
+    public function getIcon(): ?LtiDeepLinkResourceIcon
+    {
+        return $this->icon;
+    }
+
+    public function setThumbnail(?LtiDeepLinkResourceIcon $thumbnail): LtiDeepLinkResource
+    {
+        $this->thumbnail = $thumbnail;
+
+        return $this;
+    }
+
+    public function getThumbnail(): ?LtiDeepLinkResourceIcon
+    {
+        return $this->thumbnail;
+    }
+
+    public function getCustomParams(): array
     {
         return $this->custom_params;
     }
 
-    public function setCustomParams($value)
+    public function setCustomParams(array $value): LtiDeepLinkResource
     {
         $this->custom_params = $value;
 
         return $this;
     }
 
-    public function getTarget()
+    /**
+     * @deprecated This field maps the "presentation" resource property, which is non-standard.
+     * Consider using "iframe" and/or "window" instead.
+     */
+    public function getTarget(): string
     {
         return $this->target;
     }
 
-    public function setTarget($value)
+    /**
+     * @deprecated This field maps the "presentation" resource property, which is non-standard.
+     * Consider using "iframe" and/or "window" instead.
+     */
+    public function setTarget(string $value): LtiDeepLinkResource
     {
         $this->target = $value;
 
         return $this;
     }
 
-    public function toArray()
+    public function getIframe(): ?LtiDeepLinkResourceIframe
+    {
+        return $this->iframe;
+    }
+
+    public function setIframe(?LtiDeepLinkResourceIframe $iframe): LtiDeepLinkResource
+    {
+        $this->iframe = $iframe;
+
+        return $this;
+    }
+
+    public function getWindow(): ?LtiDeepLinkResourceWindow
+    {
+        return $this->window;
+    }
+
+    public function setWindow(?LtiDeepLinkResourceWindow $window): LtiDeepLinkResource
+    {
+        $this->window = $window;
+
+        return $this;
+    }
+
+    public function getAvailabilityInterval(): ?LtiDeepLinkDateTimeInterval
+    {
+        return $this->availability_interval;
+    }
+
+    public function setAvailabilityInterval(?LtiDeepLinkDateTimeInterval $availabilityInterval): LtiDeepLinkResource
+    {
+        $this->availability_interval = $availabilityInterval;
+
+        return $this;
+    }
+
+    public function getSubmissionInterval(): ?LtiDeepLinkDateTimeInterval
+    {
+        return $this->submission_interval;
+    }
+
+    public function setSubmissionInterval(?LtiDeepLinkDateTimeInterval $submissionInterval): LtiDeepLinkResource
+    {
+        $this->submission_interval = $submissionInterval;
+
+        return $this;
+    }
+
+    public function toArray(): array
     {
         $resource = [
             'type' => $this->type,
-            'title' => $this->title,
-            'text' => $this->text,
-            'url' => $this->url,
-            'presentation' => [
-                'documentTarget' => $this->target,
-            ],
-            'custom' => $this->custom_params,
         ];
-        if ($this->lineitem !== null) {
+
+        if (isset($this->title)) {
+            $resource['title'] = $this->title;
+        }
+        if (isset($this->text)) {
+            $resource['text'] = $this->text;
+        }
+        if (isset($this->url)) {
+            $resource['url'] = $this->url;
+        }
+        if (!empty($this->custom_params)) {
+            $resource['custom'] = $this->custom_params;
+        }
+        if (isset($this->icon)) {
+            $resource['icon'] = $this->icon->toArray();
+        }
+        if (isset($this->thumbnail)) {
+            $resource['thumbnail'] = $this->thumbnail->toArray();
+        }
+        if ($this->line_item !== null) {
             $resource['lineItem'] = [
-                'scoreMaximum' => $this->lineitem->getScoreMaximum(),
-                'label' => $this->lineitem->getLabel(),
+                'scoreMaximum' => $this->line_item->getScoreMaximum(),
+                'label' => $this->line_item->getLabel(),
             ];
+        }
+
+        // Kept for backwards compatibility
+        if (!isset($this->iframe) && !isset($this->window)) {
+            $resource['presentation'] = [
+                'documentTarget' => $this->target,
+            ];
+        }
+
+        if (isset($this->iframe)) {
+            $resource['iframe'] = $this->iframe->toArray();
+        }
+        if (isset($this->window)) {
+            $resource['window'] = $this->window->toArray();
+        }
+        if (isset($this->availability_interval)) {
+            $resource['available'] = $this->availability_interval->toArray();
+        }
+        if (isset($this->submission_interval)) {
+            $resource['submission'] = $this->submission_interval->toArray();
         }
 
         return $resource;

@@ -29,7 +29,7 @@ import Notification from 'core/notification';
 import Pending from 'core/pending';
 import {subscribe} from 'core/pubsub';
 import SortableList from 'core/sortable_list';
-import {get_string as getString} from 'core/str';
+import {getString} from 'core/str';
 import {add as addToast} from 'core/toast';
 import * as reportSelectors from 'core_reportbuilder/local/selectors';
 import {reorderColumnSorting, toggleColumnSorting} from 'core_reportbuilder/local/repository/sorting';
@@ -129,7 +129,7 @@ export const init = (initialized) => {
             const pendingPromise = new Pending('core_reportbuilder/sorting:direction');
             const reportElement = toggleSortDirection.closest(reportSelectors.regions.report);
             const listElement = toggleSortDirection.closest('li');
-            const sortenabled = listElement.dataset.columnSortEnabled;
+            const toggleSorting = listElement.querySelector(reportSelectors.actions.reportToggleColumnSort);
 
             let sortdirection = parseInt(listElement.dataset.columnSortDirection);
             if (sortdirection === SORTORDER.ASCENDING) {
@@ -138,7 +138,7 @@ export const init = (initialized) => {
                 sortdirection = SORTORDER.ASCENDING;
             }
 
-            updateSorting(reportElement, toggleSortDirection, sortenabled, sortdirection)
+            updateSorting(reportElement, toggleSortDirection, toggleSorting.checked, sortdirection)
                 .then(() => {
                     // Re-focus the toggle sort direction element after reloading the region.
                     const toggleSortDirectionElement = document.getElementById(toggleSortDirection.id);

@@ -23,9 +23,7 @@
  * @author     T.J.Hunt@open.ac.uk
  * @license    http://www.gnu.org/copyleft/gpl.html GNU Public License
  */
-
 class weblib_test extends advanced_testcase {
-
     /**
      * @covers ::format_string
      */
@@ -47,6 +45,10 @@ class weblib_test extends advanced_testcase {
 
         // Unicode entities.
         $this->assertSame("&#4475;", format_string("&#4475;"));
+
+        // Nulls.
+        $this->assertSame('', format_string(null));
+        $this->assertSame('', format_string(null, true, ['escape' => false]));
 
         // < and > signs.
         $originalformatstringstriptags = $CFG->formatstringstriptags;
@@ -276,6 +278,204 @@ class weblib_test extends advanced_testcase {
         $this->assertSame('lala xx', clean_text($text, FORMAT_MARKDOWN));
         $this->assertSame('lala xx', clean_text($text, FORMAT_MOODLE));
         $this->assertSame('lala xx', clean_text($text, FORMAT_HTML));
+    }
+
+    /**
+     * Test trusttext enabling.
+     *
+     * @covers ::trusttext_active
+     */
+    public function test_trusttext_active() {
+        global $CFG;
+        $this->resetAfterTest();
+
+        $this->assertFalse(trusttext_active());
+        $CFG->enabletrusttext = '1';
+        $this->assertTrue(trusttext_active());
+    }
+
+    /**
+     * Test trusttext detection.
+     *
+     * @covers ::trusttext_trusted
+     */
+    public function test_trusttext_trusted() {
+        global $CFG;
+        $this->resetAfterTest();
+
+        $syscontext = context_system::instance();
+        $course = $this->getDataGenerator()->create_course();
+        $coursecontext = context_course::instance($course->id);
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id, 'editingteacher');
+
+        $this->setAdminUser();
+
+        $CFG->enabletrusttext = '0';
+        $this->assertFalse(trusttext_trusted($syscontext));
+        $this->assertFalse(trusttext_trusted($coursecontext));
+
+        $CFG->enabletrusttext = '1';
+        $this->assertTrue(trusttext_trusted($syscontext));
+        $this->assertTrue(trusttext_trusted($coursecontext));
+
+        $this->setUser($user1);
+
+        $CFG->enabletrusttext = '0';
+        $this->assertFalse(trusttext_trusted($syscontext));
+        $this->assertFalse(trusttext_trusted($coursecontext));
+
+        $CFG->enabletrusttext = '1';
+        $this->assertFalse(trusttext_trusted($syscontext));
+        $this->assertFalse(trusttext_trusted($coursecontext));
+
+        $this->setUser($user2);
+
+        $CFG->enabletrusttext = '0';
+        $this->assertFalse(trusttext_trusted($syscontext));
+        $this->assertFalse(trusttext_trusted($coursecontext));
+
+        $CFG->enabletrusttext = '1';
+        $this->assertFalse(trusttext_trusted($syscontext));
+        $this->assertTrue(trusttext_trusted($coursecontext));
+    }
+
+    /**
+     * Data provider for trusttext_pre_edit() tests.
+     */
+    public function trusttext_pre_edit_provider(): array {
+        return [
+            [true, 0, 'editingteacher', FORMAT_HTML, 1],
+            [true, 0, 'editingteacher', FORMAT_MOODLE, 1],
+            [false, 0, 'editingteacher', FORMAT_MARKDOWN, 1],
+            [false, 0, 'editingteacher', FORMAT_PLAIN, 1],
+
+            [false, 1, 'editingteacher', FORMAT_HTML, 1],
+            [false, 1, 'editingteacher', FORMAT_MOODLE, 1],
+            [false, 1, 'editingteacher', FORMAT_MARKDOWN, 1],
+            [false, 1, 'editingteacher', FORMAT_PLAIN, 1],
+
+            [true, 0, 'student', FORMAT_HTML, 1],
+            [true, 0, 'student', FORMAT_MOODLE, 1],
+            [false, 0, 'student', FORMAT_MARKDOWN, 1],
+            [false, 0, 'student', FORMAT_PLAIN, 1],
+
+            [true, 1, 'student', FORMAT_HTML, 1],
+            [true, 1, 'student', FORMAT_MOODLE, 1],
+            [false, 1, 'student', FORMAT_MARKDOWN, 1],
+            [false, 1, 'student', FORMAT_PLAIN, 1],
+        ];
+    }
+
+    /**
+     * Test text cleaning before editing.
+     *
+     * @dataProvider trusttext_pre_edit_provider
+     * @covers ::trusttext_pre_edit
+     *
+     * @param bool $expectedsanitised
+     * @param int $enabled
+     * @param string $rolename
+     * @param string $format
+     * @param int $trust
+     */
+    public function test_trusttext_pre_edit(bool $expectedsanitised, int $enabled, string $rolename,
+                                            string $format, int $trust) {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $exploit = "abc<script>alert('xss')</script> < > &";
+        $sanitised = purify_html($exploit);
+
+        $course = $this->getDataGenerator()->create_course();
+        $context = context_course::instance($course->id);
+
+        $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, $rolename);
+
+        $this->setUser($user);
+
+        $CFG->enabletrusttext = (string)$enabled;
+
+        $object = new stdClass();
+        $object->some = $exploit;
+        $object->someformat = $format;
+        $object->sometrust = (string)$trust;
+        $result = trusttext_pre_edit(clone($object), 'some', $context);
+
+        if ($expectedsanitised) {
+            $message = "sanitisation is expected for: $enabled, $rolename, $format, $trust";
+            $this->assertSame($sanitised, $result->some, $message);
+        } else {
+            $message = "sanitisation is not expected for: $enabled, $rolename, $format, $trust";
+            $this->assertSame($exploit, $result->some, $message);
+        }
+    }
+
+    /**
+     * Test removal of legacy trusttext flag.
+     * @covers ::trusttext_strip
+     */
+    public function test_trusttext_strip() {
+        $this->assertSame('abc', trusttext_strip('abc'));
+        $this->assertSame('abc', trusttext_strip('ab#####TRUSTTEXT#####c'));
+    }
+
+    /**
+     * Test trust option of format_text().
+     * @covers ::format_text
+     */
+    public function test_format_text_trusted() {
+        global $CFG;
+        $this->resetAfterTest();
+
+        $text = "lala <object>xx</object>";
+
+        $CFG->enabletrusttext = 0;
+
+        $this->assertSame(s($text),
+            format_text($text, FORMAT_PLAIN, ['trusted' => true]));
+        $this->assertSame("<p>lala xx</p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => true]));
+        $this->assertSame('<div class="text_to_html">lala xx</div>',
+            format_text($text, FORMAT_MOODLE, ['trusted' => true]));
+        $this->assertSame('lala xx',
+            format_text($text, FORMAT_HTML, ['trusted' => true]));
+
+        $this->assertSame(s($text),
+            format_text($text, FORMAT_PLAIN, ['trusted' => false]));
+        $this->assertSame("<p>lala xx</p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => false]));
+        $this->assertSame('<div class="text_to_html">lala xx</div>',
+            format_text($text, FORMAT_MOODLE, ['trusted' => false]));
+        $this->assertSame('lala xx',
+            format_text($text, FORMAT_HTML, ['trusted' => false]));
+
+        $CFG->enabletrusttext = 1;
+
+        $this->assertSame(s($text),
+            format_text($text, FORMAT_PLAIN, ['trusted' => true]));
+        $this->assertSame("<p>lala xx</p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => true]));
+        $this->assertSame('<div class="text_to_html">lala <object>xx</object></div>',
+            format_text($text, FORMAT_MOODLE, ['trusted' => true]));
+        $this->assertSame('lala <object>xx</object>',
+            format_text($text, FORMAT_HTML, ['trusted' => true]));
+
+        $this->assertSame(s($text),
+            format_text($text, FORMAT_PLAIN, ['trusted' => false]));
+        $this->assertSame("<p>lala xx</p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => false]));
+        $this->assertSame('<div class="text_to_html">lala xx</div>',
+            format_text($text, FORMAT_MOODLE, ['trusted' => false]));
+        $this->assertSame('lala xx',
+            format_text($text, FORMAT_HTML, ['trusted' => false]));
+
+        $this->assertSame("<p>lala <object>xx</object></p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => true, 'noclean' => true]));
+        $this->assertSame("<p>lala <object>xx</object></p>\n",
+            format_text($text, FORMAT_MARKDOWN, ['trusted' => false, 'noclean' => true]));
     }
 
     /**
@@ -879,7 +1079,7 @@ EXPECTED;
         $url1 = "{$CFG->wwwroot}/draftfile.php/5/user/draft/99999999/test1.jpg";
         $url2 = "{$CFG->wwwroot}/draftfile.php/5/user/draft/99999998/test2.jpg";
 
-        $html = "<p>This is a test.</p><p><img src=\"${url1}\" alt=\"\" role=\"presentation\"></p>
+        $html = "<p>This is a test.</p><p><img src=\"{$url1}\" alt=\"\" role=\"presentation\"></p>
                 <br>Test content.<p></p><p><img src=\"{$url2}\" alt=\"\" width=\"2048\" height=\"1536\"
                 role=\"presentation\" class=\"img-fluid atto_image_button_text-bottom\"><br></p>";
         $draftareas = array(
@@ -954,5 +1154,189 @@ EXPECTED;
         $CFG->maxconsecutiveidentchars = 1;
 
         $this->assertNotEquals($policydisabled, print_password_policy());
+    }
+
+    /**
+     * Data provider for the testing get_html_lang_attribute_value().
+     *
+     * @return string[][]
+     */
+    public function get_html_lang_attribute_value_provider() {
+        return [
+            'Empty lang code' => ['    ', 'unknown'],
+            'English' => ['en', 'en'],
+            'English, US' => ['en_us', 'en-us'],
+        ];
+    }
+
+    /**
+     * Test for get_html_lang_attribute_value().
+     *
+     * @covers ::get_html_lang_attribute_value()
+     * @dataProvider get_html_lang_attribute_value_provider
+     * @param string $langcode The language code to convert.
+     * @param string $expected The expected converted value.
+     * @return void
+     */
+    public function test_get_html_lang_attribute_value(string $langcode, string $expected): void {
+        $this->assertEquals($expected, get_html_lang_attribute_value($langcode));
+    }
+
+    /**
+     * Test the coding exceptions when returning URL as relative path from $CFG->wwwroot.
+     *
+     * @param moodle_url $url The URL pointing to a web resource.
+     * @param string $exmessage The expected output URL.
+     * @throws coding_exception If called on a non-local URL.
+     * @see \moodle_url::out_as_local_url()
+     * @covers \moodle_url::out_as_local_url
+     * @dataProvider out_as_local_url_coding_exception_provider
+     */
+    public function test_out_as_local_url_coding_exception(\moodle_url $url, string $exmessage) {
+        $this->expectException(\coding_exception::class);
+        $this->expectExceptionMessage($exmessage);
+        $localurl = $url->out_as_local_url();
+    }
+
+    /**
+     * Data provider for throwing coding exceptions in <u>\moodle_url::out_as_local_url()</u>.
+     *
+     * @return array
+     * @throws moodle_exception On seriously malformed URLs (<u>parse_url</u>).
+     * @see \moodle_url::out_as_local_url()
+     * @see parse_url()
+     */
+    public function out_as_local_url_coding_exception_provider() {
+        return [
+            'Google Maps CDN (HTTPS)' => [
+                new \moodle_url('https://maps.googleapis.com/maps/api/js', ['key' => 'googlemapkey3', 'sensor' => 'false']),
+                'Coding error detected, it must be fixed by a programmer: out_as_local_url called on a non-local URL'
+            ],
+            'Google Maps CDN (HTTP)' => [
+                new \moodle_url('http://maps.googleapis.com/maps/api/js', ['key' => 'googlemapkey3', 'sensor' => 'false']),
+                'Coding error detected, it must be fixed by a programmer: out_as_local_url called on a non-local URL'
+            ],
+        ];
+    }
+
+    /**
+     * Test URL as relative path from $CFG->wwwroot.
+     *
+     * @param moodle_url $url The URL pointing to a web resource.
+     * @param string $expected The expected local URL.
+     * @throws coding_exception If called on a non-local URL.
+     * @see \moodle_url::out_as_local_url()
+     * @covers \moodle_url::out_as_local_url
+     * @dataProvider out_as_local_url_provider
+     */
+    public function test_out_as_local_url(\moodle_url $url, string $expected) {
+        $this->assertEquals($expected, $url->out_as_local_url(false));
+    }
+
+    /**
+     * Data provider for returning local paths via <u>\moodle_url::out_as_local_url()</u>.
+     *
+     * @return array
+     * @throws moodle_exception On seriously malformed URLs (<u>parse_url</u>).
+     * @see \moodle_url::out_as_local_url()
+     * @see parse_url()
+     */
+    public function out_as_local_url_provider() {
+        global $CFG;
+        $wwwroot = rtrim($CFG->wwwroot, '/');
+
+        return [
+            'Environment XML file' => [
+                new \moodle_url('/admin/environment.xml'),
+                '/admin/environment.xml'
+            ],
+            'H5P JS internal resource' => [
+                new \moodle_url('/h5p/js/embed.js'),
+                '/h5p/js/embed.js'
+            ],
+            'A Moodle JS resource using the full path including the proper JS Handler' => [
+                new \moodle_url($wwwroot . '/lib/javascript.php/1/lib/editor/tiny/js/tinymce/tinymce.js'),
+                '/lib/javascript.php/1/lib/editor/tiny/js/tinymce/tinymce.js'
+            ],
+        ];
+    }
+
+    /**
+     * Test URL as relative path from $CFG->wwwroot.
+     *
+     * @param moodle_url $url The URL pointing to a web resource.
+     * @param bool $expected The expected result.
+     * @see \moodle_url::is_local_url()
+     * @covers \moodle_url::is_local_url
+     * @dataProvider is_local_url_provider
+     */
+    public function test_is_local_url(\moodle_url $url, bool $expected) {
+        $this->assertEquals($expected, $url->is_local_url(), "'{$url}' is not a local URL!");
+    }
+
+    /**
+     * Data provider for testing <u>\moodle_url::is_local_url()</u>.
+     *
+     * @return array
+     * @see \moodle_url::is_local_url()
+     */
+    public function is_local_url_provider() {
+        global $CFG;
+        $wwwroot = rtrim($CFG->wwwroot, '/');
+
+        return [
+            'Google Maps CDN (HTTPS)' => [
+                new \moodle_url('https://maps.googleapis.com/maps/api/js', ['key' => 'googlemapkey3', 'sensor' => 'false']),
+                false
+            ],
+            'Google Maps CDN (HTTP)' => [
+                new \moodle_url('http://maps.googleapis.com/maps/api/js', ['key' => 'googlemapkey3', 'sensor' => 'false']),
+                false
+            ],
+            'wwwroot' => [
+                new \moodle_url($wwwroot),
+                true
+            ],
+            'wwwroot/' => [
+                new \moodle_url($wwwroot . '/'),
+                true
+            ],
+            'Environment XML file' => [
+                new \moodle_url('/admin/environment.xml'),
+                true
+            ],
+            'H5P JS internal resource' => [
+                new \moodle_url('/h5p/js/embed.js'),
+                true
+            ],
+        ];
+    }
+
+    /**
+     * Data provider for strip_querystring tests.
+     *
+     * @return array
+     */
+    public function strip_querystring_provider(): array {
+        return [
+            'Null' => [null, ''],
+            'Empty string' => ['', ''],
+            'No querystring' => ['https://example.com', 'https://example.com'],
+            'Querystring' => ['https://example.com?foo=bar', 'https://example.com'],
+            'Querystring with fragment' => ['https://example.com?foo=bar#baz', 'https://example.com'],
+            'Querystring with fragment and path' => ['https://example.com/foo/bar?foo=bar#baz', 'https://example.com/foo/bar'],
+        ];
+    }
+
+    /**
+     * Test the strip_querystring function with various exampels.
+     *
+     * @dataProvider strip_querystring_provider
+     * @param mixed $value
+     * @param mixed $expected
+     * @covers ::strip_querystring
+     */
+    public function test_strip_querystring($value, $expected): void {
+        $this->assertEquals($expected, strip_querystring($value));
     }
 }

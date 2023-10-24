@@ -20,9 +20,7 @@ Feature: View fill the blanks attempt report
     And the following "activity" exists:
       | activity        | h5pactivity                          |
       | course          | C1                                   |
-      | section         | 1                                    |
       | name            | Awesome H5P package                  |
-      | intro           | Description                          |
       | grademethod     | 2                                    |
       | packagefilepath | h5p/tests/fixtures/filltheblanks.h5p |
 
@@ -42,10 +40,10 @@ Feature: View fill the blanks attempt report
     When I navigate to "Attempts report" in current page administration
     And I follow "View report"
     Then I should see "Of which countries are Berlin, Washington, Beijing, Canberra and Brasilia the capitals?"
-    And I should see "brigadoon" in the "brasilia" "table_row"
-    And "Your answer is incorrect" "icon" should exist in the "brasilia" "table_row"
-    And I should see "emerald city" in the "washington" "table_row"
-    And I should see "narnia" in the "berlin" "table_row"
-    And "Your answer is incorrect" "icon" should exist in the "berlin" "table_row"
-    And "Your answer is correct" "icon" should exist in the "canberra" "table_row"
+    And I should see "Brigadoon" in the "Brasilia" "table_row"
+    And "Your answer is incorrect" "icon" should exist in the "Brasilia" "table_row"
+    And I should see "Emerald city" in the "Washington" "table_row"
+    And I should see "Narnia" in the "Berlin" "table_row"
+    And "Your answer is incorrect" "icon" should exist in the "Berlin" "table_row"
+    And "Your answer is correct" "icon" should exist in the "Canberra" "table_row"
     And I should not see "<p>"

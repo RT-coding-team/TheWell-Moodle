@@ -39,17 +39,17 @@ require_once($CFG->dirroot . '/question/type/numerical/question.php');
  */
 class qtype_calculated extends question_type {
     /**
-     * @const string a placeholder is a letter, followed by almost any characters. (This should probably be restricted more.)
+     * @var string a placeholder is a letter, followed by almost any characters. (This should probably be restricted more.)
      */
     const PLACEHOLDER_REGEX_PART = '[[:alpha:]][^>} <`{"\']*';
 
     /**
-     * @const string REGEXP for a placeholder, wrapped in its {...} delimiters, with capturing brackets around the name.
+     * @var string REGEXP for a placeholder, wrapped in its {...} delimiters, with capturing brackets around the name.
      */
     const PLACEHODLER_REGEX = '~\{(' . self::PLACEHOLDER_REGEX_PART . ')\}~';
 
     /**
-     * @const string Regular expression that finds the formulas in content, with capturing brackets to get the forumlas.
+     * @var string Regular expression that finds the formulas in content, with capturing brackets to get the forumlas.
      */
     const FORMULAS_IN_TEXT_REGEX = '~\{=([^{}]*(?:\{' . self::PLACEHOLDER_REGEX_PART . '\}[^{}]*)*)\}~';
 
@@ -332,11 +332,27 @@ class qtype_calculated extends question_type {
         }
     }
 
+    /**
+     * Initializes calculated answers for a given question.
+     *
+     * @param question_definition $question The question definition object.
+     * @param stdClass $questiondata The question data object.
+     */
+    protected function initialise_calculated_answers(question_definition $question, stdClass $questiondata) {
+        $question->answers = array();
+        if (empty($questiondata->options->answers)) {
+            return;
+        }
+        foreach ($questiondata->options->answers as $a) {
+            $question->answers[$a->id] = new \qtype_calculated\qtype_calculated_answer($a->id, $a->answer,
+                    $a->fraction, $a->feedback, $a->feedbackformat, $a->tolerance);
+        }
+    }
+
     protected function initialise_question_instance(question_definition $question, $questiondata) {
         parent::initialise_question_instance($question, $questiondata);
+        $this->initialise_calculated_answers($question, $questiondata);
 
-        question_bank::get_qtype('numerical')->initialise_numerical_answers(
-                $question, $questiondata);
         foreach ($questiondata->options->answers as $a) {
             $question->answers[$a->id]->tolerancetype = $a->tolerancetype;
             $question->answers[$a->id]->correctanswerlength = $a->correctanswerlength;
@@ -380,7 +396,7 @@ class qtype_calculated extends question_type {
                 require("{$CFG->dirroot}/question/type/calculated/datasetitems.php");
                 break;
             default:
-                print_error('invalidwizardpage', 'question');
+                throw new \moodle_exception('invalidwizardpage', 'question');
                 break;
         }
     }
@@ -412,7 +428,7 @@ class qtype_calculated extends question_type {
                         "{$submiturl}?wizardnow=datasetitems", $question, $regenerate);
                 break;
             default:
-                print_error('invalidwizardpage', 'question');
+                throw new \moodle_exception('invalidwizardpage', 'question');
                 break;
         }
 
@@ -675,7 +691,7 @@ class qtype_calculated extends question_type {
                 $this->save_question_calculated($question, $form);
                 break;
             default:
-                print_error('invalidwizardpage', 'question');
+                throw new \moodle_exception('invalidwizardpage', 'question');
                 break;
         }
         return $question;
@@ -1032,7 +1048,7 @@ class qtype_calculated extends question_type {
             return sprintf("%.".$regs[4].'f', $nbr);
 
         } else {
-            print_error('disterror', 'question', '', $regs[1]);
+            throw new \moodle_exception('disterror', 'question', '', $regs[1]);
         }
         return '';
     }
@@ -1466,7 +1482,7 @@ class qtype_calculated extends question_type {
             $a = new stdClass();
             $a->id = $question->id;
             $a->item = $datasetitem;
-            print_error('cannotgetdsfordependent', 'question', '', $a);
+            throw new \moodle_exception('cannotgetdsfordependent', 'question', '', $a);
         }
         $dataset = Array();
         foreach ($dataitems as $id => $dataitem) {

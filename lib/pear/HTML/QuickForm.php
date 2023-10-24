@@ -576,7 +576,7 @@ class HTML_QuickForm extends HTML_Common {
         $includeFile = $GLOBALS['HTML_QUICKFORM_ELEMENT_TYPES'][$type][0];
         include_once($includeFile);
         $elementObject = new $className(); //Moodle: PHP 5.3 compatibility
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 6; $i++) {
             if (!isset($args[$i])) {
                 $args[$i] = null;
             }
@@ -722,22 +722,23 @@ class HTML_QuickForm extends HTML_Common {
      * @param    string     $name           (optional)group name
      * @param    string     $groupLabel     (optional)group label
      * @param    string     $separator      (optional)string to separate elements
-     * @param    string     $appendName     (optional)specify whether the group name should be
+     * @param    bool       $appendName     (optional)specify whether the group name should be
      *                                      used in the form element name ex: group[element]
+     * @param     mixed     $attributes     Either a typical HTML attribute string or an associative array
      * @return   object     reference to added group of elements
      * @since    2.8
      * @access   public
      * @throws   PEAR_Error
      */
-    function &addGroup($elements, $name=null, $groupLabel='', $separator=null, $appendName = true)
+    function &addGroup($elements, $name = null, $groupLabel = '', $separator = null, $appendName = true, $attributes = null)
     {
         static $anonGroups = 1;
 
-        if (0 == strlen($name)) {
+        if (0 == strlen($name ?? '')) {
             $name       = 'qf_group_' . $anonGroups++;
             $appendName = false;
         }
-        $group =& $this->addElement('group', $name, $groupLabel, $elements, $separator, $appendName);
+        $group =& $this->addElement('group', $name, $groupLabel, $elements, $separator, $appendName, $attributes);
         return $group;
     } // end func addGroup
 
@@ -813,6 +814,7 @@ class HTML_QuickForm extends HTML_Common {
     function getSubmitValue($elementName)
     {
         $value = null;
+        $elementName = $elementName ?? '';
         if (isset($this->_submitValues[$elementName]) || isset($this->_submitFiles[$elementName])) {
             $value = isset($this->_submitValues[$elementName])? $this->_submitValues[$elementName]: array();
             if (is_array($value) && isset($this->_submitFiles[$elementName])) {

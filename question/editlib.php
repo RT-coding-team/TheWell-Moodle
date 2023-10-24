@@ -23,15 +23,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-
-use core_question\bank\search\category_condition;
+use core\output\datafilter;
 
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/questionlib.php');
 
-define('DEFAULT_QUESTIONS_PER_PAGE', 20);
-define('MAXIMUM_QUESTIONS_PER_PAGE', 1000);
+define('DEFAULT_QUESTIONS_PER_PAGE', 100);
+define('MAXIMUM_QUESTIONS_PER_PAGE', 4000);
 
 function get_module_from_cmid($cmid) {
     global $CFG, $DB;
@@ -40,9 +39,9 @@ function get_module_from_cmid($cmid) {
                                     {modules} md
                                WHERE cm.id = ? AND
                                      md.id = cm.module", array($cmid))){
-        print_error('invalidcoursemodule');
+        throw new \moodle_exception('invalidcoursemodule');
     } elseif (!$modrec =$DB->get_record($cmrec->modname, array('id' => $cmrec->instance))) {
-        print_error('invalidcoursemodule');
+        throw new \moodle_exception('invalidcoursemodule');
     }
     $modrec->instance = $modrec->id;
     $modrec->cmid = $cmrec->id;
@@ -196,23 +195,14 @@ function question_edit_setup($edittab, $baseurl, $requirecmid = false, $unused =
     $params['category'] = optional_param('category', null, PARAM_SEQUENCE);
     $params['qperpage'] = optional_param('qperpage', null, PARAM_INT);
 
-    // Question table sorting options.
-    for ($i = 1; $i <= core_question\local\bank\view::MAX_SORTS; $i++) {
-        $param = 'qbs' . $i;
-        if ($sort = optional_param($param, '', PARAM_TEXT)) {
-            $params[$param] = $sort;
-        } else {
-            break;
-        }
-    }
-
     // Display options.
-    $params['recurse'] = optional_param('recurse',    null, PARAM_BOOL);
-    $params['showhidden'] = optional_param('showhidden', null, PARAM_BOOL);
-    $params['qbshowtext'] = optional_param('qbshowtext', null, PARAM_INT);
+    $params['filter'] = optional_param('filter',    null, PARAM_RAW);
+
     // Category list page.
     $params['cpage'] = optional_param('cpage', null, PARAM_INT);
-    $params['qtagids'] = optional_param_array('qtagids', null, PARAM_INT);
+
+    // Sort data.
+    $params['sortdata'] = optional_param_array('sortdata', [], PARAM_INT);
 
     $PAGE->set_pagelayout('admin');
 
@@ -235,9 +225,6 @@ function question_edit_setup($edittab, $baseurl, $requirecmid = false, $unused =
  *      'cat' => PARAM_SEQUENCE,
  *      'category' => PARAM_SEQUENCE,
  *      'qperpage' => PARAM_INT,
- *      'recurse' => PARAM_INT,
- *      'showhidden' => PARAM_INT,
- *      'qbshowtext' => PARAM_INT,
  *      'cpage' => PARAM_INT,
  *      'recurse' => PARAM_BOOL,
  *      'showhidden' => PARAM_BOOL,
@@ -252,17 +239,19 @@ function question_edit_setup($edittab, $baseurl, $requirecmid = false, $unused =
  * @param string $edittab Code for this edit tab
  * @param string $baseurl The name of the script calling this funciton. For examle 'qusetion/edit.php'.
  * @param array $params The provided parameters to construct the resources with.
+ * @param int $defaultquestionsperpage number of questions per page, if not given in the URL.
  * @return array $thispageurl, $contexts, $cmid, $cm, $module, $pagevars
  */
-function question_build_edit_resources($edittab, $baseurl, $params) {
-    global $DB, $PAGE, $CFG;
+function question_build_edit_resources($edittab, $baseurl, $params,
+        $defaultquestionsperpage = DEFAULT_QUESTIONS_PER_PAGE) {
+    global $DB;
 
     $thispageurl = new moodle_url($baseurl);
     $thispageurl->remove_all_params(); // We are going to explicity add back everything important - this avoids unwanted params from being retained.
 
     $cleanparams = [
-        'qsorts' => [],
-        'qtagids' => []
+        'sortdata' => [],
+        'filter' => null
     ];
     $paramtypes = [
         'cmid' => PARAM_INT,
@@ -271,13 +260,7 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         'cat' => PARAM_SEQUENCE,
         'category' => PARAM_SEQUENCE,
         'qperpage' => PARAM_INT,
-        'recurse' => PARAM_INT,
-        'showhidden' => PARAM_INT,
-        'qbshowtext' => PARAM_INT,
         'cpage' => PARAM_INT,
-        'recurse' => PARAM_BOOL,
-        'showhidden' => PARAM_BOOL,
-        'qbshowtext' => PARAM_INT,
     ];
 
     foreach ($paramtypes as $name => $type) {
@@ -288,8 +271,15 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         }
     }
 
-    if (!empty($params['qtagids'])) {
-        $cleanparams['qtagids'] = clean_param_array($params['qtagids'], PARAM_INT);
+    if (!empty($params['filter'])) {
+        if (!is_array($params['filter'])) {
+            $params['filter'] = json_decode($params['filter'], true);
+        }
+        $cleanparams['filter'] = $params['filter'];
+    }
+
+    if (isset($params['sortdata'])) {
+        $cleanparams['sortdata'] = clean_param_array($params['sortdata'], PARAM_INT);
     }
 
     $cmid = $cleanparams['cmid'];
@@ -298,15 +288,7 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
     $cat = $cleanparams['cat'] ?: 0;
     $category = $cleanparams['category'] ?: 0;
     $qperpage = $cleanparams['qperpage'];
-    $recurse = $cleanparams['recurse'];
-    $showhidden = $cleanparams['showhidden'];
-    $qbshowtext = $cleanparams['qbshowtext'];
     $cpage = $cleanparams['cpage'] ?: 1;
-    $recurse = $cleanparams['recurse'];
-    $showhidden = $cleanparams['showhidden'];
-    $qbshowtext = $cleanparams['qbshowtext'];
-    $qsorts = $cleanparams['qsorts'];
-    $qtagids = $cleanparams['qtagids'];
 
     if (is_null($cmid) && is_null($courseid)) {
         throw new \moodle_exception('Must provide a cmid or courseid');
@@ -316,14 +298,19 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         list($module, $cm) = get_module_from_cmid($cmid);
         $courseid = $cm->course;
         $thispageurl->params(compact('cmid'));
-        require_login($courseid, false, $cm);
         $thiscontext = context_module::instance($cmid);
     } else {
         $module = null;
         $cm = null;
         $thispageurl->params(compact('courseid'));
-        require_login($courseid, false);
         $thiscontext = context_course::instance($courseid);
+    }
+
+    if (defined('AJAX_SCRIPT') && AJAX_SCRIPT) {
+        // For AJAX, we don't need to set up the course page for output.
+        require_login();
+    } else {
+        require_login($courseid, false, $cm);
     }
 
     if ($thiscontext){
@@ -353,27 +340,18 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         navigation_node::override_active_url($thispageurl);
     }
 
-    // This need to occur after the override_active_url call above because
-    // these values change on the page request causing the URLs to mismatch
-    // when trying to work out the active node.
-    for ($i = 1; $i <= core_question\local\bank\view::MAX_SORTS; $i++) {
-        $param = 'qbs' . $i;
-        if (isset($params[$param])) {
-            $value = clean_param($params[$param], PARAM_TEXT);
-        } else {
-            break;
-        }
-        $thispageurl->param($param, $value);
-    }
-
     if ($pagevars['qpage'] > -1) {
         $thispageurl->param('qpage', $pagevars['qpage']);
     } else {
         $pagevars['qpage'] = 0;
     }
 
-    $pagevars['qperpage'] = question_set_or_get_user_preference(
-            'qperpage', $qperpage, DEFAULT_QUESTIONS_PER_PAGE, $thispageurl);
+    if ($defaultquestionsperpage == DEFAULT_QUESTIONS_PER_PAGE) {
+        $pagevars['qperpage'] = question_set_or_get_user_preference(
+                'qperpage', $qperpage, DEFAULT_QUESTIONS_PER_PAGE, $thispageurl);
+    } else {
+        $pagevars['qperpage'] = $qperpage ?? $defaultquestionsperpage;
+    }
 
     $defaultcategory = question_make_default_categories($contexts->all());
 
@@ -386,17 +364,12 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         $catparts = explode(',', $pagevars['cat']);
         if (!$catparts[0] || (false !== array_search($catparts[1], $contextlistarr)) ||
                 !$DB->count_records_select("question_categories", "id = ? AND contextid = ?", array($catparts[0], $catparts[1]))) {
-            print_error('invalidcategory', 'question');
+            throw new \moodle_exception('invalidcategory', 'question');
         }
     } else {
         $category = $defaultcategory;
         $pagevars['cat'] = "{$category->id},{$category->contextid}";
     }
-
-    // Display options.
-    $pagevars['recurse']    = question_set_or_get_user_preference('recurse', $recurse, 1, $thispageurl);
-    $pagevars['showhidden'] = question_set_or_get_user_preference('showhidden', $showhidden, 0, $thispageurl);
-    $pagevars['qbshowtext'] = question_set_or_get_user_preference('qbshowtext', $qbshowtext, 0, $thispageurl);
 
     // Category list page.
     $pagevars['cpage'] = $cpage;
@@ -404,10 +377,20 @@ function question_build_edit_resources($edittab, $baseurl, $params) {
         $thispageurl->param('cpage', $pagevars['cpage']);
     }
 
-    $pagevars['qtagids'] = $qtagids;
-    foreach ($pagevars['qtagids'] as $index => $qtagid) {
-        $thispageurl->param("qtagids[{$index}]", $qtagid);
+    if ($cleanparams['filter']) {
+        $pagevars['filter'] = $cleanparams['filter'];
+        $thispageurl->param('filter', json_encode($cleanparams['filter']));
     }
+    $pagevars['tabname'] = $edittab;
+
+    // Sort parameters.
+    $pagevars['sortdata'] = $cleanparams['sortdata'];
+    foreach ($pagevars['sortdata'] as $sortname => $sortorder) {
+        $thispageurl->param('sortdata[' . $sortname . ']', $sortorder);
+    }
+
+    // Enforce ALL as the only allowed top-level join type, so we can't bypass filtering by category.
+    $pagevars['jointype'] = datafilter::JOINTYPE_ALL;
 
     return array($thispageurl, $contexts, $cmid, $cm, $module, $pagevars);
 }
@@ -486,12 +469,12 @@ function require_login_in_context($contextorid = null){
     } else if ($context && ($context->contextlevel == CONTEXT_MODULE)) {
         if ($cm = $DB->get_record('course_modules',array('id' =>$context->instanceid))) {
             if (!$course = $DB->get_record('course', array('id' => $cm->course))) {
-                print_error('invalidcourseid');
+                throw new \moodle_exception('invalidcourseid');
             }
             require_course_login($course, true, $cm);
 
         } else {
-            print_error('invalidcoursemodule');
+            throw new \moodle_exception('invalidcoursemodule');
         }
     } else if ($context && ($context->contextlevel == CONTEXT_SYSTEM)) {
         if (!empty($CFG->forcelogin)) {

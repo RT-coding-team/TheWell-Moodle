@@ -226,39 +226,6 @@ function lti_delete_instance($id) {
 }
 
 /**
- * Return aliases of this activity. LTI should have an alias for each configured tool type
- * This is so you can add an external tool types directly to the activity chooser
- *
- * @deprecated since 3.9
- * @todo MDL-68011 This is to be moved from here to deprecatedlib.php in Moodle 4.1
- * @param stdClass $defaultitem default item that would be added to the activity chooser if this callback was not present.
- *     It has properties: archetype, name, title, help, icon, link
- * @return array An array of aliases for this activity. Each element is an object with same list of properties as $defaultitem,
- *     plus an additional property, helplink.
- *     Properties title and link are required
- **/
-function lti_get_shortcuts($defaultitem) {
-    global $CFG, $COURSE;
-    require_once($CFG->dirroot.'/mod/lti/locallib.php');
-
-    $types = lti_get_configured_types($COURSE->id, $defaultitem->link->param('sr'));
-    if (has_capability('mod/lti:addmanualinstance', context_course::instance($COURSE->id))) {
-        $types[] = $defaultitem;
-    }
-
-    // Add items defined in ltisource plugins.
-    foreach (core_component::get_plugin_list('ltisource') as $pluginname => $dir) {
-        // LTISOURCE plugins can also implement callback get_shortcuts() to add items to the activity chooser.
-        // The return values are the same as of the 'mod' callbacks except that $defaultitem is only passed for reference and
-        // should not be added to the return value.
-        if ($moretypes = component_callback("ltisource_$pluginname", 'get_shortcuts', array($defaultitem))) {
-            $types = array_merge($types, $moretypes);
-        }
-    }
-    return $types;
-}
-
-/**
  * Return the preconfigured tools which are configured for inclusion in the activity picker.
  *
  * @param \core_course\local\entity\content_item $defaultmodulecontentitem reference to the content item for the LTI module.
@@ -273,23 +240,12 @@ function lti_get_course_content_items(\core_course\local\entity\content_item $de
 
     $types = [];
 
-    // The 'External tool' entry (the main module content item), should always take the id of 1.
-    if (has_capability('mod/lti:addmanualinstance', context_course::instance($course->id), $user)) {
-        $types = [new \core_course\local\entity\content_item(
-            1,
-            $defaultmodulecontentitem->get_name(),
-            $defaultmodulecontentitem->get_title(),
-            $defaultmodulecontentitem->get_link(),
-            $defaultmodulecontentitem->get_icon(),
-            $defaultmodulecontentitem->get_help(),
-            $defaultmodulecontentitem->get_archetype(),
-            $defaultmodulecontentitem->get_component_name(),
-            $defaultmodulecontentitem->get_purpose()
-        )];
+    // Use of a tool type, whether site or course level, is controlled by the following cap.
+    if (!has_capability('mod/lti:addpreconfiguredinstance', \core\context\course::instance($course->id), $user)) {
+        return $types;
     }
-
-    // Other, preconfigured tools take their own id + 1, so we'll never clash with the module's entry.
     $preconfiguredtools = lti_get_configured_types($course->id, $defaultmodulecontentitem->get_link()->param('sr'));
+
     foreach ($preconfiguredtools as $preconfiguredtool) {
 
         // Append the help link to the help text.
@@ -303,6 +259,9 @@ function lti_get_course_content_items(\core_course\local\entity\content_item $de
             $preconfiguredtool->help = '';
         }
 
+        // Preconfigured tools take their own id + 1. This logic exists because, previously, the entry permitting manual instance
+        // creation (the $defaultmodulecontentitem, or 'External tool' item) was included and had the id 1. This logic prevented id
+        // collisions.
         $types[] = new \core_course\local\entity\content_item(
             $preconfiguredtool->id + 1,
             $preconfiguredtool->name,
@@ -328,18 +287,7 @@ function mod_lti_get_all_content_items(\core_course\local\entity\content_item $d
     global $OUTPUT, $CFG;
     require_once($CFG->dirroot . '/mod/lti/locallib.php'); // For access to constants.
 
-    // The 'External tool' entry (the main module content item), should always take the id of 1.
-    $types = [new \core_course\local\entity\content_item(
-        1,
-        $defaultmodulecontentitem->get_name(),
-        $defaultmodulecontentitem->get_title(),
-        $defaultmodulecontentitem->get_link(),
-        $defaultmodulecontentitem->get_icon(),
-        $defaultmodulecontentitem->get_help(),
-        $defaultmodulecontentitem->get_archetype(),
-        $defaultmodulecontentitem->get_component_name(),
-        $defaultmodulecontentitem->get_purpose()
-    )];
+    $types = [];
 
     foreach (lti_get_lti_types() as $ltitype) {
         if ($ltitype->coursevisible != LTI_COURSEVISIBLE_ACTIVITYCHOOSER) {
@@ -351,7 +299,7 @@ function mod_lti_get_all_content_items(\core_course\local\entity\content_item $d
         $type->name     = 'lti_type_' . $ltitype->id;
         // Clean the name. We don't want tags here.
         $type->title    = clean_param($ltitype->name, PARAM_NOTAGS);
-        $trimmeddescription = trim($ltitype->description);
+        $trimmeddescription = trim($ltitype->description ?? '');
         $type->help = '';
         if ($trimmeddescription != '') {
             // Clean the description. We don't want tags here.
@@ -365,6 +313,9 @@ function mod_lti_get_all_content_items(\core_course\local\entity\content_item $d
         }
         $type->link = new moodle_url('/course/modedit.php', array('add' => 'lti', 'return' => 0, 'typeid' => $ltitype->id));
 
+        // Preconfigured tools take their own id + 1. This logic exists because, previously, the entry permitting manual instance
+        // creation (the $defaultmodulecontentitem, or 'External tool' item) was included and had the id 1. This logic prevented id
+        // collisions.
         $types[] = new \core_course\local\entity\content_item(
             $type->id + 1,
             $type->name,
@@ -797,4 +748,21 @@ function mod_lti_core_calendar_provide_event_action(calendar_event $event,
         1,
         true
     );
+}
+
+/**
+ * Extend the course navigation with an "LTI External tools" link which redirects to a list of all tools available for course use.
+ *
+ * @param settings_navigation $navigation The settings navigation object
+ * @param stdClass $course The course
+ * @param stdclass $context Course context
+ * @return void
+ */
+function mod_lti_extend_navigation_course($navigation, $course, $context): void {
+    if (has_capability('mod/lti:addpreconfiguredinstance', $context)) {
+        $url = new moodle_url('/mod/lti/coursetools.php', ['id' => $course->id]);
+        $settingsnode = navigation_node::create(get_string('courseexternaltools', 'mod_lti'), $url, navigation_node::TYPE_SETTING,
+            null, 'coursetools', new pix_icon('i/settings', ''));
+        $navigation->add_node($settingsnode);
+    }
 }

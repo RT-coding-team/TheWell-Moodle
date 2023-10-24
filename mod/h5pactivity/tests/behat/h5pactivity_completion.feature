@@ -19,7 +19,6 @@ Feature: View activity completion information in the h5p activity
     And the following "activity" exists:
       | activity           | h5pactivity                          |
       | course             | C1                                   |
-      | section            | 1                                    |
       | name               | Music history                        |
       | completion         | 2                                    |
       | completionview     | 1                                    |
@@ -31,7 +30,6 @@ Feature: View activity completion information in the h5p activity
     # Teacher view.
     And "Music history" should have the "View" completion condition
     And "Music history" should have the "Receive a grade" completion condition
-    And I log out
     # Student view.
     When I am on the "Music history" "h5pactivity activity" page logged in as student1
     And I switch to "h5p-player" class iframe
@@ -44,12 +42,11 @@ Feature: View activity completion information in the h5p activity
   Scenario: Use manual completion
     Given I am on the "Music history" "h5pactivity activity editing" page logged in as teacher1
     And I expand all fieldsets
-    And I set the field "Completion tracking" to "Students can manually mark the activity as completed"
+    And I set the field "Students must manually mark the activity as done" to "1"
     And I press "Save and display"
     # Teacher view.
     And I am on the "Music history" "h5pactivity activity" page
     And the manual completion button for "Music history" should be disabled
-    And I log out
     # Student view.
     When I am on the "Music history" "h5pactivity activity" page logged in as student1
     Then the manual completion button of "Music history" is displayed as "Mark as done"

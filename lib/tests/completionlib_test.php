@@ -756,11 +756,16 @@ class completionlib_test extends advanced_testcase {
                 'coursemoduleid' => $cm->id,
                 'userid' => $user->id,
                 'completionstate' => $completion,
-                'viewed' => 0,
                 'overrideby' => null,
                 'timemodified' => 0,
             ];
+            $cmcompletionviewrecord = (object)[
+                'coursemoduleid' => $cm->id,
+                'userid' => $user->id,
+                'timecreated' => 0,
+            ];
             $DB->insert_record('course_modules_completion', $cmcompletionrecord);
+            $DB->insert_record('course_modules_viewed', $cmcompletionviewrecord);
         }
 
         // Whether we expect for the returned completion data to be stored in the cache.
@@ -821,11 +826,16 @@ class completionlib_test extends advanced_testcase {
             'coursemoduleid' => $cm->id,
             'userid' => $this->user->id,
             'completionstate' => COMPLETION_NOT_VIEWED,
-            'viewed' => 0,
             'overrideby' => null,
             'timemodified' => 0,
         ];
+        $cmcompletionviewrecord = (object)[
+            'coursemoduleid' => $cm->id,
+            'userid' => $this->user->id,
+            'timecreated' => 0,
+        ];
         $DB->insert_record('course_modules_completion', $cmcompletionrecord);
+        $DB->insert_record('course_modules_viewed', $cmcompletionviewrecord);
 
         // Mock other completion data.
         $completioninfo = new completion_info($this->course);
@@ -845,7 +855,6 @@ class completionlib_test extends advanced_testcase {
 
             $this->assertEquals($testcm->id, $result->coursemoduleid);
             $this->assertEquals($this->user->id, $result->userid);
-            $this->assertEquals(0, $result->viewed);
 
             $results[$testcm->id] = $result;
         }
@@ -859,6 +868,59 @@ class completionlib_test extends advanced_testcase {
             $result = $completioninfo->get_data($testcm, false);
             $this->assertEquals($result, $results[$testcm->id]);
         }
+    }
+
+    /**
+     * Tests for get_completion_data().
+     *
+     * @covers ::get_completion_data
+     */
+    public function test_get_completion_data() {
+        $this->setup_data();
+        $choicegenerator = $this->getDataGenerator()->get_plugin_generator('mod_choice');
+        $choice = $choicegenerator->create_instance([
+            'course' => $this->course->id,
+            'completion' => COMPLETION_TRACKING_AUTOMATIC,
+            'completionview' => true,
+            'completionsubmit' => true,
+        ]);
+        $cm = get_coursemodule_from_instance('choice', $choice->id);
+
+        // Mock other completion data.
+        $completioninfo = new completion_info($this->course);
+        // Default data to return when no completion data is found.
+        $defaultdata = [
+            'id' => 0,
+            'coursemoduleid' => $cm->id,
+            'userid' => $this->user->id,
+            'completionstate' => 0,
+            'viewed' => 0,
+            'overrideby' => null,
+            'timemodified' => 0,
+        ];
+
+        $completiondatabeforeview = $completioninfo->get_completion_data($cm->id, $this->user->id, $defaultdata);
+        $this->assertTrue(array_key_exists('viewed', $completiondatabeforeview));
+        $this->assertTrue(array_key_exists('coursemoduleid', $completiondatabeforeview));
+        $this->assertEquals(0, $completiondatabeforeview['viewed']);
+        $this->assertEquals($cm->id, $completiondatabeforeview['coursemoduleid']);
+
+        // Set viewed.
+        $completioninfo->set_module_viewed($cm, $this->user->id);
+
+        $completiondata = $completioninfo->get_completion_data($cm->id, $this->user->id, $defaultdata);
+        $this->assertTrue(array_key_exists('viewed', $completiondata));
+        $this->assertTrue(array_key_exists('coursemoduleid', $completiondata));
+        $this->assertEquals(1, $completiondata['viewed']);
+        $this->assertEquals($cm->id, $completiondatabeforeview['coursemoduleid']);
+
+        $completioninfo->reset_all_state($cm);
+
+        $completiondataafterreset = $completioninfo->get_completion_data($cm->id, $this->user->id, $defaultdata);
+        $this->assertTrue(array_key_exists('viewed', $completiondataafterreset));
+        $this->assertTrue(array_key_exists('coursemoduleid', $completiondataafterreset));
+        $this->assertEquals(1, $completiondataafterreset['viewed']);
+        $this->assertEquals($cm->id, $completiondatabeforeview['coursemoduleid']);
     }
 
     /**
@@ -1427,7 +1489,6 @@ class completionlib_test extends advanced_testcase {
         $this->assertEquals($USER->id, $event->userid);
         $this->assertEquals($this->user->id, $event->relateduserid);
         $this->assertInstanceOf('moodle_url', $event->get_url());
-        $this->assertEventLegacyData($current, $event);
     }
 
     /**
@@ -1457,8 +1518,6 @@ class completionlib_test extends advanced_testcase {
         $this->assertEquals($this->user->id, $event->relateduserid);
         $this->assertEquals(context_course::instance($this->course->id), $event->get_context());
         $this->assertInstanceOf('moodle_url', $event->get_url());
-        $data = $ccompletion->get_record_data();
-        $this->assertEventLegacyData($data, $event);
     }
 
     /**
@@ -1515,8 +1574,6 @@ class completionlib_test extends advanced_testcase {
         $this->assertEquals($this->course->id, $event->courseid);
         $this->assertEquals($coursecontext, $event->get_context());
         $this->assertInstanceOf('moodle_url', $event->get_url());
-        $expectedlegacylog = array($this->course->id, 'course', 'completion updated', 'completion.php?id='.$this->course->id);
-        $this->assertEventLegacyLogData($expectedlegacylog, $event);
     }
 
     /**
@@ -1935,6 +1992,49 @@ class completionlib_test extends advanced_testcase {
         $this->assertEquals(1, count($completions));
         $this->assertEquals(reset($completions)->id, $completionid);
     }
+
+    /**
+     * Test that data is cleaned when we reset a course completion data
+     *
+     * @covers ::delete_all_completion_data
+     */
+    public function test_course_reset_completion() {
+        global $DB;
+
+        $this->setup_data();
+
+        $page = $this->getDataGenerator()->create_module('page', [
+            'course' => $this->course->id,
+            'completion' => COMPLETION_ENABLED,
+            'completionview' => COMPLETION_VIEW_REQUIRED,
+        ]);
+        $cm = cm_info::create(get_coursemodule_from_instance('page', $page->id));
+        $completion = new completion_info($this->course);
+        $completion->set_module_viewed($cm, $this->user->id);
+        // Sanity test.
+        $this->assertTrue($DB->record_exists_select('course_modules_completion',
+            'coursemoduleid IN (SELECT id FROM {course_modules} WHERE course=:course)',
+            ['course' => $this->course->id]
+        ));
+        $this->assertTrue($DB->record_exists_select('course_modules_viewed',
+            'coursemoduleid IN (SELECT id FROM {course_modules} WHERE course=:course)',
+            ['course' => $this->course->id]
+        ));
+        // Deleting the prerequisite course should remove the completion criteria.
+        $resetdata = new \stdClass();
+        $resetdata->id = $this->course->id;
+        $resetdata->reset_completion = true;
+        reset_course_userdata($resetdata);
+
+        $this->assertFalse($DB->record_exists_select('course_modules_completion',
+            'coursemoduleid IN (SELECT id FROM {course_modules} WHERE course=:course)',
+            ['course' => $this->course->id]
+        ));
+        $this->assertFalse($DB->record_exists_select('course_modules_viewed',
+            'coursemoduleid IN (SELECT id FROM {course_modules} WHERE course=:course)',
+            ['course' => $this->course->id]
+        ));
+    }
 }
 
 class core_completionlib_fake_recordset implements Iterator {
@@ -1946,23 +2046,25 @@ class core_completionlib_fake_recordset implements Iterator {
         $this->index = 0;
     }
 
+    #[\ReturnTypeWillChange]
     public function current() {
         return $this->values[$this->index];
     }
 
+    #[\ReturnTypeWillChange]
     public function key() {
         return $this->values[$this->index];
     }
 
-    public function next() {
+    public function next(): void {
         $this->index++;
     }
 
-    public function rewind() {
+    public function rewind(): void {
         $this->index = 0;
     }
 
-    public function valid() {
+    public function valid(): bool {
         return count($this->values) > $this->index;
     }
 

@@ -33,22 +33,16 @@ defined('MOODLE_INTERNAL') || die();
 function xmldb_format_weeks_upgrade($oldversion) {
     global $CFG, $DB;
 
-    // Automatically generated Moodle v3.6.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.7.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.8.0 release upgrade line.
-    // Put any upgrade step following this.
-
     // Automatically generated Moodle v3.9.0 release upgrade line.
     // Put any upgrade step following this.
 
     // Automatically generated Moodle v4.0.0 release upgrade line.
     // Put any upgrade step following this.
 
-    if ($oldversion < 2022041901) {
+    // Automatically generated Moodle v4.1.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2023030700) {
         // For sites migrating from 4.0.x or 4.1.x where the indentation was removed,
         // we are disabling 'indentation' value by default.
         if ($oldversion >= 2022041900) {
@@ -56,8 +50,14 @@ function xmldb_format_weeks_upgrade($oldversion) {
         } else {
             set_config('indentation', 1, 'format_weeks');
         }
-        upgrade_plugin_savepoint(true, 2022041901, 'format', 'weeks');
+        upgrade_plugin_savepoint(true, 2023030700, 'format', 'weeks');
     }
+
+    // Automatically generated Moodle v4.2.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.3.0 release upgrade line.
+    // Put any upgrade step following this.
 
     return true;
 }

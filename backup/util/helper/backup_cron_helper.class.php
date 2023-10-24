@@ -123,7 +123,7 @@ abstract class backup_cron_automated_helper {
             mtrace("Skipping deleted courses", '...');
             mtrace(sprintf("%d courses", self::remove_deleted_courses_from_schedule()));
             mtrace('Running required automated backups...');
-            cron_trace_time_and_memory();
+            \core\cron::trace_time_and_memory();
 
             mtrace("Getting admin info");
             $admin = get_admin();
@@ -202,7 +202,7 @@ abstract class backup_cron_automated_helper {
         $message .= get_string('summary') . "\n";
         $message .= "==================================================\n";
         $message .= '  ' . get_string('courses') . ': ' . array_sum($count) . "\n";
-        $message .= '  ' . get_string('ok') . ': ' . $count[self::BACKUP_STATUS_OK] . "\n";
+        $message .= '  ' . get_string('statusok') . ': ' . $count[self::BACKUP_STATUS_OK] . "\n";
         $message .= '  ' . get_string('skipped') . ': ' . $count[self::BACKUP_STATUS_SKIPPED] . "\n";
         $message .= '  ' . get_string('error') . ': ' . $count[self::BACKUP_STATUS_ERROR] . "\n";
         $message .= '  ' . get_string('unfinished') . ': ' . $count[self::BACKUP_STATUS_UNFINISHED] . "\n";
@@ -790,7 +790,7 @@ abstract class backup_cron_automated_helper {
                 $where .= " and target <> 'course_backup'";
             }
 
-            if ($reader->get_events_select_count($where, $params)) {
+            if ($reader->get_events_select_exists($where, $params)) {
                 return true;
             }
         }

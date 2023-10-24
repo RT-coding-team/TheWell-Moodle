@@ -25,7 +25,6 @@ use core_reportbuilder\local\filters\boolean_select;
 use core_reportbuilder\local\filters\date;
 use core_reportbuilder\local\filters\select;
 use core_reportbuilder\local\filters\text;
-use core_reportbuilder\local\helpers\user_filter_manager;
 use core_reportbuilder\local\report\column;
 use core_reportbuilder\local\report\filter;
 use core_user\reportbuilder\datasource\users;
@@ -229,7 +228,7 @@ class user_profile_fields_test extends core_reportbuilder_testcase {
         $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_checkbox']);
         $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_datetime']);
         $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_menu']);
-        $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_Social']);
+        $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_social']);
         $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_text']);
         $generator->create_column(['reportid' => $report->get('id'), 'uniqueidentifier' => 'user:profilefield_textarea']);
 
@@ -241,7 +240,7 @@ class user_profile_fields_test extends core_reportbuilder_testcase {
             [
                 'c0_firstname' => 'Admin',
                 'c1_data' => '',
-                'c2_data' => 'Not set',
+                'c2_data' => '',
                 'c3_data' => '',
                 'c4_data' => '',
                 'c5_data' => '',
@@ -286,12 +285,12 @@ class user_profile_fields_test extends core_reportbuilder_testcase {
                 'user:profilefield_menu_operator' => select::NOT_EQUAL_TO,
                 'user:profilefield_menu_value' => 'Dog',
             ], 'admin'],
-            'Filter by social profile field' => ['user:profilefield_Social', [
-                'user:profilefield_Social_operator' => text::IS_EQUAL_TO,
-                'user:profilefield_Social_value' => '12345',
+            'Filter by social profile field' => ['user:profilefield_social', [
+                'user:profilefield_social_operator' => text::IS_EQUAL_TO,
+                'user:profilefield_social_value' => '12345',
             ], 'testuser'],
-            'Filter by social profile field (empty)' => ['user:profilefield_Social', [
-                'user:profilefield_Social_operator' => text::IS_EMPTY,
+            'Filter by social profile field (empty)' => ['user:profilefield_social', [
+                'user:profilefield_social_operator' => text::IS_EMPTY,
             ], 'admin'],
             'Filter by text profile field' => ['user:profilefield_text', [
                 'user:profilefield_text_operator' => text::IS_EQUAL_TO,
@@ -346,11 +345,36 @@ class user_profile_fields_test extends core_reportbuilder_testcase {
 
         // Add filter, set it's values.
         $generator->create_filter(['reportid' => $report->get('id'), 'uniqueidentifier' => $filtername]);
-        user_filter_manager::set($report->get('id'), $filtervalues);
-
-        $content = $this->get_custom_report_content($report->get('id'));
+        $content = $this->get_custom_report_content($report->get('id'), 0, $filtervalues);
 
         $this->assertCount(1, $content);
         $this->assertEquals($expectmatchuser, reset($content[0]));
+    }
+
+    /**
+     * Stress test user datasource using profile fields
+     *
+     * In order to execute this test PHPUNIT_LONGTEST should be defined as true in phpunit.xml or directly in config.php
+     */
+    public function test_stress_datasource(): void {
+        if (!PHPUNIT_LONGTEST) {
+            $this->markTestSkipped('PHPUNIT_LONGTEST is not defined');
+        }
+
+        $this->resetAfterTest();
+
+        $userprofilefields = $this->generate_userprofilefields();
+        $user = $this->getDataGenerator()->create_user([
+            'profile_field_checkbox' => true,
+            'profile_field_datetime' => '2021-12-09',
+            'profile_field_menu' => 'Dog',
+            'profile_field_Social' => '12345',
+            'profile_field_text' => 'Hello',
+            'profile_field_textarea' => 'Goodbye',
+        ]);
+
+        $this->datasource_stress_test_columns(users::class);
+        $this->datasource_stress_test_columns_aggregation(users::class);
+        $this->datasource_stress_test_conditions(users::class, 'user:idnumber');
     }
 }

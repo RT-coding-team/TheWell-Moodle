@@ -41,23 +41,24 @@ Feature: Completion pass grade
       | scale[modgrade_type]     | Point                                             |
       | scale[modgrade_point]    | 100                                               |
       | gradepass                | 50                                                |
-      | Completion tracking      | Show activity as complete when conditions are met |
-      | Require view             | 1                                                 |
-      | Require grade            | 1                                                 |
-      | completionpassgrade      | 1                                                 |
+      | Add requirements         | 1                                                 |
+      | View the activity        | 1                                                 |
+      | Receive a grade          | 1                                                 |
+      | Passing grade            | 1                                                 |
       | completionentriesenabled | 1                                                 |
       | completionentries        | 2                                                 |
     And I press "Save and display"
     And I add a "Short text" field to "Music history" database and I fill the form with:
       | Field name | Instrument types |
-    And I navigate to "Templates" in current page administration
-    And I press "Save template"
     And I log out
 
+  @javascript
   Scenario: View automatic completion items as a teacher
-    Given I log in as "teacher1"
-    And I am on "Course 1" course homepage
-    When I follow "Music history"
+    Given I am on the "Music history" "data activity" page logged in as teacher1
+#   We add an entry to let the user change to a different view.
+    When I add an entry to "Music history" database with:
+      | Instrument types | Drums |
+    And I press "Save"
     Then "Music history" should have the "View" completion condition
     And "Music history" should have the "Make entries: 2" completion condition
     And "Music history" should have the "Receive a grade" completion condition

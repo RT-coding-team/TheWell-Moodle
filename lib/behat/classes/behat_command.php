@@ -40,7 +40,7 @@ class behat_command {
     /**
      * Docs url
      */
-    const DOCS_URL = 'https://docs.moodle.org/dev/Running_acceptance_test';
+    const DOCS_URL = 'https://moodledev.io/general/development/tools/behat';
 
     /**
      * Ensures the behat dir exists in moodledata
@@ -226,12 +226,6 @@ class behat_command {
         }
         if (empty($CFG->behat_dataroot) || !is_dir($CFG->behat_dataroot) || !is_writable($CFG->behat_dataroot)) {
             self::output_msg(get_string('errordataroot', 'tool_behat'));
-            return BEHAT_EXITCODE_CONFIG;
-        }
-
-        // If app config is supplied, check the value is correct.
-        if (!empty($CFG->behat_ionic_dirroot) && !file_exists($CFG->behat_ionic_dirroot . '/ionic.config.json')) {
-            self::output_msg(get_string('errorapproot', 'tool_behat'));
             return BEHAT_EXITCODE_CONFIG;
         }
 

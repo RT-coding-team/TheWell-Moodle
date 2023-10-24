@@ -1,4 +1,4 @@
-@core @core_grades @gradereport_user
+@core @core_grades @gradereport_user @javascript
 Feature: View the user report as the student will see it
   In order to know what grades students will see
   As a teacher
@@ -6,8 +6,8 @@ Feature: View the user report as the student will see it
 
   Background:
     Given the following "courses" exist:
-      | fullname | shortname | category | groupmode |
-      | Course 1 | C1 | 0 | 1 |
+      | fullname                                                                                            | shortname | category | groupmode |
+      | <span class="multilang" lang="en">Course</span><span class="multilang" lang="de">Kurs</span> 1 & '" | C1        | 0        | 1         |
     And the following "users" exist:
       | username | firstname | lastname | email | idnumber |
       | teacher1 | Teacher | 1 | teacher1@example.com | t1 |
@@ -30,9 +30,11 @@ Feature: View the user report as the student will see it
       | activity | course | idnumber | name | intro | grade |
       | assign | C1 | a5 | Test assignment five | Submit something! | 100 |
       | assign | C1 | a6 | Test assignment six | Submit something! | 100 |
+    And the "multilang" filter is "on"
+    And the "multilang" filter applies to "content and headings"
     When I am on the "C1" "grades > gradebook setup" page logged in as "teacher1"
-    And I hide the grade item "Test assignment six"
-    And I hide the grade item "Sub category 2"
+    And I hide the grade item "Test assignment six" of type "gradeitem" on "setup" page
+    And I hide the grade item "Sub category 2" of type "category" on "setup" page
     And I navigate to "View > Grader report" in the course gradebook
     And I turn editing mode on
     And I change window size to "large"
@@ -47,8 +49,10 @@ Feature: View the user report as the student will see it
 
   Scenario: View the report as the teacher themselves
     When I navigate to "View > User report" in the course gradebook
-    And I select "Student 1" from the "Select all or one user" singleselect
-    And I select "Myself" from the "View report as" singleselect
+    And I click on "Student 1" in the "user" search widget
+    And I should see "Course 1 & '\""
+    And I should not see "Course 1 &amp; '\""
+    And I set the field "View report as" to "Myself"
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
       | Test assignment one     | 50.00 %           | 80.00  | 0–100 | 80.00 %    | 13.33 %                      |
@@ -63,8 +67,8 @@ Feature: View the user report as the student will see it
 
   Scenario: View the report as the student from both the teachers and students perspective
     When I navigate to "View > User report" in the course gradebook
-    And I select "Student 1" from the "Select all or one user" singleselect
-    And I select "User" from the "View report as" singleselect
+    And I click on "Student 1" in the "user" search widget
+    And I set the field "View report as" to "User"
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
       | Test assignment one     | -                 | 80.00  | 0–100 | 80.00 %    | -                            |
@@ -81,8 +85,7 @@ Feature: View the user report as the student will see it
       | Sub category 2 total    |
       | Test assignment six     |
     And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am on the "C1" "Course" page logged in as "student1"
     And I navigate to "User report" in the course gradebook
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
@@ -105,8 +108,8 @@ Feature: View the user report as the student will see it
     And I set the field with xpath "//select[@name='report_user_showtotalsifcontainhidden']" to "Show totals excluding hidden items"
     And I press "Save changes"
     And I navigate to "View > User report" in the course gradebook
-    When I select "Student 1" from the "Select all or one user" singleselect
-    And I select "User" from the "View report as" singleselect
+    When I click on "Student 1" in the "user" search widget
+    And I set the field "View report as" to "User"
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
       | Test assignment one     | 50.00 %           | 80.00  | 0–100 | 80.00 %    | 26.67 %                      |
@@ -121,8 +124,7 @@ Feature: View the user report as the student will see it
       | Sub category 2 total    |
       | Test assignment six     |
     And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am on the "C1" "Course" page logged in as "student1"
     And I navigate to "User report" in the course gradebook
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
@@ -143,8 +145,8 @@ Feature: View the user report as the student will see it
     And I set the field with xpath "//select[@name='report_user_showtotalsifcontainhidden']" to "Show totals including hidden items"
     And I press "Save changes"
     And I navigate to "View > User report" in the course gradebook
-    When I select "Student 1" from the "Select all or one user" singleselect
-    And I select "User" from the "View report as" singleselect
+    When I click on "Student 1" in the "user" search widget
+    And I set the field "View report as" to "User"
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
       | Test assignment one     | 50.00 %           | 80.00  | 0–100 | 80.00 %    | 13.33 %                      |
@@ -159,8 +161,7 @@ Feature: View the user report as the student will see it
       | Sub category 2 total    |
       | Test assignment six     |
     And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am on the "C1" "Course" page logged in as "student1"
     And I navigate to "User report" in the course gradebook
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
@@ -185,8 +186,8 @@ Feature: View the user report as the student will see it
     And I set the field with xpath "//select[@name='report_user_showtotalsifcontainhidden']" to "Show totals excluding hidden items"
     And I press "Save changes"
     And I navigate to "View > User report" in the course gradebook
-    When I select "Student 1" from the "Select all or one user" singleselect
-    And I select "User" from the "View report as" singleselect
+    When I click on "Student 1" in the "user" search widget
+    And I set the field "View report as" to "User"
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |
       | Test assignment one     | 50.00 %           | 80.00  | 0–100 | 80.00 %    | 13.33 %                      |
@@ -200,7 +201,7 @@ Feature: View the user report as the student will see it
       | Course total            | -                 | 383.00 | 0–600 | 63.83 %    | -                            |
     And I log out
     And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am on "C1" course homepage
     And I navigate to "User report" in the course gradebook
     Then the following should exist in the "user-grade" table:
       | Grade item              | Calculated weight | Grade  | Range | Percentage | Contribution to course total |

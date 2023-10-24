@@ -35,7 +35,7 @@ $PAGE->set_pagelayout('admin');
 /// Make sure they can even access this course
 
 if (!$course = $DB->get_record('course', array('id' => $courseid))) {
-    print_error('invalidcourseid');
+    throw new \moodle_exception('invalidcourseid');
 }
 
 require_login($course);
@@ -62,7 +62,7 @@ if ($data = $mform->get_data()) {
     }
 }
 
-print_grade_page_head($courseid, 'settings', 'grader', get_string('preferences', 'gradereport_grader'));
+print_grade_page_head($courseid, 'settings', 'grader');
 
 // If USER has admin capability, print a link to the site config page for this report
 if (has_capability('moodle/site:config', $systemcontext)) {

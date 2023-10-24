@@ -1,4 +1,4 @@
-@core @core_grades
+@core @core_grades @javascript
 Feature: We can change the maximum and minimum number of points for manual items with existing grades
   In order to verify existing grades are modified as expected
   As an teacher
@@ -20,12 +20,12 @@ Feature: We can change the maximum and minimum number of points for manual items
       | student1 | C1 | student |
       | student2 | C1 | student |
     And I am on the "Course 1" "grades > gradebook setup" page logged in as "teacher1"
-    And I press "Add grade item"
+    And I choose the "Add grade item" item in the "Add" action menu
     And I set the following fields to these values:
       | Item name | Manual item 1 |
       | Minimum grade | 0 |
       | Maximum grade | 100 |
-    And I press "Save changes"
+    And I click on "Save" "button" in the "New grade item" "dialogue"
     And I navigate to "Setup > Course grade settings" in the course gradebook
     And I set the field "Show weightings" to "Show"
     And I set the field "Show contribution to course total" to "Show"
@@ -38,32 +38,31 @@ Feature: We can change the maximum and minimum number of points for manual items
     And I give the grade "8.00" to the user "Student 2" for the grade item "Manual item 1"
     And I press "Save changes"
     When I navigate to "Setup > Gradebook setup" in the course gradebook
-    And I click on "Edit settings" "link" in the "Manual item 1" "table_row"
-    And I set the following fields to these values:
-      | Maximum grade | 10 |
+    And I set the following settings for grade item "Manual item 1" of type "gradeitem" on "setup" page:
       | Rescale existing grades | No |
-    And I press "Save changes"
+      | Maximum grade | 10 |
     And I navigate to "View > User report" in the course gradebook
-    And I select "Student 1" from the "Select all or one user" singleselect
+    And I click on "Student 1" in the "user" search widget
     Then the following should exist in the "user-grade" table:
       | Grade item    | Calculated weight | Grade  | Contribution to course total |
       | Manual item 1 | 100.00 %          | 10.00  | 100.00 %                     |
-    And I select "Student 2" from the "Select all or one user" singleselect
+    And I click on "Student 2" in the "user" search widget
     And the following should exist in the "user-grade" table:
       | Grade item    | Calculated weight | Grade  | Contribution to course total |
       | Manual item 1 | 100.00 %          | 8.00   | 80.00 %                      |
     And I navigate to "Setup > Gradebook setup" in the course gradebook
-    And I click on "Edit settings" "link" in the "Manual item 1" "table_row"
+    And I click on grade item menu "Manual item 1" of type "gradeitem" on "setup" page
+    And I choose "Edit grade item" in the open action menu
     And I set the following fields to these values:
-      | Maximum grade | 20 |
       | Rescale existing grades | Yes |
-    And I press "Save changes"
+      | Maximum grade | 20 |
+    And I click on "Save" "button" in the "Edit grade item" "dialogue"
     And I navigate to "View > User report" in the course gradebook
-    And I select "Student 1" from the "Select all or one user" singleselect
+    And I click on "Student 1" in the "user" search widget
     And the following should exist in the "user-grade" table:
       | Grade item    | Calculated weight | Grade  | Contribution to course total |
       | Manual item 1 | 100.00 %          | 20.00  | 100.00 %                     |
-    And I select "Student 2" from the "Select all or one user" singleselect
+    And I click on "Student 2" in the "user" search widget
     And the following should exist in the "user-grade" table:
       | Grade item    | Calculated weight | Grade  | Contribution to course total |
       | Manual item 1 | 100.00 %          | 16.00   | 80.00 %                     |

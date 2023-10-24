@@ -26,7 +26,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2022041900;
-$plugin->requires  = 2022041200;
+$plugin->version   = 2023100900;
+$plugin->requires  = 2023100400;
 $plugin->component = 'atto_recordrtc';
 $plugin->maturity = MATURITY_STABLE;

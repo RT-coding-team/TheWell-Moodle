@@ -54,6 +54,9 @@ class content implements named_templatable, renderable {
     /** @var string section selector class name */
     protected $sectionselectorclass;
 
+    /** @var string bulk editor bar toolbox */
+    protected $bulkedittoolsclass;
+
     /** @var bool if uses add section */
     protected $hasaddsection = true;
 
@@ -70,6 +73,7 @@ class content implements named_templatable, renderable {
         $this->addsectionclass = $format->get_output_classname('content\\addsection');
         $this->sectionnavigationclass = $format->get_output_classname('content\\sectionnavigation');
         $this->sectionselectorclass = $format->get_output_classname('content\\sectionselector');
+        $this->bulkedittoolsclass = $format->get_output_classname('content\\bulkedittools');
     }
 
     /**
@@ -117,6 +121,11 @@ class content implements named_templatable, renderable {
             $data->numsections = $addsection->export_for_template($output);
         }
 
+        if ($format->show_editor()) {
+            $bulkedittools = new $this->bulkedittoolsclass($format);
+            $data->bulkedittools = $bulkedittools->export_for_template($output);
+        }
+
         return $data;
     }
 
@@ -140,7 +149,8 @@ class content implements named_templatable, renderable {
             // The course/view.php check the section existence but the output can be called
             // from other parts so we need to check it.
             if (!$thissection) {
-                print_error('unknowncoursesection', 'error', course_get_url($course), format_string($course->fullname));
+                throw new \moodle_exception('unknowncoursesection', 'error', course_get_url($course),
+                    format_string($course->fullname));
             }
 
             $section = new $this->sectionclass($format, $thissection);

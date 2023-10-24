@@ -113,7 +113,7 @@ Feature: Allow students to redo questions in a practice quiz, without starting a
     And I click on "Check" "button" in the "First question" "question"
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     Then "Try another question like this one" "button" should not exist
 
   @javascript @_switch_window
@@ -125,7 +125,7 @@ Feature: Allow students to redo questions in a practice quiz, without starting a
     And I press "Try another question like this one"
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I log out
     When I am on the "Quiz 1" "mod_quiz > View" page logged in as "teacher"
     And I follow "Attempts: 1"
@@ -154,7 +154,7 @@ Feature: Allow students to redo questions in a practice quiz, without starting a
     And I press "Try another question like this one"
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I follow "Finish review"
     And I press "Re-attempt quiz"
     And I click on "True" "radio" in the "First question" "question"

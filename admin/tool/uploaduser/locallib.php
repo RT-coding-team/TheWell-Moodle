@@ -192,16 +192,31 @@ function uu_validate_user_upload_columns(csv_import_reader $cir, $stdfields, $pr
     if (empty($columns)) {
         $cir->close();
         $cir->cleanup();
-        print_error('cannotreadtmpfile', 'error', $returnurl);
+        throw new \moodle_exception('cannotreadtmpfile', 'error', $returnurl);
     }
     if (count($columns) < 2) {
         $cir->close();
         $cir->cleanup();
-        print_error('csvfewcolumns', 'error', $returnurl);
+        throw new \moodle_exception('csvfewcolumns', 'error', $returnurl);
     }
 
     // test columns
     $processed = array();
+    $acceptedfields = [
+        'category',
+        'categoryrole',
+        'cohort',
+        'course',
+        'enrolperiod',
+        'enrolstatus',
+        'enroltimestart',
+        'group',
+        'role',
+        'sysrole',
+        'type',
+    ];
+    $specialfieldsregex = "/^(" . implode('|', $acceptedfields) . ")\d+$/";
+
     foreach ($columns as $key=>$unused) {
         $field = $columns[$key];
         $field = trim($field);
@@ -218,19 +233,19 @@ function uu_validate_user_upload_columns(csv_import_reader $cir, $stdfields, $pr
             // hack: somebody wrote uppercase in csv file, but the system knows only lowercase profile field
             $newfield = $lcfield;
 
-        } else if (preg_match('/^(sysrole|cohort|course|group|type|role|enrolperiod|enrolstatus|enroltimestart)\d+$/', $lcfield)) {
+        } else if (preg_match($specialfieldsregex, $lcfield)) {
             // special fields for enrolments
             $newfield = $lcfield;
 
         } else {
             $cir->close();
             $cir->cleanup();
-            print_error('invalidfieldname', 'error', $returnurl, $field);
+            throw new \moodle_exception('invalidfieldname', 'error', $returnurl, $field);
         }
         if (in_array($newfield, $processed)) {
             $cir->close();
             $cir->cleanup();
-            print_error('duplicatefieldname', 'error', $returnurl, $newfield);
+            throw new \moodle_exception('duplicatefieldname', 'error', $returnurl, $newfield);
         }
         $processed[$key] = $newfield;
     }

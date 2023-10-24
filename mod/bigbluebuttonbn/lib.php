@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die;
 use core_calendar\action_factory;
 use core_calendar\local\event\entities\action_interface;
 use mod_bigbluebuttonbn\completion\custom_completion;
+use mod_bigbluebuttonbn\extension;
 use mod_bigbluebuttonbn\instance;
 use mod_bigbluebuttonbn\local\bigbluebutton;
 use mod_bigbluebuttonbn\local\exceptions\server_not_available_exception;
@@ -99,12 +100,17 @@ function bigbluebuttonbn_add_instance($bigbluebuttonbn) {
     $bigbluebuttonbn->presentation = files::save_media_file($bigbluebuttonbn);
     // Encode meetingid.
     $bigbluebuttonbn->meetingid = meeting::get_unique_meetingid_seed();
+    [$bigbluebuttonbn->guestlinkuid, $bigbluebuttonbn->guestpassword] =
+        \mod_bigbluebuttonbn\plugin::generate_guest_meeting_credentials();
     // Insert a record.
     $bigbluebuttonbn->id = $DB->insert_record('bigbluebuttonbn', $bigbluebuttonbn);
     // Log insert action.
     logger::log_instance_created($bigbluebuttonbn);
     // Complete the process.
     mod_helper::process_post_save($bigbluebuttonbn);
+
+    // Call any active subplugin so to signal a new creation.
+    extension::add_instance($bigbluebuttonbn);
     return $bigbluebuttonbn->id;
 }
 
@@ -125,6 +131,10 @@ function bigbluebuttonbn_update_instance($bigbluebuttonbn) {
     $bigbluebuttonbn->id = $bigbluebuttonbn->instance;
     $bigbluebuttonbn->presentation = files::save_media_file($bigbluebuttonbn);
 
+    if (empty($bigbluebuttonbn->guestjoinurl) || empty($bigbluebuttonbn->guestpassword)) {
+        [$bigbluebuttonbn->guestlinkuid, $bigbluebuttonbn->guestpassword] =
+            \mod_bigbluebuttonbn\plugin::generate_guest_meeting_credentials();
+    }
     // Update a record.
     $DB->update_record('bigbluebuttonbn', $bigbluebuttonbn);
 
@@ -136,6 +146,8 @@ function bigbluebuttonbn_update_instance($bigbluebuttonbn) {
 
     // Complete the process.
     mod_helper::process_post_save($bigbluebuttonbn);
+    // Call any active subplugin so to signal update.
+    extension::update_instance($bigbluebuttonbn);
     return true;
 }
 
@@ -159,22 +171,37 @@ function bigbluebuttonbn_delete_instance($id) {
     try {
         $meeting = new meeting($instance);
         $meeting->end_meeting();
-        $groups = groups_get_course_group($instance->get_course());
-        if ($groups) {
-            foreach ($groups as $group) {
-                $instance->set_group_id($group->id);
-                $meeting = new meeting($instance);
-                $meeting->end_meeting();
-            }
-        }
     } catch (moodle_exception $e) {
         // Do not log any issue when testing.
         if (!(defined('PHPUNIT_TEST') && PHPUNIT_TEST) && !defined('BEHAT_SITE_RUNNING')) {
             debugging($e->getMessage(), DEBUG_DEVELOPER, $e->getTrace());
         }
     }
+    // Get all possible groups (course and course module).
+    $groupids = [];
+    if (groups_get_activity_groupmode($instance->get_cm())) {
+        $coursegroups = groups_get_activity_allowed_groups($instance->get_cm());
+        $groupids = array_map(
+            function($gp) {
+                return $gp->id;
+            },
+            $coursegroups);
+    }
+    // End all meetings for all groups.
+    foreach ($groupids as $groupid) {
+        try {
+            $instance->set_group_id($groupid);
+            $meeting = new meeting($instance);
+            $meeting->end_meeting();
+        } catch (moodle_exception $e) {
+            debugging($e->getMessage() . ' for group ' . $groupid, DEBUG_NORMAL, $e->getTrace());
+        }
+    }
 
     $result = true;
+
+    // Call any active subplugin so to signal deletion.
+    extension::delete_instance($id);
 
     // Delete the instance.
     if (!$DB->delete_records('bigbluebuttonbn', ['id' => $id])) {
@@ -255,9 +282,9 @@ function bigbluebuttonbn_get_extra_capabilities() {
 /**
  * Called by course/reset.php
  *
- * @param object $mform
+ * @param MoodleQuickForm $mform
  */
-function bigbluebuttonbn_reset_course_form_definition(object &$mform) {
+function bigbluebuttonbn_reset_course_form_definition(&$mform) {
     $items = reset::reset_course_items();
     $mform->addElement('header', 'bigbluebuttonbnheader', get_string('modulenameplural', 'bigbluebuttonbn'));
     foreach ($items as $item => $default) {
@@ -334,32 +361,24 @@ function bigbluebuttonbn_reset_userdata(stdClass $data) {
  * @return null|cached_cm_info
  */
 function bigbluebuttonbn_get_coursemodule_info($coursemodule) {
-    global $DB;
-
-    $dbparams = ['id' => $coursemodule->instance];
-    $customcompletionfields = custom_completion::get_defined_custom_rules();
-    $fieldsarray = array_merge([
-        'id',
-        'name',
-        'intro',
-        'introformat',
-    ], $customcompletionfields);
-    $fields = join(',', $fieldsarray);
-    $bigbluebuttonbn = $DB->get_record('bigbluebuttonbn', $dbparams, $fields);
-    if (!$bigbluebuttonbn) {
+    $instance = instance::get_from_instanceid($coursemodule->instance);
+    if (empty($instance)) {
         return null;
     }
     $info = new cached_cm_info();
-    $info->name = $bigbluebuttonbn->name;
+    // Warning here: if any of the instance method calls ::get_cm this will result is a recursive call.
+    // So best is just to access instance variables not linked to the cm.
+    $info->name = $instance->get_instance_var('name');
     if ($coursemodule->showdescription) {
         // Convert intro to html. Do not filter cached version, filters run at display time.
-        $info->content = format_module_intro('bigbluebuttonbn', $bigbluebuttonbn, $coursemodule->id, false);
+        $info->content = format_module_intro('bigbluebuttonbn', $instance->get_instance_data(), $coursemodule->id, false);
     }
+    $customcompletionfields = custom_completion::get_defined_custom_rules();
     // Populate the custom completion rules as key => value pairs, but only if the completion mode is 'automatic'.
     if ($coursemodule->completion == COMPLETION_TRACKING_AUTOMATIC) {
         foreach ($customcompletionfields as $completiontype) {
             $info->customdata['customcompletionrules'][$completiontype] =
-                $bigbluebuttonbn->$completiontype ?? 0;
+                $instance->get_instance_var($completiontype) ?? 0;
         }
     }
 
@@ -370,7 +389,7 @@ function bigbluebuttonbn_get_coursemodule_info($coursemodule) {
  * Serves the bigbluebuttonbn attachments. Implements needed access control ;-).
  *
  * @param stdClass $course course object
- * @param cm_info $cm course module object
+ * @param stdClass $cm course module object
  * @param context $context context object
  * @param string $filearea file area
  * @param array $args extra arguments
@@ -721,4 +740,32 @@ function bigbluebuttonbn_pre_enable_plugin_actions(): bool {
     }
     // Otherwise, continue and enable the plugin.
     return true;
+}
+
+/**
+ * Creates a number of BigblueButtonBN activities.
+ *
+ * @param tool_generator_course_backend $backend
+ * @param testing_data_generator $generator
+ * @param int $courseid
+ * @param int $number
+ * @return void
+ */
+function bigbluebuttonbn_course_backend_generator_create_activity(tool_generator_course_backend $backend,
+    testing_data_generator $generator,
+    int $courseid,
+    int $number
+) {
+    // Set up generator.
+    $bbbgenerator = $generator->get_plugin_generator('mod_bigbluebuttonbn');
+
+    // Create assignments.
+    $backend->log('createbigbluebuttonbn', $number, true, 'mod_bigbluebuttonbn');
+    for ($i = 0; $i < $number; $i++) {
+        $record = array('course' => $courseid);
+        $options = array('section' => $backend->get_target_section());
+        $bbbgenerator->create_instance($record, $options);
+        $backend->dot($i, $number);
+    }
+    $backend->end_log();
 }

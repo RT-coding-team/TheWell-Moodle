@@ -47,7 +47,7 @@ if ($action === 'checkout') {
     require_sesskey();
     require_capability('tool/customlang:edit', context_system::instance());
     if (empty($lng)) {
-        print_error('missingparameter');
+        throw new \moodle_exception('missingparameter');
     }
 
     $PAGE->set_cacheable(false);    // progress bar is used here
@@ -57,20 +57,24 @@ if ($action === 'checkout') {
     $progressbar = new progress_bar();
     $progressbar->create();         // prints the HTML code of the progress bar
 
-    // we may need a bit of extra execution time and memory here
+    echo $output->continue_button(new moodle_url("/admin/tool/customlang/{$next}.php", array('lng' => $lng)), 'get');
+    echo $output->footer();
+
+    \core\session\manager::write_close();
+    echo $OUTPUT->select_element_for_append();
+
+    // We may need a bit of extra execution time and memory here.
     core_php_time_limit::raise(HOURSECS);
     raise_memory_limit(MEMORY_EXTRA);
     tool_customlang_utils::checkout($lng, $progressbar);
 
-    echo $output->continue_button(new moodle_url("/admin/tool/customlang/{$next}.php", array('lng' => $lng)), 'get');
-    echo $output->footer();
     exit;
 }
 if ($action === 'checkin') {
     require_sesskey();
     require_capability('tool/customlang:edit', context_system::instance());
     if (empty($lng)) {
-        print_error('missingparameter');
+        throw new \moodle_exception('missingparameter');
     }
 
     if (!$confirm) {

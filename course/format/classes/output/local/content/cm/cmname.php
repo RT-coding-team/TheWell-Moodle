@@ -58,22 +58,29 @@ class cmname implements named_templatable, renderable {
     /** @var string the activity title output class name */
     protected $titleclass;
 
+    /** @var string the activity icon output class name */
+    protected $iconclass;
+
     /**
      * Constructor.
      *
      * @param course_format $format the course format
      * @param section_info $section the section info
      * @param cm_info $mod the course module ionfo
-     * @param bool|null $editable if it is editable (not used)
+     * @param null $unused This parameter has been deprecated since 4.1 and should not be used anymore.
      * @param array $displayoptions optional extra display options
      */
     public function __construct(
         course_format $format,
         section_info $section,
         cm_info $mod,
-        ?bool $editable = null,
+        ?bool $unused = null,
         array $displayoptions = []
     ) {
+        if ($unused !== null) {
+            debugging('Deprecated argument passed to ' . __FUNCTION__, DEBUG_DEVELOPER);
+        }
+
         $this->format = $format;
         $this->section = $section;
         $this->mod = $mod;
@@ -81,6 +88,7 @@ class cmname implements named_templatable, renderable {
 
         // Get the necessary classes.
         $this->titleclass = $format->get_output_classname('content\\cm\\title');
+        $this->iconclass = $format->get_output_classname('content\\cm\\cmicon');
     }
 
     /**
@@ -144,6 +152,20 @@ class cmname implements named_templatable, renderable {
             $this->displayoptions
         );
         return (array) $title->export_for_template($output);
+    }
+
+    /**
+     * Get the icon data.
+     *
+     * @param \renderer_base $output typically, the renderer that's calling this function
+     * @return array data context for a mustache template
+     */
+    protected function get_icon_data(\renderer_base $output): array {
+        $icon = new $this->iconclass(
+            $this->format,
+            $this->mod,
+        );
+        return (array) $icon->export_for_template($output);
     }
 
     /**

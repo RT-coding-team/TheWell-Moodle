@@ -44,14 +44,12 @@ class myprofilelib_test extends \advanced_testcase {
      * @var \core_user\output\myprofile\tree The navigation tree.
      */
     private $tree;
-
     public function setUp(): void {
         // Set the $PAGE->url value so core_myprofile_navigation() doesn't complain.
         global $PAGE;
         $PAGE->set_url('/test');
 
         $this->user = $this->getDataGenerator()->create_user();
-        $this->user2 = $this->getDataGenerator()->create_user();
         $this->course = $this->getDataGenerator()->create_course();
         $this->tree = new \core_user\output\myprofile\tree();
         $this->resetAfterTest();
@@ -87,7 +85,8 @@ class myprofilelib_test extends \advanced_testcase {
      * profile of another another user.
      */
     public function test_core_myprofile_navigation_course_without_permission() {
-        $this->setUser($this->user2);
+        // User without permission.
+        $this->setUser($this->getDataGenerator()->create_user());
         $iscurrentuser = false;
 
         core_myprofile_navigation($this->tree, $this->user, $iscurrentuser, $this->course);
@@ -146,7 +145,7 @@ class myprofilelib_test extends \advanced_testcase {
      */
     public function test_core_myprofile_navigation_preference_without_permission() {
         // Login as link for a user who doesn't have the capability to login as.
-        $this->setUser($this->user2);
+        $this->setUser($this->getDataGenerator()->create_user());
         $iscurrentuser = false;
 
         core_myprofile_navigation($this->tree, $this->user, $iscurrentuser, $this->course);
@@ -211,7 +210,7 @@ class myprofilelib_test extends \advanced_testcase {
         $identityfields = explode(',', $CFG->showuseridentity);
 
         // User without permission.
-        $this->setUser($this->user2);
+        $this->setUser($this->getDataGenerator()->create_user());
         core_myprofile_navigation($this->tree, $this->user, $iscurrentuser, null);
         $reflector = new \ReflectionObject($this->tree);
         $nodes = $reflector->getProperty('nodes');
@@ -221,6 +220,57 @@ class myprofilelib_test extends \advanced_testcase {
         }
         foreach ($identityfields as $field) {
             $this->assertArrayNotHasKey($field, $nodes->getValue($this->tree));
+        }
+    }
+
+    /**
+     * Data provider for {@see test_core_myprofile_navigation_contact_timezone}
+     *
+     * @return array[]
+     */
+    public function core_myprofile_navigation_contact_timezone_provider(): array {
+        return [
+            'Hidden field' => ['timezone', '99', '99', null],
+            'Forced timezone' => ['', 'Europe/London', 'Pacific/Tahiti', 'Europe/London'],
+            'User timezone (default)' => ['', '99', '99', 'Australia/Perth'],
+            'User timezone (selected)' => ['', '99', 'Pacific/Tahiti', 'Pacific/Tahiti'],
+        ];
+    }
+
+    /**
+     * Test timezone node added to user profile navigation
+     *
+     * @param string $hiddenuserfields
+     * @param string $forcetimezone Timezone identifier or '99' (User can choose their own)
+     * @param string $usertimezone Timezone identifier or '99' (Use server default)
+     * @param string|null $expectresult
+     * @return bool
+     *
+     * @dataProvider core_myprofile_navigation_contact_timezone_provider
+     */
+    public function test_core_myprofile_navigation_contact_timezone(string $hiddenuserfields, string $forcetimezone,
+            string $usertimezone, ?string $expectresult = null): void {
+
+        set_config('hiddenuserfields', $hiddenuserfields);
+        set_config('forcetimezone', $forcetimezone);
+
+        // Set the timezone of our test user, and load their navigation tree.
+        $this->user->timezone = $usertimezone;
+        $this->setUser($this->user);
+
+        core_myprofile_navigation($this->tree, $this->user, true, null);
+
+        $reflector = new \ReflectionObject($this->tree);
+        $nodes = $reflector->getProperty('nodes');
+        $nodes->setAccessible(true);
+
+        /** @var \core_user\output\myprofile\node[] $tree */
+        $tree = $nodes->getValue($this->tree);
+        if ($expectresult !== null) {
+            $this->assertArrayHasKey('timezone', $tree);
+            $this->assertEquals($expectresult, $tree['timezone']->content);
+        } else {
+            $this->assertArrayNotHasKey('timezone', $tree);
         }
     }
 
@@ -249,7 +299,7 @@ class myprofilelib_test extends \advanced_testcase {
     public function test_core_myprofile_navigationn_login_activity_without_permission() {
         // User without permission.
         set_config("hiddenuserfields", "firstaccess,lastaccess,lastip");
-        $this->setUser($this->user2);
+        $this->setUser($this->getDataGenerator()->create_user());
         $iscurrentuser = false;
 
         core_myprofile_navigation($this->tree, $this->user, $iscurrentuser, null);

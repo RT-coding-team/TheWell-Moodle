@@ -48,7 +48,7 @@ $assignment = new \assign($context, null, null);
 require_login($assignment->get_course(), false, $cm);
 
 if (!$assignment->can_view_submission($userid)) {
-    print_error('nopermission');
+    throw new \moodle_exception('nopermission');
 }
 
 if ($action === 'pollconversions') {
@@ -70,7 +70,7 @@ if ($action === 'pollconversions') {
 
     // Get a lock for the PDF/Image conversion of the assignment files.
     $lockfactory = \core\lock\lock_config::get_lock_factory('assignfeedback_editpdf_pollconversions');
-    $resource = "user:${userid},assignmentid:${assignmentid},attemptnumber:${attemptnumber}";
+    $resource = "user:{$userid},assignmentid:{$assignmentid},attemptnumber:{$attemptnumber}";
     $lock = $lockfactory->get_lock($resource, 0);
 
     // Could not get lock, send back JSON to poll again.

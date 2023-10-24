@@ -57,6 +57,8 @@ class redis extends handler {
     protected $host = '';
     /** @var int $port The port to connect to */
     protected $port = 6379;
+    /** @var array $sslopts SSL options, if applicable */
+    protected $sslopts = [];
     /** @var string $auth redis password  */
     protected $auth = '';
     /** @var int $database the Redis database to store sesions in */
@@ -65,6 +67,8 @@ class redis extends handler {
     protected $prefix = '';
     /** @var int $acquiretimeout how long to wait for session lock in seconds */
     protected $acquiretimeout = 120;
+    /** @var int $acquirewarn how long before warning when waiting for a lock in seconds */
+    protected $acquirewarn = null;
     /** @var int $lockretry how long to wait between session lock attempts in ms */
     protected $lockretry = 100;
     /** @var int $serializer The serializer to use */
@@ -103,6 +107,11 @@ class redis extends handler {
             $this->port = (int)$CFG->session_redis_port;
         }
 
+        if (isset($CFG->session_redis_encrypt) && $CFG->session_redis_encrypt) {
+            $this->host = 'tls://' . $this->host;
+            $this->sslopts = $CFG->session_redis_encrypt;
+        }
+
         if (isset($CFG->session_redis_auth)) {
             $this->auth = $CFG->session_redis_auth;
         }
@@ -119,6 +128,10 @@ class redis extends handler {
             $this->acquiretimeout = (int)$CFG->session_redis_acquire_lock_timeout;
         }
 
+        if (isset($CFG->session_redis_acquire_lock_warn)) {
+            $this->acquirewarn = (int)$CFG->session_redis_acquire_lock_warn;
+        }
+
         if (isset($CFG->session_redis_acquire_lock_retry)) {
             $this->lockretry = (int)$CFG->session_redis_acquire_lock_retry;
         }
@@ -133,7 +146,23 @@ class redis extends handler {
         $updatefreq = empty($CFG->session_update_timemodified_frequency) ? 20 : $CFG->session_update_timemodified_frequency;
         $this->timeout = $CFG->sessiontimeout + $updatefreq + MINSECS;
 
-        $this->lockexpire = $CFG->sessiontimeout;
+        // This sets the Redis session lock expiry time to whatever is lower, either
+        // the PHP execution time `max_execution_time`, if the value was defined in
+        // the `php.ini` or the globally configured `sessiontimeout`. Setting it to
+        // the lower of the two will not make things worse it if the execution timeout
+        // is longer than the session timeout.
+        // For the PHP execution time, once the PHP execution time is over, we can be sure
+        // that the lock is no longer actively held so that the lock can expire safely.
+        // Although at `lib/classes/php_time_limit.php::raise(int)`, Moodle can
+        // progressively increase the maximum PHP execution time, this is limited to the
+        // `max_execution_time` value defined in the `php.ini`.
+        // For the session timeout, we assume it is safe to consider the lock to expire
+        // once the session itself expires.
+        // If we unnecessarily hold the lock any longer, it blocks other session requests.
+        $this->lockexpire = ini_get('max_execution_time');
+        if (empty($this->lockexpire) || ($this->lockexpire > (int)$CFG->sessiontimeout)) {
+            $this->lockexpire = (int)$CFG->sessiontimeout;
+        }
         if (isset($CFG->session_redis_lock_expire)) {
             $this->lockexpire = (int)$CFG->session_redis_lock_expire;
         }
@@ -188,6 +217,11 @@ class redis extends handler {
         // MDL-59866: Add retries for connections (up to 5 times) to make sure it goes through.
         $counter = 1;
         $maxnumberofretries = 5;
+        $opts = [];
+        if ($this->sslopts) {
+            // Do not set $opts['stream'] = [], breaks connect().
+            $opts['stream'] = $this->sslopts;
+        }
 
         while ($counter <= $maxnumberofretries) {
 
@@ -196,7 +230,7 @@ class redis extends handler {
                 $delay = rand(100, 500);
 
                 // One second timeout was chosen as it is long for connection, but short enough for a user to be patient.
-                if (!$this->connection->connect($this->host, $this->port, 1, null, $delay)) {
+                if (!$this->connection->connect($this->host, $this->port, 1, null, $delay, 1, $opts)) {
                     throw new RedisException('Unable to connect to host.');
                 }
 
@@ -216,12 +250,21 @@ class redis extends handler {
                         throw new RedisException('Unable to set Redis Prefix option.');
                     }
                 }
+
+                if ($this->sslopts && !$this->connection->ping()) {
+                    /*
+                     * In case of a TLS connection, if phpredis client does not
+                     * communicate immediately with the server the connection hangs.
+                     * See https://github.com/phpredis/phpredis/issues/2332 .
+                     */
+                    throw new \RedisException("Ping failed");
+                }
+
                 if ($this->database !== 0) {
                     if (!$this->connection->select($this->database)) {
                         throw new RedisException('Unable to select Redis database '.$this->database.'.');
                     }
                 }
-                $this->connection->ping();
                 return true;
             } catch (RedisException $e) {
                 $logstring = "Failed to connect (try {$counter} out of {$maxnumberofretries}) to redis ";
@@ -461,6 +504,8 @@ class redis extends handler {
 
         $whoami = "[pid {$pid}] {$hostname}:$uri";
 
+        $haswarned = false; // Have we logged a lock warning?
+
         while (!$haslock) {
 
             $haslock = $this->connection->setnx($lockkey, $whoami);
@@ -471,15 +516,31 @@ class redis extends handler {
                 return true;
             }
 
+            if (!empty($this->acquirewarn) && !$haswarned && $this->time() > $startlocktime + $this->acquirewarn) {
+                // This is a warning to better inform users.
+                $whohaslock = $this->connection->get($lockkey);
+                // phpcs:ignore
+                error_log("Warning: Cannot obtain session lock for sid: $id within $this->acquirewarn seconds but will keep trying. " .
+                    "It is likely another page ($whohaslock) has a long session lock, or the session lock was never released.");
+                $haswarned = true;
+            }
+
             if ($this->time() > $startlocktime + $this->acquiretimeout) {
                 // This is a fatal error, better inform users.
                 // It should not happen very often - all pages that need long time to execute
                 // should close session immediately after access control checks.
                 $whohaslock = $this->connection->get($lockkey);
                 // phpcs:ignore
-                error_log("Cannot obtain session lock for sid: $id within $this->acquiretimeout seconds. " .
+                error_log("Error: Cannot obtain session lock for sid: $id within $this->acquiretimeout seconds. " .
                     "It is likely another page ($whohaslock) has a long session lock, or the session lock was never released.");
-                throw new exception("Unable to obtain session lock");
+                $acquiretimeout = format_time($this->acquiretimeout);
+                $lockexpire = format_time($this->lockexpire);
+                $a = (object)[
+                    'id' => substr($id, 0, 10),
+                    'acquiretimeout' => $acquiretimeout,
+                    'whohaslock' => $whohaslock,
+                    'lockexpire' => $lockexpire];
+                throw new exception("sessioncannotobtainlock", 'error', '', $a);
             }
 
             if ($this->time() < $startlocktime + 5) {
@@ -488,7 +549,7 @@ class redis extends handler {
                 // time. If it is too small we will poll too much and if it is
                 // too large we will waste time waiting for no reason. 100ms is
                 // the default starting point.
-                $delay = rand($this->lockretry, $this->lockretry * 1.1);
+                $delay = rand($this->lockretry, (int)($this->lockretry * 1.1));
             } else {
                 // If we don't get a lock within 5 seconds then there must be a
                 // very long lived process holding the lock so throttle back to

@@ -65,10 +65,10 @@ class backpack_api2p1 {
     protected $backpackapiversion;
 
     /** @var issuer The OAuth2 Issuer for this backpack */
-    protected $issuer;
+    protected issuer $issuer;
 
     /** @var endpoint The apiBase endpoint */
-    protected $apibase;
+    protected endpoint $apibase;
 
     /**
      * backpack_api2p1 constructor.
@@ -81,7 +81,7 @@ class backpack_api2p1 {
         if (!empty($externalbackpack)) {
             $this->externalbackpack = $externalbackpack;
             $this->backpackapiversion = $externalbackpack->apiversion;
-            $this->get_clientid = $this->get_clientid($externalbackpack->oauth2_issuerid);
+            $this->get_clientid($externalbackpack->oauth2_issuerid);
 
             if (!($this->tokendata = $this->get_stored_token($externalbackpack->id))
                 && $this->backpackapiversion != OPEN_BADGES_V2P1) {
@@ -272,8 +272,34 @@ class backpack_api2p1 {
             $msg['status'] = \core\output\notification::NOTIFY_SUCCESS;
             $msg['message'] = get_string('addedtobackpack', 'badges');
         } else {
+            if ($response) {
+                // Although the specification defines that status error is a string, some providers, like Badgr, are wrongly
+                // returning an array. It has been reported, but adding these extra checks doesn't hurt, just in case.
+                if (
+                    property_exists($response, 'status') &&
+                    is_object($response->status) &&
+                    property_exists($response->status, 'error')
+                ) {
+                    $statuserror = $response->status->error;
+                    if (is_array($statuserror)) {
+                        $statuserror = implode($statuserror);
+                    }
+                } else if (property_exists($response, 'error')) {
+                    $statuserror = $response->error;
+                    if (property_exists($response, 'message')) {
+                        $statuserror .= '. Message: ' . $response->message;
+                    }
+                }
+            } else {
+                $statuserror = 'Empty response';
+            }
+            $data = [
+                'badgename' => $data['assertion']['badge']['name'],
+                'error' => $statuserror,
+            ];
+
             $msg['status'] = \core\output\notification::NOTIFY_ERROR;
-            $msg['message'] = get_string('backpackexporterror', 'badges', $data['assertion']['badge']['name']);
+            $msg['message'] = get_string('backpackexporterrorwithinfo', 'badges', $data);
         }
         return $msg;
     }

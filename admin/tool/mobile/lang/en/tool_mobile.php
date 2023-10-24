@@ -32,6 +32,11 @@ $string['autologinkeygenerationlockout'] = 'Auto-login key generation is blocked
 $string['autologinmintimebetweenreq'] = 'Minimum time between auto-login requests';
 $string['autologinmintimebetweenreq_desc'] = 'The minimum time between auto-login requests from the mobile app. If app users are frequently asked to enter their credentials when viewing content embedded from the site, then set a lower value.';
 $string['autologinnotallowedtoadmins'] = 'Auto-login is not allowed for site admins.';
+$string['autologout'] = 'Enforce auto logout for your users';
+$string['autologout_desc'] = 'For security reasons, you can enforce automatic logout for your users when they leave or close the app, or it goes to background. Users will have to log in again when they return to the app.';
+$string['autologoutcustom'] = 'Custom time after users leave or close the app';
+$string['autologoutinmediate'] = 'Immediately after users leave or close the app';
+$string['autologouttime'] = 'Auto logout timer';
 $string['cachedef_plugininfo'] = 'This stores the list of plugins with mobile addons';
 $string['cachedef_subscriptiondata'] = 'This stores the Moodle app subscription information.';
 $string['clickheretolaunchtheapp'] = 'Click here if the app does not open automatically.';
@@ -125,6 +130,8 @@ $string['qrcodetypeurl'] = 'QR code with site URL';
 $string['qrcodetypelogin'] = 'QR code with automatic login';
 $string['qrkeyttl'] = 'QR authentication key duration';
 $string['qrkeyttl_desc'] = 'The length of time for which a QR code for automatic login is valid.';
+$string['qrsameipcheck'] = 'QR authentication same IP check';
+$string['qrsameipcheck_desc'] = 'Whether users must use the same network for both generating and scanning a QR code for login. Only disable it if users report issues with the QR login.';
 $string['readingthisemailgettheapp'] = 'Are you reading this in an email? <a href="{$a}">Download the mobile app and receive notifications on your mobile device</a>.';
 $string['remoteaddons'] = 'Remote add-ons';
 $string['scanqrcode'] = 'Scan QR code';
@@ -149,9 +156,3 @@ $string['privacy:metadata:core_userkey'] = 'User\'s keys used to create auto-log
 $string['responsivemainmenuitems'] = 'Responsive menu items';
 $string['switchaccount'] = 'Switch account';
 $string['viewqrcode'] = 'View QR code';
-
-// Deprecated since Moodle 3.10.
-$string['mobileappconnected'] = 'Mobile app connected';
-
-// Deprecated since Moodle 3.11.
-$string['openusingembeddedbrowser'] = 'Open using embedded browser';

@@ -22,6 +22,9 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$string['comment'] = 'Comment';
+$string['commenter'] = 'Commenter';
+$string['comments'] = 'Comments';
 $string['commentsubcontext'] = 'Comments';
 $string['privacy:metadata:comment'] = 'Stores comments of users.';
 $string['privacy:metadata:comment:content'] = 'Stores the text of the comment.';

@@ -7,6 +7,13 @@ body.behat-site {
         position: absolute;
     }
 
+    // Sticky footer can overlap with elements so we keep it relative for behat.
+    &.hasstickyfooter .stickyfooter,
+    .stickyfooter {
+        position: inherit;
+        z-index: inherit;
+    }
+
     // We need more spacing in action menus so behat does not click on the wrong menu item.
     .dropdown-item {
         margin-top: 4px !important; /* stylelint-disable declaration-no-important */
@@ -74,20 +81,20 @@ body.behat-site {
 .phpinfo .e,
 .phpinfo .v,
 .phpinfo .h {
-    border: 1px solid #000;
+    border: 1px solid $phpinfo-border-color;
     font-size: 0.8em;
     vertical-align: baseline;
-    color: #000;
-    background-color: #ccc;
+    color: $phpinfo-color;
+    background-color: $phpinfo-bg;
 }
 
 .phpinfo .e {
-    background-color: #ccf;
+    background-color: $phpinfo-e-bg;
     font-weight: bold;
 }
 
 .phpinfo .h {
-    background-color: #99c;
+    background-color: $phpinfo-h-bg;
     font-weight: bold;
 }
 
@@ -100,4 +107,3 @@ body > .debuggingmessage {
 body > .debuggingmessage ~ .debuggingmessage {
     margin-top: .5rem;
 }
-

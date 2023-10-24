@@ -154,6 +154,16 @@ if (defined('BEHAT_SITE_RUNNING')) {
     }
 }
 
+// Set default warn runtime.
+if (!isset($CFG->taskruntimewarn)) {
+    $CFG->taskruntimewarn = 12 * 60 * 60;
+}
+
+// Set default error runtime.
+if (!isset($CFG->taskruntimeerror)) {
+    $CFG->taskruntimeerror = 24 * 60 * 60;
+}
+
 // Normalise dataroot - we do not want any symbolic links, trailing / or any other weirdness there
 if (!isset($CFG->dataroot)) {
     if (isset($_SERVER['REMOTE_ADDR'])) {
@@ -201,7 +211,7 @@ $CFG->libdir = $CFG->dirroot .'/lib';
 
 // Allow overriding of tempdir but be backwards compatible
 if (!isset($CFG->tempdir)) {
-    $CFG->tempdir = "$CFG->dataroot/temp";
+    $CFG->tempdir = $CFG->dataroot . DIRECTORY_SEPARATOR . "temp";
 }
 
 // Allow overriding of backuptempdir but be backwards compatible
@@ -271,21 +281,25 @@ if (!defined('PHPUNIT_TEST')) {
     define('PHPUNIT_TEST', false);
 }
 
-// Performance tests needs to always display performance info, even in redirections.
+// Performance tests needs to always display performance info, even in redirections;
+// MDL_PERF_TEST is used in https://github.com/moodlehq/moodle-performance-comparison scripts.
 if (!defined('MDL_PERF_TEST')) {
     define('MDL_PERF_TEST', false);
-} else {
-    // We force the ones we need.
-    if (!defined('MDL_PERF')) {
-        define('MDL_PERF', true);
-    }
-    if (!defined('MDL_PERFDB')) {
-        define('MDL_PERFDB', true);
-    }
-    if (!defined('MDL_PERFTOFOOT')) {
-        define('MDL_PERFTOFOOT', true);
-    }
 }
+// Make sure all MDL_PERF* constants are always defined.
+if (!defined('MDL_PERF')) {
+    define('MDL_PERF', MDL_PERF_TEST);
+}
+if (!defined('MDL_PERFTOFOOT')) {
+    define('MDL_PERFTOFOOT', MDL_PERF_TEST);
+}
+if (!defined('MDL_PERFTOLOG')) {
+    define('MDL_PERFTOLOG', false);
+}
+if (!defined('MDL_PERFINC')) {
+    define('MDL_PERFINC', false);
+}
+// Note that PHPUnit and Behat tests should pass with both MDL_PERF true and false.
 
 // When set to true MUC (Moodle caching) will be disabled as much as possible.
 // A special cache factory will be used to handle this situation and will use special "disabled" equivalents objects.
@@ -378,10 +392,9 @@ if (!defined('AJAX_SCRIPT')) {
 
 // Exact version of currently used yui2 and 3 library.
 $CFG->yui2version = '2.9.0';
-$CFG->yui3version = '3.17.2';
+$CFG->yui3version = '3.18.1';
 
 // Patching the upstream YUI release.
-// For important information on patching YUI modules, please see http://docs.moodle.org/dev/YUI/Patching.
 // If we need to patch a YUI modules between official YUI releases, the yuipatchlevel will need to be manually
 // incremented here. The module will also need to be listed in the yuipatchedmodules.
 // When upgrading to a subsequent version of YUI, these should be reset back to 0 and an empty array.
@@ -569,7 +582,7 @@ init_performance_info();
 // Put $OUTPUT in place, so errors can be displayed.
 $OUTPUT = new bootstrap_renderer();
 
-// set handler for uncaught exceptions - equivalent to print_error() call
+// Set handler for uncaught exceptions - equivalent to throw new \moodle_exception() call.
 if (!PHPUNIT_TEST or PHPUNIT_UTIL) {
     set_exception_handler('default_exception_handler');
     set_error_handler('default_error_handler', E_ALL | E_STRICT);
@@ -722,7 +735,7 @@ if (!defined('NO_UPGRADE_CHECK') and isset($CFG->upgraderunning)) {
     if ($CFG->upgraderunning < time()) {
         unset_config('upgraderunning');
     } else {
-        print_error('upgraderunning');
+        throw new \moodle_exception('upgraderunning');
     }
 }
 
@@ -734,7 +747,7 @@ if (function_exists('gc_enable')) {
 
 // detect unsupported upgrade jump as soon as possible - do not change anything, do not use system functions
 if (!empty($CFG->version) and $CFG->version < 2007101509) {
-    print_error('upgraderequires19', 'error');
+    throw new \moodle_exception('upgraderequires19', 'error');
     die;
 }
 
@@ -826,9 +839,51 @@ if (empty($CFG->sessiontimeout)) {
 if (empty($CFG->sessiontimeoutwarning)) {
     $CFG->sessiontimeoutwarning = 20 * 60;
 }
+
+// Allow plugins to callback just before the session is started.
+$pluginswithfunction = get_plugins_with_function('before_session_start', 'lib.php');
+foreach ($pluginswithfunction as $plugins) {
+    foreach ($plugins as $function) {
+        try {
+            $function();
+        } catch (Throwable $e) {
+            debugging("Exception calling '$function'", DEBUG_DEVELOPER, $e->getTrace());
+        }
+    }
+}
+
 \core\session\manager::start();
 // Prevent ignoresesskey hack from getting carried over to a next page.
 unset($USER->ignoresesskey);
+
+if (!empty($CFG->proxylogunsafe) || !empty($CFG->proxyfixunsafe)) {
+    if (!empty($CFG->proxyfixunsafe)) {
+        require_once($CFG->libdir.'/filelib.php');
+
+        $proxyurl = get_moodle_proxy_url();
+        // This fixes stream handlers inside php.
+        $defaults = stream_context_set_default([
+            'http' => [
+                'user_agent' => \core_useragent::get_moodlebot_useragent(),
+                'proxy' => $proxyurl
+            ],
+        ]);
+
+        // Attempt to tell other web clients to use the proxy too. This only
+        // works for clients written in php in the same process, it will not
+        // work for with requests done in another process from an exec call.
+        putenv('http_proxy=' . $proxyurl);
+        putenv('https_proxy=' . $proxyurl);
+        putenv('HTTPS_PROXY=' . $proxyurl);
+    } else {
+        $defaults = stream_context_get_default();
+    }
+
+    if (!empty($CFG->proxylogunsafe)) {
+        stream_context_set_params($defaults, ['notification' => 'proxy_log_callback']);
+    }
+
+}
 
 // Set default content type and encoding, developers are still required to use
 // echo $OUTPUT->header() everywhere, anything that gets set later should override these headers.

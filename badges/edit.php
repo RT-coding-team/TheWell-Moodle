@@ -34,7 +34,7 @@ $action = optional_param('action', 'badge', PARAM_TEXT);
 require_login();
 
 if (empty($CFG->enablebadges)) {
-    print_error('badgesdisabled', 'badges');
+    throw new \moodle_exception('badgesdisabled', 'badges');
 }
 
 $badge = new badge($badgeid);
@@ -49,7 +49,7 @@ if ($action == 'message') {
 
 if ($badge->type == BADGE_TYPE_COURSE) {
     if (empty($CFG->badges_allowcoursebadges)) {
-        print_error('coursebadgesdisabled', 'badges');
+        throw new \moodle_exception('coursebadgesdisabled', 'badges');
     }
     require_login($badge->courseid);
     $course = get_course($badge->courseid);
@@ -117,6 +117,7 @@ if ($form->is_cancelled()) {
         unset($badge->message_editor);
 
         if ($badge->save()) {
+            core_tag_tag::set_item_tags('core_badges', 'badge', $badge->id, $context, $data->tags);
             badges_process_badge_image($badge, $form->save_temp_file('image'));
             $form->set_data($badge);
             $statusmsg = get_string('changessaved');

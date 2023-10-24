@@ -60,7 +60,7 @@ Feature: Flag quiz questions
     And I click on "True" "radio" in the "Third question" "question"
     And I follow "Finish attempt ..."
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     # Confirm only flagged question is flagged
     And I should see "Remove flag" in the "First question" "question"
     And I should see "Flag question" in the "Second question" "question"

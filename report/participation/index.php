@@ -58,11 +58,11 @@ if ($action != 'view' and $action != 'post') {
 }
 
 if (!$course = $DB->get_record('course', array('id'=>$id))) {
-    print_error('invalidcourse');
+    throw new \moodle_exception('invalidcourse');
 }
 
 if ($roleid != 0 and !$role = $DB->get_record('role', array('id'=>$roleid))) {
-    print_error('invalidrole');
+    throw new \moodle_exception('invalidrole');
 }
 
 require_login($course);
@@ -88,8 +88,6 @@ echo $OUTPUT->header();
 // Print the selector dropdown.
 $pluginname = get_string('pluginname', 'report_participation');
 report_helper::print_report_selector($pluginname);
-// Release session lock.
-\core\session\manager::write_close();
 
 // Logs will not have been recorded before the course timecreated time.
 $minlog = $course->timecreated;
@@ -151,7 +149,6 @@ if (!empty($instanceid) && !empty($roleid)) {
     }
 
     $table = new flexible_table('course-participation-'.$course->id.'-'.$cm->id.'-'.$roleid);
-    $table->course = $course;
 
     $actionheader = !empty($action) ? get_string($action) : get_string('allactions');
 
@@ -186,6 +183,9 @@ if (!empty($instanceid) && !empty($roleid)) {
                                         TABLE_VAR_PAGE    => 'spage'
                                         ));
     $table->setup();
+
+    // Unlock the session only after outputting the table, since the table writes to the session.
+    \core\session\manager::write_close();
 
     // We want to query both the current context and parent contexts.
     list($relatedctxsql, $params) = $DB->get_in_or_equal($context->get_parent_context_ids(true), SQL_PARAMS_NAMED, 'relatedctx');

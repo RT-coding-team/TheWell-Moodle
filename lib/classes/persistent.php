@@ -14,32 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Abstract class for objects saved to the DB.
- *
- * @package    core
- * @copyright  2015 Damyon Wiese
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
 namespace core;
-defined('MOODLE_INTERNAL') || die();
 
 use coding_exception;
 use invalid_parameter_exception;
 use lang_string;
 use ReflectionMethod;
 use stdClass;
-use renderer_base;
 
 /**
  * Abstract class for core objects saved to the DB.
  *
+ * @package    core
  * @copyright  2015 Damyon Wiese
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 abstract class persistent {
 
-    /** The table name. */
+    /** @var string The table name. */
     const TABLE = null;
 
     /** @var array The model data. */
@@ -329,6 +321,16 @@ abstract class persistent {
     }
 
     /**
+     * For a given record, return an array containing only those properties that are defined by the persistent
+     *
+     * @param stdClass $record
+     * @return array
+     */
+    final public static function properties_filter(stdClass $record): array {
+        return array_intersect_key((array) $record, static::properties_definition());
+    }
+
+    /**
      * Gets all the formatted properties.
      *
      * Formatted properties are properties which have a format associated with them.
@@ -421,8 +423,7 @@ abstract class persistent {
      * @return static
      */
     final public function from_record(stdClass $record) {
-        $properties = static::properties_definition();
-        $record = array_intersect_key((array) $record, $properties);
+        $record = static::properties_filter($record);
         foreach ($record as $property => $value) {
             $this->raw_set($property, $value);
         }
@@ -854,12 +855,14 @@ abstract class persistent {
      * Load a single record.
      *
      * @param array $filters Filters to apply.
+     * @param int $strictness Similar to the internal DB get_record call, indicate whether a missing record should be
+     *      ignored/return false ({@see IGNORE_MISSING}) or should cause an exception to be thrown ({@see MUST_EXIST})
      * @return false|static
      */
-    public static function get_record($filters = array()) {
+    public static function get_record(array $filters = [], int $strictness = IGNORE_MISSING) {
         global $DB;
 
-        $record = $DB->get_record(static::TABLE, $filters);
+        $record = $DB->get_record(static::TABLE, $filters, '*', $strictness);
         return $record ? new static(0, $record) : false;
     }
 

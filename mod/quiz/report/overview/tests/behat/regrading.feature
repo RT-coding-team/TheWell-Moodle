@@ -197,7 +197,6 @@ Feature: Regrading quiz attempts using the Grades report
     And I click on "Yes" "button" in the "Confirm" "dialogue"
     And I click on "Add" "link"
     And I follow "a random question"
-    And I set the field "Number of random questions" to "1"
     And I press "Add random question"
     And I am on the "Quiz for testing regrading" "quiz activity" page logged in as student3
     And I click on "Attempt quiz" "button"
@@ -205,7 +204,7 @@ Feature: Regrading quiz attempts using the Grades report
     And I set the field "True" to "1"
     And I click on "Finish attempt ..." "button"
     And I press "Submit all and finish"
-    And I click on "Submit all and finish" "button" in the "Confirmation" "dialogue"
+    And I click on "Submit" "button" in the "Submit all your answers and finish?" "dialogue"
     And I am on the "Quiz for testing regrading" "mod_quiz > question bank" page logged in as teacher
     And I choose "Edit question" action for "TF" in the question bank
     And I set the field "Correct answer" to "False"

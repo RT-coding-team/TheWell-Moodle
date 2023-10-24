@@ -152,7 +152,6 @@ $string['cannotsetupblock'] = 'Blocks tables could NOT be set up successfully!';
 $string['cannotsetupcapformod'] = 'Could not set up the capabilities for {$a}';
 $string['cannotsetupcapforplugin'] = 'Could not set up the capabilities for {$a}';
 $string['cannotshowhidecoursesincategory'] = 'Cannot show/hide the courses in category {$a}.';
-$string['cannotswitcheditmodeon'] = 'Could not switch edit mode on';
 $string['cannotsignup'] = 'You cannot create a new account because you are already logged in as {$a}.';
 $string['cannotunassigncap'] = 'Could not unassign deprecated capability {$a->cap} from role {$a->role}';
 $string['cannotunassignrolefrom'] = 'Cannot unassign this user from role id: {$a}';
@@ -229,6 +228,10 @@ $string['dmlparseexception'] = 'Error parsing SQL query';
 $string['dmlreadexception'] = 'Error reading from database';
 $string['dmltransactionexception'] = 'Database transaction error';
 $string['dmlwriteexception'] = 'Error writing to database';
+$string['dndmaxbytes'] = 'The file is too large. The maximum size allowed is {$a->size}.';
+$string['dndread'] = 'Error reading the file';
+$string['dndupload'] = 'An unknown error ocurred while uploading the file';
+$string['dndunkownfile'] = 'This file type is not supported';
 $string['downgradedcore'] = 'ERROR!!!  The code you are using is OLDER than the version that made these databases!';
 $string['downloadedfilecheckfailed'] = 'Downloaded file check failed';
 $string['duplicatefieldname'] = 'Duplicate field name "{$a}" detected';
@@ -237,6 +240,7 @@ $string['duplicateparaminsql'] = 'ERROR: duplicate parameter name in query';
 $string['duplicaterolename'] = 'There is already a role with this name!';
 $string['duplicateroleshortname'] = 'There is already a role with this short name!';
 $string['duplicateusername'] = 'Duplicate username - skipping record';
+$string['editedpagenotfound'] = 'The system couldn\'t determine the page you are on. Please refresh the page and try again.';
 $string['emailfail'] = 'Emailing failed';
 $string['encryption_encryptfailed'] = 'Encryption failed';
 $string['encryption_decryptfailed'] = 'Decryption failed';
@@ -331,6 +335,7 @@ $string['invalidcourseid'] = 'You are trying to use an invalid course ID';
 $string['invalidcourselevel'] = 'Incorrect context level';
 $string['invalidcourseformat'] = 'Invalid course format';
 $string['invalidcoursemodule'] = 'Invalid course module ID';
+$string['invalidcoursemoduleid'] = 'Invalid course module ID: {$a}';
 $string['invalidcoursenameshort'] = 'Invalid short course name';
 $string['invalidcountrycode'] = 'Invalid country code: {$a}';
 $string['invaliddata'] = 'Data submitted is invalid';
@@ -405,6 +410,7 @@ $string['messageundeliveredbynotificationsettings'] = 'The message could not be 
 $string['messagingdisable'] = 'Messaging is disabled on this site';
 $string['mimetexisnotexist'] = 'Your system is not configured to run mimeTeX. You need to obtain the C source from <a href="https://www.forkosh.com/mimetex.zip">https://www.forkosh.com/mimetex.zip</a>, compile it and put the executable into your moodle/filter/tex/ directory.';
 $string['mimetexnotexecutable'] = 'Custom mimetex is not executable!';
+$string['missingcategoryrole'] = 'Could not assign role to user: missing role for category.';
 $string['missingfield'] = 'Field "{$a}" is missing';
 $string['missingkeyinsql'] = 'ERROR: missing param "{$a}" in query';
 $string['missingparam'] = 'A required parameter ({$a}) was missing';
@@ -420,6 +426,10 @@ $string['moduledisable'] = 'This module ({$a}) has been disabled for this partic
 $string['moduledoesnotexist'] = 'This module does not exist';
 $string['moduleinstancedoesnotexist'] = 'The instance of this module does not exist';
 $string['modulemissingcode'] = 'Module {$a} is missing the code needed to perform this function';
+$string['moodlenet:invalidshareformat'] = 'Incorrect MoodleNet share format';
+$string['moodlenet:invalidsharestatus'] = 'Incorrect MoodleNet share status';
+$string['moodlenet:invalidsharetype'] = 'Invalid MoodleNet share type';
+$string['moodlenet:usernotconfigured'] = 'You do not have permission to share content to MoodleNet, or your account is incorrectly configured.';
 $string['movecatcontentstoroot'] = 'Moving the category content to root is not allowed. You must move the contents to an existing category!';
 $string['movecatcontentstoselected'] = 'Some category content cannot be moved into the selected category.';
 $string['movecategorynotpossible'] = 'You cannot move category \'{$a}\' into the selected category.';
@@ -487,16 +497,17 @@ $string['onlyadmins'] = 'Only administrators can do that';
 $string['onlyeditingteachers'] = 'Only editing teachers can do that';
 $string['onlyeditown'] = 'You can only edit your own information';
 $string['orderidnotfound'] = 'Order ID {$a} not found';
+$string['opensslsignerror'] = 'OpenSSL unable to sign data';
+$string['opensslsealerror'] = 'OpenSSL unable to seal data';
 $string['pagenotexisttitle'] = '404 Error: File not found';
 $string['pagenotexist'] = '<p>An unusual error occurred trying to view a page that does not exist:</p>{$a}';
+$string['passwordexceeded'] = 'The password can\'t be more than {$a} characters.';
 $string['pathdoesnotstartslash'] = 'No valid arguments supplied, path does not start with slash!';
 $string['pleasereport'] = 'If you have time, please let us know what you were trying to do when the error occurred:';
 $string['pluginrequirementsnotmet'] = 'Plugin "{$a->pluginname}" ({$a->pluginversion}) could not be installed.  It requires a newer version of Moodle (currently you are using {$a->currentmoodle}, you need {$a->requiremoodle}).';
 $string['pluginunsupported'] = 'Plugin "{$a->pluginname}" {$a->pluginversion} does not support this version of Moodle {$a->moodleversion}. Seek plugin information to find supported versions.';
 $string['prefixcannotbeempty'] = '<p>Error: database table prefix cannot be empty ({$a})</p>
 <p>The site administrator must fix this problem.</p>';
-$string['prefixtoolong'] = '<p>Error: database table prefix is too long ({$a->dbfamily})</p>
-<p>The site administrator must fix this problem. Maximum length for table prefixes in {$a->dbfamily} is {$a->maxlength} characters.</p>';
 $string['privatefilesupload'] = 'Uploading directly to user private files area is no longer supported. Upload to a draft area and then move the files with core_user::add_user_private_files';
 $string['processingstops'] = 'Processing stops here. Remaining records ignored.';
 $string['querystringcannotbeempty'] = 'The query string cannot be empty.';
@@ -533,6 +544,9 @@ $string['sessionerroruser2'] = 'A server error that affects your login session w
 $string['sessionipnomatch'] = 'Sorry, but your IP number seems to have changed from when you first logged in.  This security feature prevents crackers stealing your identity while logged in to this site.  Normal users should not be seeing this message - please ask the site administrator for help.';
 $string['sessionipnomatch2'] = '<p>Sorry, but your IP number seems to have changed from when you first logged in. This security feature prevents crackers stealing your identity while logged in to this site. You may see this error if you use wireless networks or if you are roaming between different networks. Please ask the site administrator for more help.</p>
 <p>If you want to continue please press F5 key to refresh this page.</p>';
+$string['sessioncannotobtainlock'] = '<p>Unable to obtain lock for session id {$a->id} within {$a->acquiretimeout}.</p>
+<p>It is likely that another page ({$a->whohaslock}) is still running in another browser tab, or it did not release the lock due to an error.</p>
+<p>You can wait until the session lock timeout ({$a->lockexpire}) or you can restart your browser session. If this error persists, please notify the server administrator.</p>';
 $string['shortnametaken'] = 'Short name is already used for another course ({$a})';
 $string['sitepolicynotagreed'] = 'Site policy not agreed: <a href="{$a}">Click here to open the site policy.</a>';
 $string['scheduledbackupsdisabled'] = 'Scheduled backups have been disabled by the server admin';
@@ -564,6 +578,7 @@ $string['unknowcontext'] = 'This is an unknown context ({$a}) in get_child_conte
 $string['unknowformat'] = 'Format not known ({$a})';
 $string['unknownbackupexporterror'] = 'Unknown error preparing information for import';
 $string['unknownblockregion'] = 'The block region \'{$a}\' is not recognised on this page.';
+$string['unknowncategory'] = 'Unknown category with category ID number "{$a}"';
 $string['unknowncontext'] = 'This is an unknown context.';
 $string['unknowncourse'] = 'Unknown course named "{$a}"';
 $string['unknowncourseidnumber'] = 'Unknown course ID "{$a}"';
@@ -595,6 +610,7 @@ $string['useradminodelete'] = 'Administrator accounts cannot be deleted.';
 $string['userautherror'] = 'Unknown auth plugin';
 $string['userauthunsupported'] = 'Auth plugin not supported here';
 $string['useremailduplicate'] = 'Duplicate address';
+$string['userisfilteredout'] = 'This user does not match filters and table preferences!';
 $string['usermustbemnet'] = 'Users in the MNET access control list must be remote MNET users';
 $string['usernamelowercase'] = 'The username must be in lower case';
 $string['usernotaddederror'] = 'User not added - error';
@@ -631,3 +647,10 @@ $string['xmldberror'] = 'XMLDB error!';
 $string['alreadyloggedin'] = 'You are already logged in as {$a}, you need to log out before logging in as different user.';
 $string['youcannotdeletecategory'] = 'You cannot delete category \'{$a}\' because you can neither delete the contents, nor move them elsewhere.';
 $string['protected_cc_not_supported'] = 'Protected cartridges not supported.';
+
+// Deprecated since Moodle 4.1.
+$string['cannotswitcheditmodeon'] = 'Could not switch edit mode on';
+
+// Deprecated since Moodle 4.3.
+$string['prefixtoolong'] = '<p>Error: database table prefix is too long ({$a->dbfamily})</p>
+<p>The site administrator must fix this problem. Maximum length for table prefixes in {$a->dbfamily} is {$a->maxlength} characters.</p>';

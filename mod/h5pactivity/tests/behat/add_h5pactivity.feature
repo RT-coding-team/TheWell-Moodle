@@ -25,7 +25,6 @@ Feature: Add H5P activity
     Given the following "activity" exists:
       | activity        | h5pactivity                   |
       | course          | C1                            |
-      | section         | 1                             |
       | name            | Awesome H5P package           |
       | intro           | H5P activity Description      |
       | packagefilepath | h5p/tests/fixtures/ipsums.h5p |
@@ -37,99 +36,78 @@ Feature: Add H5P activity
     And I should not see "Reuse"
     And I should not see "Rights of use"
     And I should not see "Embed"
-    And I switch to the main frame
 
   @javascript
   Scenario: Add a h5pactivity activity with download
     Given the following "activity" exists:
       | activity        | h5pactivity                   |
       | course          | C1                            |
-      | section         | 1                             |
       | name            | Awesome H5P package           |
-      | intro           | description                   |
       | displayoptions  | 12                            |
       | packagefilepath | h5p/tests/fixtures/ipsums.h5p |
     When I am on the "Awesome H5P package" "h5pactivity activity" page
-    And I wait until the page is ready
     Then I switch to "h5p-player" class iframe
     And I switch to "h5p-iframe" class iframe
-    And I should see "Reuse"
+    And "Reuse" "text" should exist in the ".h5p-actions" "css_element"
     And I should not see "Rights of use"
     And I should not see "Embed"
-    And I switch to the main frame
 
   @javascript
   Scenario: Add a h5pactivity activity with embed
     Given the following "activity" exists:
       | activity        | h5pactivity                   |
       | course          | C1                            |
-      | section         | 1                             |
       | name            | Awesome H5P package           |
-      | intro           | description                   |
       | displayoptions  | 10                            |
       | packagefilepath | h5p/tests/fixtures/ipsums.h5p |
     When I am on the "Awesome H5P package" "h5pactivity activity" page
-    And I wait until the page is ready
     Then I switch to "h5p-player" class iframe
     And I switch to "h5p-iframe" class iframe
-    And I should not see "Reuse"
+    And "Reuse" "text" should not exist in the ".h5p-actions" "css_element"
     And I should not see "Rights of use"
     And I should see "Embed"
-    And I switch to the main frame
 
   @javascript
   Scenario: Add a h5pactivity activity with copyright
     Given the following "activity" exists:
       | activity        | h5pactivity                             |
       | course          | C1                                      |
-      | section         | 1                                       |
       | name            | Awesome H5P package                     |
-      | intro           | description                             |
       | displayoptions  | 6                                       |
       | packagefilepath | h5p/tests/fixtures/guess-the-answer.h5p |
     When I am on the "Awesome H5P package" "h5pactivity activity" page
-    And I wait until the page is ready
     Then I switch to "h5p-player" class iframe
     And I switch to "h5p-iframe" class iframe
-    And I should not see "Reuse"
+    And "Reuse" "text" should not exist in the ".h5p-actions" "css_element"
     And I should see "Rights of use"
     And I should not see "Embed"
-    And I switch to the main frame
 
   @javascript
   Scenario: Add a h5pactivity activity with copyright in a content without copyright
     Given the following "activity" exists:
       | activity        | h5pactivity                   |
       | course          | C1                            |
-      | section         | 1                             |
       | name            | Awesome H5P package           |
-      | intro           | description                   |
       | displayoptions  | 6                             |
       | packagefilepath | h5p/tests/fixtures/ipsums.h5p |
     When I am on the "Awesome H5P package" "h5pactivity activity" page
-    And I wait until the page is ready
     Then I switch to "h5p-player" class iframe
     And I switch to "h5p-iframe" class iframe
-    And I should not see "Reuse"
+    And "Reuse" "text" should not exist in the ".h5p-actions" "css_element"
     And I should not see "Rights of use"
     And I should not see "Embed"
-    And I switch to the main frame
 
   @javascript
   Scenario: Add a h5pactivity activity to a course with all display options enabled
     Given the following "activity" exists:
       | activity        | h5pactivity                             |
       | course          | C1                                      |
-      | section         | 1                                       |
       | name            | Awesome H5P package                     |
-      | intro           | description                             |
       | displayoptions  | 0                                       |
       | packagefilepath | h5p/tests/fixtures/guess-the-answer.h5p |
     When I am on the "Awesome H5P package" "h5pactivity activity" page
-    And I wait until the page is ready
     Then I switch to "h5p-player" class iframe
     And I switch to "h5p-iframe" class iframe
-    And I should see "Reuse"
+    And "Reuse" "text" should exist in the ".h5p-actions" "css_element"
     And I should see "Rights of use"
     And I should see "Embed"
-    And I switch to the main frame

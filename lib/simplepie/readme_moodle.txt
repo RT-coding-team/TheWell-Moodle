@@ -1,4 +1,4 @@
-Description of SimplePie v1.5.6 library import into Moodle
+Description of SimplePie library import into Moodle
 
 Obtained from https://github.com/simplepie/simplepie/releases/
 
@@ -8,6 +8,7 @@ To upgrade this library:
 3. Extract the contents of the release archive into a directory.
 4. Move the following files/directories from the extracted directory into lib/simplepie:
     - library/
+    - src/
     - autoloader.php
     - LICENSE.txt
     - README.markdown

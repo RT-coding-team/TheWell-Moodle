@@ -14,15 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Core file system class definition.
- *
- * @package   core_files
- * @copyright 2017 Andrew Nicols <andrew@nicols.co.uk>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die();
+use Psr\Http\Message\StreamInterface;
 
 /**
  * File system class used for low level access to real files in filedir.
@@ -365,9 +357,18 @@ abstract class file_system {
             return false;
         }
 
+        $hash = $file->get_contenthash();
+        $cache = cache::make('core', 'file_imageinfo');
+        $info = $cache->get($hash);
+        if ($info !== false) {
+            return $info;
+        }
+
         // Whilst get_imageinfo_from_path can use remote paths, it must download the entire file first.
         // It is more efficient to use a local file when possible.
-        return $this->get_imageinfo_from_path($this->get_local_path_from_storedfile($file, true));
+        $info = $this->get_imageinfo_from_path($this->get_local_path_from_storedfile($file, true));
+        $cache->set($hash, $info);
+        return $info;
     }
 
     /**
@@ -620,6 +621,16 @@ abstract class file_system {
             default:
                 throw new coding_exception('Unexpected file handle type');
         }
+    }
+
+    /**
+     * Get a PSR7 Stream for the specified file which implements the PSR Message StreamInterface.
+     *
+     * @param stored_file $file
+     * @return StreamInterface
+     */
+    public function get_psr_stream(stored_file $file): StreamInterface {
+        return \GuzzleHttp\Psr7\Utils::streamFor($this->get_content_file_handle($file));
     }
 
     /**

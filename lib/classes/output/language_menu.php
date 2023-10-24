@@ -35,7 +35,7 @@ namespace core\output;
  */
 class language_menu implements \renderable, \templatable {
 
-    /** @var moodle_page $page the moodle page that the languague menu belongs to */
+    /** @var \moodle_page $page the moodle page that the languague menu belongs to */
     protected $page;
 
     /** @var string current language code */
@@ -47,7 +47,7 @@ class language_menu implements \renderable, \templatable {
     /**
      * Language menu constructor.
      *
-     * @param moodle_page $page the moodle page that the languague menu belongs to.
+     * @param \moodle_page $page the moodle page that the languague menu belongs to.
      */
     public function __construct($page) {
         $this->page = $page;
@@ -101,7 +101,7 @@ class language_menu implements \renderable, \templatable {
                 // Set the lang attribute for languages different from the page's current language.
                 $attributes[] = [
                     'key' => 'lang',
-                    'value' => str_replace('_', '-', $langtype),
+                    'value' => get_html_lang_attribute_value($langtype),
                 ];
             }
             $node = [

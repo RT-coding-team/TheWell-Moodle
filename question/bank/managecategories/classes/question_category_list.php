@@ -19,6 +19,7 @@ namespace qbank_managecategories;
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir. '/listlib.php');
+require_once($CFG->dirroot . '/question/editlib.php');
 
 use stdClass;
 use moodle_list;
@@ -81,7 +82,8 @@ class question_category_list extends moodle_list {
      * @param \context $context
      */
     public function __construct($type='ul', $attributes='', $editable = false, $pageurl=null,
-                                $page = 0, $pageparamname = 'page', $itemsperpage = 20, $context = null) {
+                                $page = 0, $pageparamname = 'page',
+                                $itemsperpage = DEFAULT_QUESTIONS_PER_PAGE, $context = null) {
         parent::__construct('ul', '', $editable, $pageurl, $page, 'cpage', $itemsperpage);
         $this->context = $context;
     }

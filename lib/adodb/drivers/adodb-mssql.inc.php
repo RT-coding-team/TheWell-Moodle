@@ -429,7 +429,7 @@ class ADODB_mssql extends ADOConnection {
 		return $indexes;
 	}
 
-	function MetaForeignKeys($table, $owner=false, $upper=false)
+	public function metaForeignKeys($table, $owner = '', $upper = false, $associative = false)
 	{
 	global $ADODB_FETCH_MODE;
 
@@ -541,7 +541,6 @@ order by constraint_name, referenced_table_name, keyno";
 	function SelectDB($dbName)
 	{
 		$this->database = $dbName;
-		$this->databaseName = $dbName; # obsolete, retained for compat with older adodb versions
 		if ($this->_connectionID) {
 			return @mssql_select_db($dbName);
 		}

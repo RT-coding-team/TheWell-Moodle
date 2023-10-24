@@ -50,7 +50,7 @@ Feature: Course activity controls works as expected
     And I click on "Cancel" "button"
     And <belowpage> "section" <should_see_other_sections> exist
     And I open "Test forum name 1" actions menu
-    And I click on "Hide" "link" in the "Test forum name 1" activity
+    And I choose "Availability > Hide on course page" in the open action menu
     And <belowpage> "section" <should_see_other_sections> exist
     And I delete "Test forum name 1" activity
     And I should not see "Test forum name 1" in the "region-main" "region"
@@ -83,7 +83,7 @@ Feature: Course activity controls works as expected
       | weeks        | 1             | "1 January - 7 January" | should not                | should not                                               | "8 January - 14 January" |
       | weeks        | 1             | "General"               | should                    | should not                                               | "8 January - 14 January" |
 
-  Scenario Outline: General activities course controls using topics and weeks formats, and paged mode and not paged mode works as expected
+  Scenario Outline: General activities course controls using topics and weeks formats, and paged mode and not paged mode works as expected without javascript
     Given the following "users" exist:
       | username | firstname | lastname | email |
       | teacher1 | Teacher | 1 | teacher1@example.com |
@@ -110,7 +110,7 @@ Feature: Course activity controls works as expected
     And I should see "Display description on course page"
     And I press "Save and return to course"
     And <belowpage> "section" <should_see_other_sections> exist
-    And I click on "Hide" "link" in the "Test forum name 1" activity
+    And I click on "Hide on course page" "link" in the "Test forum name 1" activity
     And <belowpage> "section" <should_see_other_sections> exist
     And I delete "Test forum name 1" activity
     And <belowpage> "section" <should_see_other_sections> exist

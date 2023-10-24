@@ -21,9 +21,9 @@ namespace core_reportbuilder\external;
 use core\external\persistent_exporter;
 use core_table\local\filter\integer_filter;
 use core_table\local\filter\string_filter;
+use core_reportbuilder\system_report;
 use core_reportbuilder\form\filter;
 use core_reportbuilder\local\models\report;
-use core_reportbuilder\local\report\base;
 use core_reportbuilder\table\system_report_table;
 use core_reportbuilder\table\system_report_table_filterset;
 use renderer_base;
@@ -53,7 +53,7 @@ class system_report_exporter extends persistent_exporter {
      */
     protected static function define_related(): array {
         return [
-            'source' => base::class,
+            'source' => system_report::class,
             'parameters' => 'string',
         ];
     }
@@ -69,10 +69,15 @@ class system_report_exporter extends persistent_exporter {
             'parameters' => ['type' => PARAM_RAW],
             'filterspresent' => ['type' => PARAM_BOOL],
             'filtersapplied' => ['type' => PARAM_INT],
-            'filtersform' => [
-                'type' => PARAM_RAW,
-                'optional' => true,
+            'filtersform' => ['type' => PARAM_RAW],
+            'attributes' => [
+                'type' => [
+                    'name' => ['type' => PARAM_TEXT],
+                    'value' => ['type' => PARAM_TEXT]
+                ],
+                'multiple' => true,
             ],
+            'classes' => ['type' => PARAM_TEXT],
         ];
     }
 
@@ -85,7 +90,7 @@ class system_report_exporter extends persistent_exporter {
      * @return array
      */
     protected function get_other_values(renderer_base $output): array {
-        /** @var base $source */
+        /** @var system_report $source */
         $source = $this->related['source'];
 
         /** @var string $parameters */
@@ -102,8 +107,8 @@ class system_report_exporter extends persistent_exporter {
         $table = system_report_table::create($reportid, (array) json_decode($parameters, true));
         $table->set_filterset($filterset);
 
-        // Generate filters form if report contains any filters.
-        $filterspresent = !empty($source->get_active_filters());
+        // Generate filters form if report uses the default form, and contains any filters.
+        $filterspresent = $source->get_filter_form_default() && !empty($source->get_active_filters());
         if ($filterspresent) {
             $filtersform = new filter(null, null, 'post', '', [], true, [
                 'reportid' => $reportid,
@@ -112,12 +117,24 @@ class system_report_exporter extends persistent_exporter {
             $filtersform->set_data_for_dynamic_submission();
         }
 
+        // Get the report classes and attributes.
+        $sourceattributes = $source->get_attributes();
+        if (isset($sourceattributes['class'])) {
+            $classes = $sourceattributes['class'];
+            unset($sourceattributes['class']);
+        }
+        $attributes = array_map(static function($key, $value): array {
+            return ['name' => $key, 'value' => $value];
+        }, array_keys($sourceattributes), $sourceattributes);
+
         return [
             'table' => $output->render($table),
             'parameters' => $parameters,
             'filterspresent' => $filterspresent,
             'filtersapplied' => $source->get_applied_filter_count(),
             'filtersform' => $filterspresent ? $filtersform->render() : '',
+            'attributes' => $attributes,
+            'classes' => $classes ?? '',
         ];
     }
 }

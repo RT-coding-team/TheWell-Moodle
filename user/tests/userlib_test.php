@@ -131,6 +131,49 @@ class userlib_test extends \advanced_testcase {
     }
 
     /**
+     * Tests that the user fields returned by the method can be limited.
+     *
+     * @covers ::user_get_user_details_courses
+     */
+    public function test_user_get_user_details_courses_limit_return() {
+        $this->resetAfterTest();
+
+        // Setup some data.
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id);
+
+        // Calculate the minimum fields that can be returned.
+        $namefields = \core_user\fields::for_name()->get_required_fields();
+        $fields = array_intersect($namefields, user_get_default_fields());
+
+        $minimaluser = (object) [
+            'id' => $user2->id,
+            'deleted' => $user2->deleted,
+        ];
+
+        foreach ($namefields as $field) {
+            $minimaluser->$field = $user2->$field;
+        }
+
+        $this->setUser($user1);
+        $fulldetails = user_get_user_details_courses($user2);
+        $limiteddetails = user_get_user_details_courses($minimaluser, $fields);
+        $this->assertIsArray($fulldetails);
+        $this->assertIsArray($limiteddetails);
+        $this->assertEquals($user2->id, $fulldetails['id']);
+        $this->assertEquals($user2->id, $limiteddetails['id']);
+
+        // Test that less data was returned when using a filter.
+        $fullcount = count($fulldetails);
+        $limitedcount = count($limiteddetails);
+        $this->assertLessThan($fullcount, $limitedcount);
+        $this->assertNotEquals($fulldetails, $limiteddetails);
+    }
+
+    /**
      * Test user_update_user.
      */
     public function test_user_update_user() {
@@ -158,11 +201,7 @@ class userlib_test extends \advanced_testcase {
         // Test event.
         $this->assertInstanceOf('\core\event\user_updated', $event);
         $this->assertSame($user->id, $event->objectid);
-        $this->assertSame('user_updated', $event->get_legacy_eventname());
-        $this->assertEventLegacyData($dbuser, $event);
         $this->assertEquals(\context_user::instance($user->id), $event->get_context());
-        $expectedlogdata = array(SITEID, 'user', 'update', 'view.php?id='.$user->id, '');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
 
         // Update user with no password update.
         $password = $user->password = hash_internal_user_password('M00dLe@T');
@@ -253,11 +292,7 @@ class userlib_test extends \advanced_testcase {
         // Test event.
         $this->assertInstanceOf('\core\event\user_created', $event);
         $this->assertEquals($user['id'], $event->objectid);
-        $this->assertEquals('user_created', $event->get_legacy_eventname());
         $this->assertEquals(\context_user::instance($user['id']), $event->get_context());
-        $this->assertEventLegacyData($dbuser, $event);
-        $expectedlogdata = array(SITEID, 'user', 'add', '/view.php?id='.$event->objectid, fullname($dbuser));
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
 
         // Verify event is not triggred by user_create_user when needed.
         $user = array('username' => 'usernametest2'); // Create another user.
@@ -871,11 +906,11 @@ class userlib_test extends \advanced_testcase {
     }
 
     /**
-     * Test user_get_user_details_permissions
+     * Test user_get_user_details_permissions.
      * @covers ::user_get_user_details
      */
     public function test_user_get_user_details_permissions() {
-        global $CFG, $DB;
+        global $CFG;
 
         $this->resetAfterTest();
 
@@ -890,11 +925,9 @@ class userlib_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id);
         $this->getDataGenerator()->enrol_user($student1->id, $course->id);
         $this->getDataGenerator()->enrol_user($student2->id, $course->id);
-        $teacherrole = $DB->get_record('role', array('shortname' => 'teacher'));
-        $studentrole = $DB->get_record('role', array('shortname' => 'student'));
-        $this->getDataGenerator()->role_assign($teacherrole->id, $teacher->id, $coursecontext->id);
-        $this->getDataGenerator()->role_assign($studentrole->id, $student1->id, $coursecontext->id);
-        $this->getDataGenerator()->role_assign($studentrole->id, $student2->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('teacher', $teacher->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('student', $student1->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('student', $student2->id, $coursecontext->id);
 
         accesslib_clear_all_caches_for_unit_testing();
 
@@ -950,7 +983,6 @@ class userlib_test extends \advanced_testcase {
      * @covers ::user_get_user_details
      */
     public function test_user_get_user_details_groups() {
-        global $DB;
         $this->resetAfterTest();
 
         // Create user and modify user profile.
@@ -963,11 +995,9 @@ class userlib_test extends \advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id);
         $this->getDataGenerator()->enrol_user($student1->id, $course->id);
         $this->getDataGenerator()->enrol_user($student2->id, $course->id);
-        $teacherrole = $DB->get_record('role', array('shortname' => 'teacher'));
-        $studentrole = $DB->get_record('role', array('shortname' => 'student'));
-        $this->getDataGenerator()->role_assign($teacherrole->id, $teacher->id, $coursecontext->id);
-        $this->getDataGenerator()->role_assign($studentrole->id, $student1->id, $coursecontext->id);
-        $this->getDataGenerator()->role_assign($studentrole->id, $student2->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('teacher', $teacher->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('student', $student1->id, $coursecontext->id);
+        $this->getDataGenerator()->role_assign('student', $student2->id, $coursecontext->id);
 
         $group1 = $this->getDataGenerator()->create_group(['courseid' => $course->id, 'name' => 'G1']);
         $group2 = $this->getDataGenerator()->create_group(['courseid' => $course->id, 'name' => 'G2']);

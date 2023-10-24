@@ -54,6 +54,8 @@ class qformat_default {
     protected $importcontext = null;
     /** @var bool $displayprogress Whether to display progress. */
     public $displayprogress = true;
+    /** @var context[] */
+    public $contexts;
 
     // functions to indicate import/export functionality
     // override to return true if implemented
@@ -166,7 +168,7 @@ class qformat_default {
 
     /**
      * set an array of contexts.
-     * @param array $contexts Moodle course variable
+     * @param context[] $contexts
      */
     public function setContexts($contexts) {
         $this->contexts = $contexts;
@@ -474,9 +476,6 @@ class qformat_default {
             $questionversion->status = \core_question\local\bank\question_version_status::QUESTION_STATUS_READY;
             $questionversion->id = $DB->insert_record('question_versions', $questionversion);
 
-            $event = \core\event\question_created::create_from_question_instance($question, $this->importcontext);
-            $event->trigger();
-
             if (isset($question->questiontextitemid)) {
                 $question->questiontext = file_save_draft_area_files($question->questiontextitemid,
                         $this->importcontext->id, 'question', 'questiontext', $question->id,
@@ -504,6 +503,8 @@ class qformat_default {
             // Now to save all the answers and type-specific options
 
             $result = question_bank::get_qtype($question->qtype)->save_question_options($question);
+            $event = \core\event\question_created::create_from_question_instance($question, $this->importcontext);
+            $event->trigger();
 
             if (core_tag_tag::is_enabled('core_question', 'question')) {
                 // Is the current context we're importing in a course context?
@@ -1029,7 +1030,7 @@ class qformat_default {
 
         // did we actually process anything
         if ($count==0) {
-            print_error('noquestions', 'question', $continuepath);
+            throw new \moodle_exception('noquestions', 'question', $continuepath);
         }
 
         // final pre-process on exported data
@@ -1066,7 +1067,7 @@ class qformat_default {
         global $DB;
 
         if (!$category = $DB->get_record('question_categories', array('id' => $id))) {
-            print_error('cannotfindcategory', 'error', '', $id);
+            throw new \moodle_exception('cannotfindcategory', 'error', '', $id);
         }
         $contextstring = $this->translator->context_to_string($category->contextid);
 

@@ -23,7 +23,7 @@ use html_writer;
 use moodle_exception;
 use moodle_url;
 use stdClass;
-use core_reportbuilder\manager;
+use core_reportbuilder\{datasource, manager};
 use core_reportbuilder\local\models\report;
 use core_reportbuilder\local\report\column;
 use core_reportbuilder\output\column_aggregation_editable;
@@ -38,11 +38,17 @@ use core_reportbuilder\output\column_heading_editable;
  */
 class custom_report_table extends base_report_table {
 
+    /** @var datasource $report */
+    protected $report;
+
     /** @var string Unique ID prefix for the table */
     private const UNIQUEID_PREFIX = 'custom-report-table-';
 
     /** @var bool Whether report is being edited (we don't want user filters/sorting to be applied when editing) */
     protected const REPORT_EDITING = true;
+
+    /** @var float $querytimestart Time we began executing table SQL */
+    private $querytimestart = 0.0;
 
     /**
      * Table constructor. Note that the passed unique ID value must match the pattern "custom-report-table-(\d+)" so that
@@ -78,10 +84,11 @@ class custom_report_table extends base_report_table {
         $this->showdownloadbuttonsat = [TABLE_P_BOTTOM];
         $this->is_downloading($download ?? null, $this->persistent->get_formatted_name());
 
-        // Retrieve all report columns, exit early if there are none.
+        // Retrieve all report columns, exit early if there are none. Defining empty columns prevents errors during out().
         $columns = $this->get_active_columns();
         if (empty($columns)) {
             $this->init_sql("{$maintablealias}.*", "{{$maintable}} {$maintablealias}", $joins, '1=0', []);
+            $this->define_columns([0]);
             return;
         }
 
@@ -140,6 +147,7 @@ class custom_report_table extends base_report_table {
         $this->initialbars(false);
         $this->collapsible(false);
         $this->pageable(true);
+        $this->set_default_per_page($this->report->get_default_per_page());
 
         // Initialise table SQL properties.
         $this->set_report_editing(static::REPORT_EDITING);
@@ -280,11 +288,40 @@ class custom_report_table extends base_report_table {
         echo html_writer::end_tag('div');
         $this->wrap_html_finish();
 
-        $notification = (new notification(get_string('nothingtodisplay'), notification::NOTIFY_INFO, false))
+        // With the live editing disabled we need to notify user that data is shown only in preview mode.
+        if ($this->editing && !self::show_live_editing()) {
+            $notificationmsg = get_string('customreportsliveeditingdisabled', 'core_reportbuilder');
+            $notificationtype = notification::NOTIFY_WARNING;
+        } else {
+            $notificationmsg = get_string('nothingtodisplay');
+            $notificationtype = notification::NOTIFY_INFO;
+        }
+
+        $notification = (new notification($notificationmsg, $notificationtype, false))
             ->set_extra_classes(['mt-3']);
         echo $OUTPUT->render($notification);
 
         echo $this->get_dynamic_table_html_end();
+    }
+
+    /**
+     * Provide additional table debugging during editing
+     */
+    public function wrap_html_finish(): void {
+        global $OUTPUT;
+
+        if ($this->editing && debugging('', DEBUG_DEVELOPER)) {
+            $params = array_map(static function(string $param, $value): array {
+                return ['param' => $param, 'value' => var_export($value, true)];
+            }, array_keys($this->sql->params), $this->sql->params);
+
+            echo $OUTPUT->render_from_template('core_reportbuilder/local/report/debug', [
+                'query' => $this->get_table_sql(),
+                'params' => $params,
+                'duration' => $this->querytimestart ?
+                    format_time($this->querytimestart - microtime(true)) : null,
+            ]);
+        }
     }
 
     /**
@@ -306,7 +343,7 @@ class custom_report_table extends base_report_table {
             // We need a cleaned version (without tags/entities) of the first row column to use as toggle button.
             $rowfirstcolumn = strip_tags((string) reset($row));
             $buttontitle = $rowfirstcolumn !== ''
-                ? get_string('showhide', 'core_reportbuilder', html_entity_decode($rowfirstcolumn))
+                ? get_string('showhide', 'core_reportbuilder', html_entity_decode($rowfirstcolumn, ENT_COMPAT))
                 : get_string('showhidecard', 'core_reportbuilder');
 
             $button = html_writer::tag('button', $buttonicon, [
@@ -319,5 +356,37 @@ class custom_report_table extends base_report_table {
             $html .= html_writer::tag('td', $button, ['class' => 'card-toggle d-none']);
         }
         return $html;
+    }
+
+    /**
+     * Overriding this method to handle live editing setting.
+     * @param int $pagesize
+     * @param bool $useinitialsbar
+     * @param string $downloadhelpbutton
+     */
+    public function out($pagesize, $useinitialsbar, $downloadhelpbutton = '') {
+        $this->pagesize = $pagesize;
+        $this->setup();
+
+        // If the live editing setting is disabled, we not need to fetch custom report data except in preview mode.
+        if (!$this->editing || self::show_live_editing()) {
+            $this->querytimestart = microtime(true);
+            $this->query_db($pagesize, $useinitialsbar);
+            $this->build_table();
+            $this->close_recordset();
+        }
+
+        $this->finish_output();
+    }
+
+    /**
+     * Whether or not report data should be included in the table while in editing mode
+     *
+     * @return bool
+     */
+    private static function show_live_editing(): bool {
+        global $CFG;
+
+        return !empty($CFG->customreportsliveediting);
     }
 }

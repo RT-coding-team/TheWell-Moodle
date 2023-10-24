@@ -58,7 +58,10 @@ class qtype_multianswer_edit_form extends question_edit_form {
     public $reload = false;
     /** @var qtype_numerical_answer_processor used when validating numerical answers. */
     protected $ap = null;
-
+    /** @var bool */
+    public $regenerate;
+    /** @var array */
+    public $editas;
 
     public function __construct($submiturl, $question, $category, $contexts, $formeditable = true) {
         $this->regenerate = true;
@@ -280,7 +283,7 @@ class qtype_multianswer_edit_form extends question_edit_form {
                             case 'subquestion_replacement':
                                 continue 2;
                             default:
-                                print_error('unknownquestiontype', 'question', '',
+                                throw new \moodle_exception('unknownquestiontype', 'question', '',
                                         $wrapped->qtype);
                         }
                         $separator = '';
@@ -415,7 +418,7 @@ class qtype_multianswer_edit_form extends question_edit_form {
                             }
 
                             $defaultvalues[$prefix.'answer['.$key.']'] =
-                                    htmlspecialchars($answer);
+                                    htmlspecialchars($answer, ENT_COMPAT);
                         }
                         if ($answercount == 0) {
                             if ($subquestion->qtype == 'multichoice') {
@@ -433,7 +436,7 @@ class qtype_multianswer_edit_form extends question_edit_form {
                         foreach ($subquestion->feedback as $key => $answer) {
 
                             $defaultvalues[$prefix.'feedback['.$key.']'] =
-                                    htmlspecialchars ($answer['text']);
+                                    htmlspecialchars ($answer['text'], ENT_COMPAT);
                         }
                         foreach ($subquestion->fraction as $key => $answer) {
                             $defaultvalues[$prefix.'fraction['.$key.']'] = $answer;

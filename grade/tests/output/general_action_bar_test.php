@@ -76,6 +76,7 @@ class general_action_bar_test extends advanced_testcase {
                 get_string('pluginname', 'gradereport_outcomes'),
                 get_string('pluginname', 'gradereport_overview'),
                 get_string('pluginname', 'gradereport_singleview'),
+                get_string('pluginname', 'gradereport_summary'),
                 get_string('pluginname', 'gradereport_user'),
             ],
             get_string('setup', 'grades') => [
@@ -160,6 +161,7 @@ class general_action_bar_test extends advanced_testcase {
         $outcomespluginname = get_string('pluginname', 'gradereport_outcomes');
         $overviewpluginname = get_string('pluginname', 'gradereport_overview');
         $singleviewpluginname = get_string('pluginname', 'gradereport_singleview');
+        $summarypluginname = get_string('pluginname', 'gradereport_summary');
         $userpluginname = get_string('pluginname', 'gradereport_user');
 
         $viewstr = get_string('view');
@@ -186,6 +188,7 @@ class general_action_bar_test extends advanced_testcase {
                         $historypluginname,
                         $overviewpluginname,
                         $singleviewpluginname,
+                        $summarypluginname,
                         $userpluginname,
                     ],
                     $setupstr => [
@@ -211,6 +214,7 @@ class general_action_bar_test extends advanced_testcase {
                         $outcomespluginname,
                         $overviewpluginname,
                         $singleviewpluginname,
+                        $summarypluginname,
                         $userpluginname,
                     ],
                     $setupstr => [
@@ -236,6 +240,7 @@ class general_action_bar_test extends advanced_testcase {
                         $historypluginname,
                         $overviewpluginname,
                         $singleviewpluginname,
+                        $summarypluginname,
                         $userpluginname,
                     ],
                     $setupstr => [
@@ -261,6 +266,7 @@ class general_action_bar_test extends advanced_testcase {
                         $outcomespluginname,
                         $overviewpluginname,
                         $singleviewpluginname,
+                        $summarypluginname,
                         $userpluginname,
                     ],
                     $setupstr => [
@@ -286,6 +292,7 @@ class general_action_bar_test extends advanced_testcase {
                         $historypluginname,
                         $outcomespluginname,
                         $overviewpluginname,
+                        $summarypluginname,
                         $userpluginname,
                     ],
                     $setupstr => [

@@ -46,7 +46,7 @@ $cm         = get_coursemodule_from_instance('workshop', $workshop->id, $course-
 
 require_login($course, false, $cm);
 if (isguestuser()) {
-    print_error('guestsarenotallowed');
+    throw new \moodle_exception('guestsarenotallowed');
 }
 $workshop = new workshop($workshop, $cm, $course);
 
@@ -153,6 +153,7 @@ if ($canoverridegrades or $cansetassessmentweight) {
     $feedbackform = $workshop->get_feedbackreviewer_form($PAGE->url, $assessment, $options);
     if ($data = $feedbackform->get_data()) {
         $workshop->evaluate_assessment($assessment, $data, $cansetassessmentweight, $canoverridegrades);
+        $workshop->aggregate_grading_grades();
         redirect($workshop->view_url());
     }
 }

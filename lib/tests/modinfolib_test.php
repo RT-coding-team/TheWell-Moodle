@@ -274,7 +274,9 @@ class modinfolib_test extends advanced_testcase {
         $prevcacherev = $cacherev;
 
         // Little trick to check that cache is not rebuilt druing the next step - substitute the value in MUC and later check that it is still there.
+        $cache->acquire_lock($course->id);
         $cache->set_versioned($course->id, $cacherev, (object)array_merge((array)$cachedvalue, array('secretfield' => 1)));
+        $cache->release_lock($course->id);
 
         // Clear static cache and call get_fast_modinfo() again (pretend we are in another request). Cache should not be rebuilt.
         course_modinfo::clear_instance_cache();
@@ -330,6 +332,69 @@ class modinfolib_test extends advanced_testcase {
         $cacherev = $DB->get_field('course', 'cacherev', array('id' => $course->id));
         $this->assertGreaterThan($prevcacherev, $cacherev);
         $this->assertEmpty($cache->get($course->id));
+    }
+
+    /**
+     * The cacherev is updated when we rebuild course cache, but there are scenarios where an
+     * existing course object with old cacherev might be reused within the same request after
+     * clearing the cache. In that case, we need to check that the new data is loaded and it
+     * does not reuse the old cached data with old cacherev.
+     *
+     * @covers ::rebuild_course_cache()
+     */
+    public function test_cache_clear_wrong_cacherev(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $originalcourse = $this->getDataGenerator()->create_course();
+        $course = $DB->get_record('course', ['id' => $originalcourse->id]);
+        $page = $this->getDataGenerator()->create_module('page',
+                ['course' => $course->id, 'name' => 'frog']);
+        $oldmodinfo = get_fast_modinfo($course);
+        $this->assertEquals('frog', $oldmodinfo->get_cm($page->cmid)->name);
+
+        // Change page name and rebuild cache.
+        $DB->set_field('page', 'name', 'Frog', ['id' => $page->id]);
+        rebuild_course_cache($course->id, true);
+
+        // Get modinfo using original course object which has old cacherev.
+        $newmodinfo = get_fast_modinfo($course);
+        $this->assertEquals('Frog', $newmodinfo->get_cm($page->cmid)->name);
+    }
+
+    /**
+     * When cacherev is updated for a course, it is supposed to update in the $COURSE and $SITE
+     * globals automatically. Check this is working.
+     *
+     * @covers ::rebuild_course_cache()
+     */
+    public function test_cacherev_update_in_globals(): void {
+        global $DB, $COURSE, $SITE;
+
+        $this->resetAfterTest();
+
+        // Create a course and get modinfo.
+        $originalcourse = $this->getDataGenerator()->create_course();
+        $oldmodinfo = get_fast_modinfo($originalcourse->id);
+
+        // Store (two clones of) the course in COURSE and SITE globals.
+        $COURSE = get_course($originalcourse->id);
+        $SITE = get_course($originalcourse->id);
+
+        // Note original cacherev.
+        $originalcacherev = $oldmodinfo->get_course()->cacherev;
+        $this->assertEquals($COURSE->cacherev, $originalcacherev);
+        $this->assertEquals($SITE->cacherev, $originalcacherev);
+
+        // Clear the cache and check cacherev updated.
+        rebuild_course_cache($originalcourse->id, true);
+
+        $newcourse = $DB->get_record('course', ['id' => $originalcourse->id]);
+        $this->assertGreaterThan($originalcacherev, $newcourse->cacherev);
+
+        // Check that the in-memory $COURSE and $SITE have updated.
+        $this->assertEquals($newcourse->cacherev, $COURSE->cacherev);
+        $this->assertEquals($newcourse->cacherev, $SITE->cacherev);
     }
 
     public function test_course_modinfo_properties() {
@@ -582,6 +647,39 @@ class modinfolib_test extends advanced_testcase {
     }
 
     /**
+     * Tests for function cm_info::get_activitybadge().
+     *
+     * @covers \cm_info::get_activitybadge
+     */
+    public function test_cm_info_get_activitybadge(): void {
+        global $PAGE;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        $forum = $this->getDataGenerator()->create_module('forum', ['course' => $course->id]);
+        $resource = $this->getDataGenerator()->create_module('resource', ['course' => $course->id]);
+        $assign = $this->getDataGenerator()->create_module('assign', ['course' => $course->id]);
+        $label = $this->getDataGenerator()->create_module('label', ['course' => $course->id]);
+
+        $renderer = $PAGE->get_renderer('core');
+        $modinfo = get_fast_modinfo($course->id);
+
+        // Forum and resource implements the activitybadge feature.
+        $cminfo = $modinfo->get_cm($forum->cmid);
+        $this->assertNotNull($cminfo->get_activitybadge($renderer));
+        $cminfo = $modinfo->get_cm($resource->cmid);
+        $this->assertNotNull($cminfo->get_activitybadge($renderer));
+
+        // Assign and label don't implement the activitybadge feature (at least for now).
+        $cminfo = $modinfo->get_cm($assign->cmid);
+        $this->assertNull($cminfo->get_activitybadge($renderer));
+        $cminfo = $modinfo->get_cm($label->cmid);
+        $this->assertNull($cminfo->get_activitybadge($renderer));
+    }
+
+    /**
      * Tests the availability property that has been added to course modules
      * and sections (just to see that it is correctly saved and accessed).
      */
@@ -801,7 +899,7 @@ class modinfolib_test extends advanced_testcase {
             get_course_and_cm_from_cmid($page->cmid, 'forum');
             $this->fail();
         } catch (moodle_exception $e) {
-            $this->assertEquals('invalidcoursemodule', $e->errorcode);
+            $this->assertEquals('invalidcoursemoduleid', $e->errorcode);
         }
 
         // Invalid module name.
@@ -1095,6 +1193,36 @@ class modinfolib_test extends advanced_testcase {
         $this->assertArrayHasKey(3, $sectioncaches);
         // Make sure that the cacherev will be reset.
         $this->assertEquals(-1, $coursemodinfo->cacherev);
+    }
+
+    /**
+     * Test get_cm() method to output course module id in the exception text.
+     *
+     * @covers \course_modinfo::get_cm
+     * @return void
+     */
+    public function test_invalid_course_module_id(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+        $forum0 = $this->getDataGenerator()->create_module('assign', ['course' => $course->id], ['section' => 0]);
+        $forum1 = $this->getDataGenerator()->create_module('assign', ['course' => $course->id], ['section' => 0]);
+        $forum2 = $this->getDataGenerator()->create_module('assign', ['course' => $course->id], ['section' => 0]);
+
+        // Break section sequence.
+        $modinfo = get_fast_modinfo($course->id);
+        $sectionid = $modinfo->get_section_info(0)->id;
+        $section = $DB->get_record('course_sections', ['id' => $sectionid]);
+        $sequence = explode(',', $section->sequence);
+        $sequence = array_diff($sequence, [$forum1->cmid]);
+        $section->sequence = implode(',', $sequence);
+        $DB->update_record('course_sections', $section);
+
+        // Assert exception text.
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage('Invalid course module ID: ' . $forum1->cmid);
+        delete_course($course, false);
     }
 
     /**
