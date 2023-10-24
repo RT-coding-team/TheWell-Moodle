@@ -946,7 +946,7 @@ class course_modinfo {
                                 }
                             }
                         }
-                        if ((!property_exists($mod[$cmid], 'icon')) || (!$mod[$cmid]->icon)) {
+                        if ((!property_exists($mods[$cmid], 'icon')) || (!$mods[$cmid]->icon)) {
                             /**
                              * Catch activities that haven't set an icon yet, and check
                              * if they have a custom icon
@@ -962,7 +962,7 @@ class course_modinfo {
                                 $rawmods[$cmid]->id
                             );
                              if (array_key_exists('icon', $data)) {
-                                $mod[$cmid]->icon = $data['icon'];
+                                $mods[$cmid]->icon = $data['icon'];
                              }
                         }
                         // When there is no modname_get_coursemodule_info function,
