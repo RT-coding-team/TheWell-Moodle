@@ -101,16 +101,17 @@ function local_module_icons_coursemodule_edit_post_actions($moduleinfo, $course)
 /**
  * Modify the coursemodule info
  *
- * @param  object $coursemodule The course module details
- * @param  object $info         The course module info to modify
- * @return array                The modified module info
+ * @param  int      $courseId         The course module details
+ * @param  int      $courseModuleId   The course module info to modify
+ *
+ * @return array                    The modified module icon data
  */
-function local_module_icons_coursemodule_modify_icon($coursemodule) {
+function local_module_icons_coursemodule_modify_icon($courseId, $courseModuleId) {
     global $OUTPUT, $DB;
     $icon = [];
     $record = $DB->get_record(
         'local_module_icons',
-        ['course_id' => $coursemodule->course, 'course_module_id' => $coursemodule->id]
+        ['course_id' => $courseId, 'course_module_id' => $courseModuleId]
     );
     if ($record && ($record->icon !== 'moodle-system')) {
         $filename = substr($record->icon, 0, strrpos($record->icon, '.'));

@@ -334,6 +334,18 @@ class event_exporter_base extends exporter {
         $purpose = 'none';
         if ($moduleproxy) {
             $purpose = plugin_supports('mod', $moduleproxy->get('modname'), FEATURE_MOD_PURPOSE, 'none');
+            /**
+             * New callback for custom icons
+             *
+             * @author Johnathan <johnathan@missionaldigerati.org>
+             */
+            $data = call_coursemodule_modify_icon(
+                $moduleproxy->get('course'),
+                $moduleproxy->get('id')
+            );
+            if (array_key_exists('purpose', $data)) {
+                $purpose = $data['purpose'];
+            }
         }
         $values['purpose'] = $purpose;
 

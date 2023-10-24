@@ -97,7 +97,7 @@ class cmname implements named_templatable, renderable {
             // Nothing to be displayed to the user.
             return [];
         }
-        $custom = $this->call_coursemodule_modify_icon($mod);
+        $custom = call_coursemodule_modify_icon($mod->course, $mod->id);
         $iconurl = $mod->get_icon_url();
         $iconclass = $iconurl->get_param('filtericon') ? '' : 'nofilter';
         $purpose = plugin_supports('mod', $mod->modname, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
@@ -128,23 +128,6 @@ class cmname implements named_templatable, renderable {
         }
 
         return $data;
-    }
-
-    /**
-     * Allows plugins to modify the coursemodule info
-     *
-     * @param  object $coursemodule The course module details
-     * @return array                The modified module info
-     */
-    protected function call_coursemodule_modify_icon($coursemodule) {
-        $callbacks = get_plugins_with_function('coursemodule_modify_icon', 'lib.php');
-        foreach ($callbacks as $type => $plugins) {
-            foreach ($plugins as $plugin => $pluginfunction) {
-                $info = $pluginfunction($coursemodule, $info);
-            }
-        }
-
-        return $info;
     }
 
     /**

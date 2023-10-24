@@ -10838,3 +10838,23 @@ function site_is_public() {
 
     return $ispublic;
 }
+/**
+ * New Callback: coursemodule_modify_icon. Allows plugins to modify the coursemodule info.
+ *
+ * @param  int      $courseId         The course module details
+ * @param  int      $courseModuleId   The course module info to modify
+ *
+ * @return array                        The modified module icon data
+ *
+ * @author Johnathan <johnathan@missionaldigerati.org>
+ */
+function call_coursemodule_modify_icon($courseId, $courseModuleId) {
+    $callbacks = get_plugins_with_function('coursemodule_modify_icon', 'lib.php');
+    foreach ($callbacks as $type => $plugins) {
+        foreach ($plugins as $plugin => $pluginfunction) {
+            $info = $pluginfunction($courseId, $courseModuleId);
+        }
+    }
+
+    return $info;
+}

@@ -873,10 +873,8 @@ class course_modinfo {
                         $mods[$cmid]->availability = $rawmods[$cmid]->availability;
                         $mods[$cmid]->deletioninprogress = $rawmods[$cmid]->deletioninprogress;
                         $mods[$cmid]->downloadcontent = $rawmods[$cmid]->downloadcontent;
-
                         $modname = $mods[$cmid]->mod;
                         $functionname = $modname . "_get_coursemodule_info";
-
                         if (!file_exists("$CFG->dirroot/mod/$modname/lib.php")) {
                             continue;
                         }
@@ -885,7 +883,18 @@ class course_modinfo {
                         
                         if ($hasfunction = function_exists($functionname)) {
                             if ($info = $functionname($rawmods[$cmid])) {
-                                $info = self::call_coursemodule_modify_icon($rawmods[$cmid], $info);
+                                /**
+                                 * New callback for custom icons
+                                 *
+                                 * @author Johnathan <johnathan@missionaldigerati.org>
+                                 */
+                                $data = call_coursemodule_modify_icon(
+                                    $rawmods[$cmid]->course,
+                                    $rawmods[$cmid]->id
+                                );
+                                if (array_key_exists('icon', $data)) {
+                                    $info->icon = $data['icon'];
+                                }
                                 if (!empty($info->icon)) {
                                     $mods[$cmid]->icon = $info->icon;
                                 }
@@ -932,9 +941,17 @@ class course_modinfo {
                              * if they have a custom icon
                              */
                              $info = new stdClass();
-                             $info = self::call_coursemodule_modify_icon($rawmods[$cmid], $info);
-                             if (!empty($info->icon)) {
-                                 $mod[$cmid]->icon = $info->icon;
+                            /**
+                             * New callback for custom icons
+                             *
+                             * @author Johnathan <johnathan@missionaldigerati.org>
+                             */
+                             $data = call_coursemodule_modify_icon(
+                                $rawmods[$cmid]->course,
+                                $rawmods[$cmid]->id
+                            );
+                             if (array_key_exists('icon', $data)) {
+                                $mod[$cmid]->icon = $data['icon'];
                              }
                         }
                         // When there is no modname_get_coursemodule_info function,
@@ -978,27 +995,6 @@ class course_modinfo {
             }
         }
         return $mods;
-    }
-
-    /**
-     * Allows plugins to modify the coursemodule info
-     *
-     * @param  object $coursemodule The course module details
-     * @param  object $info         The course module info to modify
-     * @return object               The modified module info
-     */
-    private static function call_coursemodule_modify_icon($coursemodule, $info) {
-        $callbacks = get_plugins_with_function('coursemodule_modify_icon', 'lib.php');
-        foreach ($callbacks as $type => $plugins) {
-            foreach ($plugins as $plugin => $pluginfunction) {
-                $data = $pluginfunction($coursemodule, $info);
-                if (array_key_exists('icon', $data)) {
-                    $info->icon = $data['icon'];
-                }
-            }
-        }
-
-        return $info;
     }
 
     /**
