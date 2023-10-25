@@ -14,14 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Block recentlyaccesseditems observer tests.
- *
- * @package    block_recentlyaccesseditems
- * @copyright  2018 Victor Deniz <victor@moodle.com>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @since      Moodle 3.6
- */
+namespace block_recentlyaccesseditems;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -36,8 +29,35 @@ require_once($CFG->dirroot . '/mod/assign/tests/generator.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since      Moodle 3.6
  */
-class block_recentlyaccesseditems_observer_testcase extends advanced_testcase {
-    use mod_assign_test_generator;
+class observer_test extends \advanced_testcase {
+    use \mod_assign_test_generator;
+
+    /** @var string Table name. */
+    protected $table;
+
+    /** @var \stdClass course data. */
+    protected $course;
+
+    /** @var \stdClass student data. */
+    protected $student;
+
+    /** @var \stdClass teacher data. */
+    protected $teacher;
+
+    /** @var \stdClass student role. */
+    protected $studentrole;
+
+    /** @var \stdClass teacher role. */
+    protected $teacherrole;
+
+    /** @var \stdClass course forum. */
+    protected $forum;
+
+    /** @var \stdClass course glossary. */
+    protected $glossary;
+
+    /** @var \stdClass course chat. */
+    protected $chat;
 
     /**
      * Set up for every test
@@ -84,13 +104,13 @@ class block_recentlyaccesseditems_observer_testcase extends advanced_testcase {
 
         // Teacher access forum activity.
         $this->setUser($this->teacher);
-        $event = \mod_forum\event\course_module_viewed::create(array('context' => context_module::instance($this->forum->cmid),
+        $event = \mod_forum\event\course_module_viewed::create(array('context' => \context_module::instance($this->forum->cmid),
                 'objectid' => $this->forum->id));
         $event->trigger();
 
         // Student access chat activity.
         $this->setUser($this->student);
-        $event1 = \mod_chat\event\course_module_viewed::create(array('context' => context_module::instance($this->chat->cmid),
+        $event1 = \mod_chat\event\course_module_viewed::create(array('context' => \context_module::instance($this->chat->cmid),
                 'objectid' => $this->chat->id));
         $event1->trigger();
 
@@ -104,7 +124,7 @@ class block_recentlyaccesseditems_observer_testcase extends advanced_testcase {
 
         $this->waitForSecond();
         // Student access chat activity again after 1 second (no new record created, timeaccess updated).
-        $event2 = \mod_chat\event\course_module_viewed::create(array('context' => context_module::instance($this->chat->cmid),
+        $event2 = \mod_chat\event\course_module_viewed::create(array('context' => \context_module::instance($this->chat->cmid),
                 'objectid' => $this->chat->id));
         $event2->trigger();
 
@@ -129,23 +149,23 @@ class block_recentlyaccesseditems_observer_testcase extends advanced_testcase {
 
         // Teacher access forum activity.
         $this->setUser($this->teacher);
-        $event = \mod_forum\event\course_module_viewed::create(array('context' => context_module::instance($this->forum->cmid),
+        $event = \mod_forum\event\course_module_viewed::create(array('context' => \context_module::instance($this->forum->cmid),
                 'objectid' => $this->forum->id));
         $event->trigger();
 
         // Teacher access chat activity.
-        $event = \mod_chat\event\course_module_viewed::create(array('context' => context_module::instance($this->chat->cmid),
+        $event = \mod_chat\event\course_module_viewed::create(array('context' => \context_module::instance($this->chat->cmid),
                 'objectid' => $this->chat->id));
         $event->trigger();
 
         // Student access chat activity.
         $this->setUser($this->student);
-        $event = \mod_chat\event\course_module_viewed::create(array('context' => context_module::instance($this->chat->cmid),
+        $event = \mod_chat\event\course_module_viewed::create(array('context' => \context_module::instance($this->chat->cmid),
                 'objectid' => $this->chat->id));
         $event->trigger();
 
         // Student access forum activity.
-        $event = \mod_forum\event\course_module_viewed::create(array('context' => context_module::instance($this->forum->cmid),
+        $event = \mod_forum\event\course_module_viewed::create(array('context' => \context_module::instance($this->forum->cmid),
                 'objectid' => $this->forum->id));
         $event->trigger();
 

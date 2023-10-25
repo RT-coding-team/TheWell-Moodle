@@ -35,6 +35,279 @@ use core\task\scheduled_task;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tool_task_renderer extends plugin_renderer_base {
+
+    /**
+     * This function will render a table with the summary of all adhoc tasks.
+     *
+     * @param array $summary
+     * @return string HTML to output.
+     */
+    public function adhoc_tasks_summary_table(array $summary): string {
+        $adhocurl = '/admin/tool/task/adhoctasks.php';
+        $adhocrunurl = '/admin/tool/task/run_adhoctasks.php';
+
+        // Main tasks table.
+        $table = new html_table();
+        $table->caption = get_string('adhoctasks', 'tool_task');
+        $table->head = [
+            get_string('component', 'tool_task') . ' / ' . get_string('classname', 'tool_task'),
+            get_string('adhoctasksrunning', 'tool_task'),
+            get_string('adhoctasksdue', 'tool_task'),
+            get_string('adhoctasksfuture', 'tool_task'),
+            get_string('adhoctasksfailed', 'tool_task'),
+            get_string('nextruntime', 'tool_task'),
+        ];
+
+        $table->attributes['class'] = 'admintable generaltable';
+        $table->colclasses = [];
+
+        // For each task entry (row) show action buttons/logs link depending on the user permissions.
+        $data = [];
+        $canruntasks = \core\task\manager::is_runnable() && get_config('tool_task', 'enablerunnow');
+        foreach ($summary as $component => $classes) {
+            // Component cell.
+            $componentcell = new html_table_cell($component);
+            $componentcell->header = true;
+            $componentcell->id = "tasks-$component";
+            $componentcell->colspan = 6;
+
+            $data[] = new html_table_row([$componentcell]);
+
+            foreach ($classes as $classname => $stats) {
+                // Task class cell.
+                $classbits = explode('\\',  $classname);
+                $classcontent = html_writer::link(
+                    new moodle_url($adhocurl, ['classname' => $classname]),
+                    end($classbits)
+                );
+                $classcell = new html_table_cell($classcontent);
+                $classcell->header = true;
+                $classcell->class = "task-class-summary text-ltr";
+
+                $duecontent = $stats['due'];
+                if ($canruntasks && ($stats['due'] > 0 || $stats['failed'] > 0)) {
+                    $duecontent .= html_writer::div(
+                        html_writer::link(
+                            new moodle_url(
+                                $adhocrunurl,
+                                ['classname' => $classname]
+                            ),
+                            get_string('runclassname', 'tool_task')
+                        ),
+                        'task-runnow'
+                    );
+                }
+
+                // Mark cell if has failed tasks.
+                $failed = $stats['failed'];
+                if ($canruntasks && $failed > 0) {
+                    $failed .= html_writer::div(
+                        html_writer::link(
+                            new moodle_url(
+                                $adhocrunurl,
+                                ['classname' => $classname, 'failedonly' => 1]
+                            ),
+                            get_string('runclassnamefailedonly', 'tool_task')
+                        ),
+                        'task-runnow'
+                    );
+                }
+                $failedcell = new html_table_cell($failed);
+                if ($failed > 0) {
+                    $failedcell->attributes['class'] = 'table-danger';
+                }
+
+                // Prepares the next run time cell contents.
+                $nextrun = '';
+                if ($stats['due'] > 0) {
+                    $nextrun = get_string('asap', 'tool_task');
+                } else if ($stats['nextruntime']) {
+                    $nextrun = userdate($stats['nextruntime']);
+                }
+
+                $data[] = new html_table_row([
+                    $classcell,
+                    new html_table_cell($stats['running']),
+                    new html_table_cell($duecontent),
+                    new html_table_cell($stats['count'] - $stats['running'] - $stats['due']),
+                    $failedcell,
+                    new html_table_cell($nextrun),
+                ]);
+            }
+        }
+        $table->data = $data;
+        return html_writer::table($table);
+    }
+
+    /**
+     * This function will render a table with all the adhoc tasks for the class.
+     *
+     * @param string $classname
+     * @param array $tasks - list of all adhoc tasks.
+     * @param array|null $params
+     * @return string HTML to output.
+     */
+    public function adhoc_tasks_class_table(string $classname, array $tasks, ?array $params = []): string {
+        $adhocurl = '/admin/tool/task/adhoctasks.php';
+        $adhocrunurl = '/admin/tool/task/run_adhoctasks.php';
+        $showloglink = \core\task\logmanager::has_log_report();
+        $failedonly = !empty($params['failedonly']);
+        $canruntasks = \core\task\manager::is_runnable() && get_config('tool_task', 'enablerunnow');
+
+        // Depending on the currently set parameters, set up toggle buttons.
+        $failedorall = html_writer::link(
+            new moodle_url(
+                $adhocurl,
+                array_merge($params, ['classname' => $classname, 'failedonly' => !$failedonly])
+            ),
+            get_string($failedonly ? 'showall' : 'showfailedonly', 'tool_task')
+        );
+
+        // Main tasks table.
+        $table = $this->generate_adhoc_tasks_simple_table($tasks, $canruntasks);
+
+        $table->caption = "$classname "
+            . get_string($failedonly ? 'adhoctasksfailed' : 'adhoctasks', 'tool_task');
+        $table->head[3] .= " $failedorall"; // Spice up faildelay heading.
+
+        if ($showloglink) {
+            // Insert logs as the second col.
+            array_splice($table->head, 1, 0, [get_string('logs')]);
+            array_walk($table->data, function ($row, $idx) use ($classname) {
+                $loglink = '';
+                $faildelaycell = $row->cells[3];
+                if ($faildelaycell->attributes['class'] == 'table-danger') {
+                    // Failed task.
+                    $loglink = $this->output->action_icon(
+                        \core\task\logmanager::get_url_for_task_class($classname),
+                        new pix_icon('e/file-text', get_string('viewlogs', 'tool_task', $classname)
+                    ));
+                }
+
+                array_splice($row->cells, 1, 0, [new html_table_cell($loglink)]);
+            });
+        }
+
+        return html_writer::table($table)
+            . html_writer::div(
+                html_writer::link(
+                    new moodle_url(
+                        $adhocrunurl,
+                        array_merge($params, ['classname' => $classname])
+                    ),
+                    get_string('runclassname', 'tool_task')
+                ),
+                'task-runnow'
+            )
+            . html_writer::div(
+                html_writer::link(
+                    new moodle_url(
+                        $adhocurl
+                    ),
+                    get_string('showsummary', 'tool_task')
+                ),
+                'task-show-summary'
+            );
+    }
+
+    /**
+     * This function will render a plain adhoc tasks table.
+     *
+     * @param array $tasks - list of adhoc tasks.
+     * @return string HTML to output.
+     */
+    public function adhoc_tasks_simple_table(array $tasks): string {
+        $table = $this->generate_adhoc_tasks_simple_table($tasks);
+
+        return html_writer::table($table);
+    }
+
+    /**
+     * This function will render a plain adhoc tasks table.
+     *
+     * @param array $tasks - list of adhoc tasks.
+     * @param bool $wantruntasks add 'Run now' link
+     * @return html_table
+     */
+    private function generate_adhoc_tasks_simple_table(array $tasks, bool $wantruntasks = false): html_table {
+        $adhocrunurl = '/admin/tool/task/run_adhoctasks.php';
+        $now = time();
+        $failedstr = get_string('failed', 'tool_task');
+
+        // Main tasks table.
+        $table = new html_table();
+        $table->caption = get_string('adhoctasks', 'tool_task');
+        $table->head = [
+            get_string('taskid', 'tool_task'),
+            get_string('nextruntime', 'tool_task'),
+            get_string('payload', 'tool_task'),
+            $failedstr
+        ];
+
+        $table->attributes['class'] = 'generaltable';
+        $table->colclasses = [];
+
+        // For each task entry (row) show action buttons/logs link depending on the user permissions.
+        $data = [];
+        foreach ($tasks as $task) {
+            $taskid = $task->get_id();
+            $started = $task->get_timestarted();
+
+            // Task id cell.
+            $taskidcellcontent = html_writer::span($taskid, 'task-id');
+            $taskidcell = new html_table_cell($taskidcellcontent);
+            $taskidcell->header = true;
+            $taskidcell->id = "task-$taskid";
+
+            // Mark cell if task has failed.
+            $faildelay = $task->get_fail_delay();
+            $faildelaycell = new html_table_cell($faildelay ? $failedstr : '');
+            if ($faildelay) {
+                $faildelaycell->attributes['class'] = 'table-danger';
+            }
+
+            // Prepares the next run time cell contents.
+            $nextrun = get_string('started', 'tool_task');
+            if (!$started) {
+                $nextruntime = $task->get_next_run_time();
+                $due = $nextruntime < $now;
+                $nextrun = $due ? userdate($nextruntime) : get_string('asap', 'tool_task');
+
+                if ($wantruntasks && ($faildelay || $due)) {
+                    $nextrun .= ' '.html_writer::div(
+                        html_writer::link(
+                            new moodle_url(
+                                $adhocrunurl,
+                                ['id' => $taskid]
+                            ),
+                            get_string('runnow', 'tool_task')
+                        ),
+                        'task-runnow'
+                    );
+                }
+            }
+
+            $data[] = new html_table_row([
+                $taskidcell,
+                new html_table_cell($nextrun),
+                new html_table_cell($task->get_custom_data_as_string()),
+                $faildelaycell,
+            ]);
+        }
+        $table->data = $data;
+
+        return $table;
+    }
+
+    /**
+     * Displays a notification on ad hoc task run request.
+     *
+     * @return string HTML notification block for task initiated message
+     */
+    public function adhoc_task_run(): string {
+        return $this->output->notification(get_string('adhoctaskrun', 'tool_task'), 'info');
+    }
+
     /**
      * This function will render one beautiful table with all the scheduled tasks.
      *
@@ -76,13 +349,13 @@ class tool_task_renderer extends plugin_renderer_base {
         $data = [];
         $yes = get_string('yes');
         $no = get_string('no');
-        $canruntasks = \core\task\manager::is_runnable();
+        $canruntasks = \core\task\manager::is_runnable() && get_config('tool_task', 'enablerunnow');
         foreach ($tasks as $task) {
             $classname = get_class($task);
             $defaulttask = \core\task\manager::get_default_scheduled_task($classname, false);
 
             $customised = $task->is_customised() ? $no : $yes;
-            if (empty($CFG->preventscheduledtaskchanges)) {
+            if (empty($CFG->preventscheduledtaskchanges) && !$task->is_overridden()) {
                 $configureurl = new moodle_url('/admin/tool/task/scheduledtasks.php',
                         ['action' => 'edit', 'task' => $classname]);
                 $editlink = $this->output->action_icon($configureurl, new pix_icon('t/edit',
@@ -100,17 +373,19 @@ class tool_task_renderer extends plugin_renderer_base {
                 ));
             }
 
-            $namecell = new html_table_cell($task->get_name() . "\n" .
-                    html_writer::span('\\' . $classname, 'task-class text-ltr'));
+            $namecellcontent = $task->get_name() . "\n" .
+                html_writer::span('\\' . $classname, 'task-class text-ltr');
+            if ($task->is_overridden()) {
+                // Let the user know the scheduled task is defined in config.
+                $namecellcontent .= "\n" . html_writer::div(get_string('configoverride', 'admin'), 'alert-info');
+            }
+            $namecell = new html_table_cell($namecellcontent);
             $namecell->header = true;
-
-            $plugininfo = core_plugin_manager::instance()->get_plugin_info($task->get_component());
-            $plugindisabled = $plugininfo && $plugininfo->is_enabled() === false &&
-                    !$task->get_run_if_component_disabled();
-            $disabled = $plugindisabled || $task->get_disabled();
+            $namecell->id = scheduled_task::get_html_id($classname);
 
             $runnow = '';
-            if (!$disabled && get_config('tool_task', 'enablerunnow') && $canruntasks ) {
+            $canrunthistask = $canruntasks && $task->can_run();
+            if ($canrunthistask) {
                 $runnow = html_writer::div(html_writer::link(
                         new moodle_url('/admin/tool/task/schedule_task.php',
                             ['task' => $classname]),
@@ -119,10 +394,14 @@ class tool_task_renderer extends plugin_renderer_base {
 
             $faildelaycell = new html_table_cell($task->get_fail_delay());
             if ($task->get_fail_delay()) {
-                $faildelaycell->text .= html_writer::div(html_writer::link(
+                $faildelaycell->text .= html_writer::div(
+                    $this->output->single_button(
                         new moodle_url('/admin/tool/task/clear_fail_delay.php',
-                                ['task' => $classname, 'sesskey' => sesskey()]),
-                        get_string('clear')), 'task-clearfaildelay');
+                                ['task' => $classname]),
+                        get_string('clear')
+                    ),
+                    'task-runnow'
+                );
                 $faildelaycell->attributes['class'] = 'table-danger';
             }
 
@@ -142,7 +421,7 @@ class tool_task_renderer extends plugin_renderer_base {
                         new html_table_cell($customised)]);
 
             $classes = [];
-            if ($disabled) {
+            if (!$task->is_enabled()) {
                 $classes[] = 'disabled';
             }
             if (get_class($task) == $lastchanged) {
@@ -211,10 +490,9 @@ class tool_task_renderer extends plugin_renderer_base {
      * @return string HTML.
      */
     public function next_run_time(scheduled_task $task): string {
-        $plugininfo = core_plugin_manager::instance()->get_plugin_info($task->get_component());
-
         $nextrun = $task->get_next_run_time();
-        if ($plugininfo && $plugininfo->is_enabled() === false && !$task->get_run_if_component_disabled()) {
+
+        if (!$task->is_component_enabled() && !$task->get_run_if_component_disabled()) {
             $nextrun = get_string('plugindisabled', 'tool_task');
         } else if ($task->get_disabled()) {
             $nextrun = get_string('taskdisabled', 'tool_task');

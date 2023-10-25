@@ -61,6 +61,19 @@ class oauth_helper {
     protected $http;
     /** @var array options to pass to the next curl request */
     protected $http_options;
+    /** @var moodle_url oauth callback URL. */
+    protected $oauth_callback;
+     /** @var string access token. */
+    protected $access_token;
+    /** @var  string access secret token. */
+    protected $access_token_secret;
+    /** @var  string sign secret. */
+    protected $sign_secret;
+    /** @var  string nonce. */
+    protected $nonce;
+    /** @var  int timestamp. */
+    protected $timestamp;
+
 
     /**
      * Contructor for oauth_helper.
@@ -449,7 +462,7 @@ abstract class oauth2_client extends curl {
     public function is_logged_in() {
         // Has the token expired?
         if (isset($this->accesstoken->expires) && time() >= $this->accesstoken->expires) {
-            $this->log_out();
+            $this->store_token(null);
             return false;
         }
 
@@ -576,7 +589,8 @@ abstract class oauth2_client extends curl {
         }
 
         if ($this->info['http_code'] !== 200) {
-            throw new moodle_exception('Could not upgrade oauth token');
+            $debuginfo = !empty($this->error) ? $this->error : $response;
+            throw new moodle_exception('oauth2upgradetokenerror', 'core_error', '', $this->info['http_code'], $debuginfo);
         }
 
         $r = json_decode($response);
@@ -725,11 +739,11 @@ abstract class oauth2_client extends curl {
     }
 
     /**
-     * Get access token.
+     * Get access token object.
      *
      * This is just a getter to read the private property.
      *
-     * @return string
+     * @return stdClass
      */
     public function get_accesstoken() {
         return $this->accesstoken;

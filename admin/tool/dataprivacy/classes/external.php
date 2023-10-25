@@ -21,30 +21,24 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace tool_dataprivacy;
+
 defined('MOODLE_INTERNAL') || die();
 
-require_once("$CFG->libdir/externallib.php");
 require_once($CFG->dirroot . '/' . $CFG->admin . '/tool/dataprivacy/lib.php');
 
-use coding_exception;
 use context_helper;
 use context_system;
 use context_user;
-use core\invalid_persistent_exception;
 use core\notification;
 use core_user;
-use dml_exception;
-use external_api;
-use external_description;
-use external_function_parameters;
-use external_multiple_structure;
-use external_single_structure;
-use external_value;
-use external_warnings;
-use invalid_parameter_exception;
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
+use core_external\external_single_structure;
+use core_external\external_value;
+use core_external\external_warnings;
 use moodle_exception;
 use required_capability_exception;
-use restricted_context_exception;
 use tool_dataprivacy\external\category_exporter;
 use tool_dataprivacy\external\data_request_exporter;
 use tool_dataprivacy\external\purpose_exporter;
@@ -107,7 +101,7 @@ class external extends external_api {
             $request = reset($requests);
             $datasubject = $request->get('userid');
 
-            if ($datasubject !== $USER->id) {
+            if ($datasubject !== (int) $USER->id) {
                 // The user is not the subject. Check that they can cancel this request.
                 if (!api::can_create_data_request_for_user($datasubject)) {
                     $forusercontext = \context_user::instance($datasubject);
@@ -136,7 +130,7 @@ class external extends external_api {
      * Parameter description for cancel_data_request().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function cancel_data_request_returns() {
         return new external_single_structure([
@@ -212,7 +206,8 @@ class external extends external_api {
                 $warnings[] = [
                     'item' => $dpo->id,
                     'warningcode' => 'errorsendingtodpo',
-                    'message' => get_string('errorsendingmessagetodpo', 'tool_dataprivacy')
+                    'message' => get_string('errorsendingmessagetodpo', 'tool_dataprivacy',
+                        fullname($dpo))
                 ];
             }
         }
@@ -227,7 +222,7 @@ class external extends external_api {
      * Parameter description for contact_dpo().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function contact_dpo_returns() {
         return new external_single_structure([
@@ -292,7 +287,7 @@ class external extends external_api {
      * Parameter description for mark_complete().
      *
      * @since Moodle 3.5.2
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function mark_complete_returns() {
         return new external_single_structure([
@@ -354,7 +349,7 @@ class external extends external_api {
      * Parameter description for get_data_request().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function get_data_request_returns() {
         return new external_single_structure([
@@ -426,7 +421,7 @@ class external extends external_api {
      * Parameter description for approve_data_request().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function approve_data_request_returns() {
         return new external_single_structure([
@@ -505,7 +500,7 @@ class external extends external_api {
      * Parameter description for bulk_approve_data_requests().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function bulk_approve_data_requests_returns() {
         return new external_single_structure([
@@ -577,7 +572,7 @@ class external extends external_api {
      * Parameter description for deny_data_request().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function deny_data_request_returns() {
         return new external_single_structure([
@@ -656,7 +651,7 @@ class external extends external_api {
      * Parameter description for bulk_deny_data_requests().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function bulk_deny_data_requests_returns() {
         return new external_single_structure([
@@ -700,18 +695,20 @@ class external extends external_api {
         self::validate_context($context);
         require_capability('tool/dataprivacy:managedatarequests', $context);
 
-        $allusernames = get_all_user_name_fields(true);
+        $userfieldsapi = \core_user\fields::for_name();
+        $allusernames = $userfieldsapi->get_sql('', false, '', '', false)->selects;
         // Exclude admins and guest user.
         $excludedusers = array_keys(get_admins()) + [guest_user()->id];
         $sort = 'lastname ASC, firstname ASC';
         $fields = 'id,' . $allusernames;
 
-        $extrafields = get_extra_user_fields($context);
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $extrafields = \core_user\fields::get_identity_fields($context, false);
         if (!empty($extrafields)) {
             $fields .= ',' . implode(',', $extrafields);
         }
 
-        list($sql, $params) = users_search_sql($query, '', false, $extrafields, $excludedusers);
+        list($sql, $params) = users_search_sql($query, '', USER_SEARCH_STARTS_WITH, $extrafields, $excludedusers);
         $users = $DB->get_records_select('user', $sql, $params, $sort, $fields, 0, 30);
         $useroptions = [];
         foreach ($users as $user) {
@@ -737,7 +734,7 @@ class external extends external_api {
      * Parameter description for get_users().
      *
      * @since Moodle 3.5
-     * @return external_description
+     * @return \core_external\external_description
      * @throws coding_exception
      */
     public static function get_users_returns() {

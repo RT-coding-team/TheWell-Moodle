@@ -101,7 +101,7 @@ if (!file_exists($source)) {
 }
 
 // Emulate normal session - we use admin account by default.
-cron_setup_user();
+\core\cron::setup_user();
 
 // Get the file list.
 $files = [];
@@ -159,6 +159,16 @@ foreach ($langfiles as $lng => $files) {
     $fs = get_file_storage();
 
     cli_heading(get_string('clifiles', 'tool_customlang', $lng));
+
+    // If we intend to check in any changes, we must first check them out.
+    if ($checkin) {
+        cli_writeln(get_string('checkout', 'tool_customlang'));
+
+        $progressbar = new progress_bar();
+        $progressbar->create();
+
+        tool_customlang_utils::checkout($lng, $progressbar);
+    }
 
     foreach ($files as $file) {
         // Generate a valid stored_file from this file.

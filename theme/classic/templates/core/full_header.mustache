@@ -15,7 +15,7 @@
     along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 }}
 {{!
-    @template theme_classic/header
+    @template core/full_header
 
     This template renders the header.
 
@@ -24,7 +24,8 @@
         "contextheader": "context_header_html",
         "hasnavbar": false,
         "navbar": "navbar_if_available",
-        "courseheader": "course_header_html"
+        "courseheader": "course_header_html",
+        "welcomemessage": "welcomemessage"
     }
 }}
 <header id="page-header" class="row">
@@ -56,5 +57,6 @@
                 </div>
             </div>
         </div>
+        {{> core/welcome }}
     </div>
 </header>

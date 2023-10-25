@@ -91,7 +91,7 @@ EOD;
      * This function will take an int or an assignment instance and
      * return an assignment instance. It is just for convenience.
      * @param int|\assign $assignment
-     * @return assign
+     * @return \assign
      */
     private static function get_assignment_from_param($assignment) {
         global $CFG;
@@ -166,7 +166,7 @@ EOD;
 
         // Capability checks.
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         $files = array();
@@ -278,7 +278,7 @@ EOD;
 
         // Capability checks.
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermissiontoaccesspage', 'error');
         }
 
         $grade = $assignment->get_user_grade($userid, true, $attemptnumber);
@@ -363,7 +363,7 @@ EOD;
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         // When in readonly we can return the number of images in the DB because they should already exist,
@@ -400,7 +400,7 @@ EOD;
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         // Need to generate the page images - first get a combined pdf.
@@ -408,7 +408,7 @@ EOD;
 
         $status = $document->get_status();
         if ($status === combined_document::STATUS_FAILED) {
-            print_error('Could not generate combined pdf.');
+            throw new \moodle_exception('Could not generate combined pdf.');
         } else if ($status === combined_document::STATUS_PENDING_INPUT) {
             // The conversion is still in progress.
             return [];
@@ -438,9 +438,13 @@ EOD;
         $fs->delete_area_files($record->contextid, $record->component, $record->filearea, $record->itemid);
 
         $files = array();
+        $images = $pdf->get_images();
         for ($i = 0; $i < $pagecount; $i++) {
             try {
-                $image = $pdf->get_image($i);
+                if (empty($images[$i])) {
+                    throw new \moodle_exception('error image');
+                }
+                $image = $images[$i];
                 if (!$resetrotation) {
                     $pagerotation = page_editor::get_page_rotation($grade->id, $i);
                     $degree = !empty($pagerotation) ? $pagerotation->degree : 0;
@@ -499,7 +503,7 @@ EOD;
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         if ($assignment->get_instance()->teamsubmission) {
@@ -576,14 +580,26 @@ EOD;
             }
         }
 
+        // This should never happen, there should be a version of the pages available
+        // whenever we are requesting the readonly version.
+        if (empty($pages) && $readonly) {
+            throw new \moodle_exception('Could not find readonly pages for grade ' . $grade->id);
+        }
+
+        // There are two situations where the number of page images generated does not
+        // match the number of pages in the PDF:
+        //
+        // 1. The document conversion adhoc task was interrupted somehow (node died, solar flare, etc)
+        // 2. The submission has been updated by the student
+        //
+        // In the case of 1. we need to regenerate the pages, see MDL-66626.
+        // In the case of 2. we should do nothing, see MDL-45580.
+        //
+        // To differentiate between 1. and 2. we can check if the submission has been modified since the
+        // pages were generated. If it has, then we're in situation 2.
         $totalpagesforattempt = self::page_number_for_attempt($assignment, $userid, $attemptnumber, false);
-        // Here we are comparing the total number of images against the total number of pages from the combined PDF.
-        if (empty($pages) || count($pages) != $totalpagesforattempt) {
-            if ($readonly) {
-                // This should never happen, there should be a version of the pages available
-                // whenever we are requesting the readonly version.
-                throw new \moodle_exception('Could not find readonly pages for grade ' . $grade->id);
-            }
+        $submissionmodified = isset($pagemodified) && $submission->timemodified > $pagemodified;
+        if (empty($pages) || (count($pages) != $totalpagesforattempt && !$submissionmodified)) {
             $pages = self::generate_page_images_for_attempt($assignment, $userid, $attemptnumber, $resetrotation);
         }
 
@@ -638,17 +654,18 @@ EOD;
      * @param int|\assign $assignment
      * @param int $userid
      * @param int $attemptnumber (-1 means latest attempt)
-     * @return stored_file
+     * @return \stored_file
      */
     public static function generate_feedback_document($assignment, $userid, $attemptnumber) {
+        global $CFG;
 
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
         if (!$assignment->can_grade()) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         // Need to generate the page images - first get a combined pdf.
@@ -656,7 +673,7 @@ EOD;
 
         $status = $document->get_status();
         if ($status === combined_document::STATUS_FAILED) {
-            print_error('Could not generate combined pdf.');
+            throw new \moodle_exception('Could not generate combined pdf.');
         } else if ($status === combined_document::STATUS_PENDING_INPUT) {
             // The conversion is still in progress.
             return false;
@@ -669,6 +686,20 @@ EOD;
         $file->copy_content_to($combined); // Copy the file.
 
         $pdf = new pdf();
+
+        // Set fontname from course setting if it's enabled.
+        if (!empty($CFG->enablepdfexportfont)) {
+            $fontlist = $pdf->get_export_fontlist();
+            // Load font from course if it's more than 1.
+            if (count($fontlist) > 1) {
+                $course = $assignment->get_course();
+                if (!empty($course->pdfexportfont)) {
+                    $pdf->set_export_font_name($course->pdfexportfont);
+                }
+            } else {
+                $pdf->set_export_font_name(current($fontlist));
+            }
+        }
 
         $fs = get_file_storage();
         $stamptmpdir = make_temp_directory('assignfeedback_editpdf/stamps/' . self::hash($assignment, $userid, $attemptnumber));
@@ -807,14 +838,14 @@ EOD;
      * @param int|\assign $assignment
      * @param int $userid
      * @param int $attemptnumber (-1 means latest attempt)
-     * @return stored_file
+     * @return \stored_file
      */
     public static function get_feedback_document($assignment, $userid, $attemptnumber) {
 
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         $grade = $assignment->get_user_grade($userid, true, $attemptnumber);
@@ -850,10 +881,10 @@ EOD;
         $assignment = self::get_assignment_from_param($assignment);
 
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
         if (!$assignment->can_grade()) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         $grade = $assignment->get_user_grade($userid, true, $attemptnumber);
@@ -916,10 +947,13 @@ EOD;
         $oldfile = $fs->get_file($record->contextid, $record->component, $record->filearea,
             $record->itemid, $record->filepath, $record->filename);
 
-        $newhash = sha1($newfilepath);
-
-        // Delete old file if exists.
-        if ($oldfile && $newhash !== $oldfile->get_contenthash()) {
+        if ($oldfile) {
+            $newhash = \file_storage::hash_from_path($newfilepath);
+            if ($newhash === $oldfile->get_contenthash()) {
+                // Use existing file if contenthash match.
+                return $oldfile;
+            }
+            // Delete existing file.
             $oldfile->delete();
         }
 
@@ -944,7 +978,7 @@ EOD;
         $grade = $assignment->get_user_grade($userid, true, $attemptnumber);
         // Check permission.
         if (!$assignment->can_view_submission($userid)) {
-            print_error('nopermission');
+            throw new \moodle_exception('nopermission');
         }
 
         $filearea = self::PAGE_IMAGE_FILEAREA;

@@ -25,39 +25,27 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define([
-            'jquery',
-            'core/ajax',
-            'core/str',
-            'core/templates',
-            'core/notification',
-            'core/custom_interaction_events',
-            'core/modal_events',
-            'core/modal_factory',
-            'core_calendar/modal_event_form',
-            'core_calendar/summary_modal',
-            'core_calendar/repository',
-            'core_calendar/events',
-            'core_calendar/view_manager',
-            'core_calendar/crud',
-            'core_calendar/selectors',
-        ],
-        function(
-            $,
-            Ajax,
-            Str,
-            Templates,
-            Notification,
-            CustomEvents,
-            ModalEvents,
-            ModalFactory,
-            ModalEventForm,
-            SummaryModal,
-            CalendarRepository,
-            CalendarEvents,
-            CalendarViewManager,
-            CalendarCrud,
-            CalendarSelectors
-        ) {
+    'jquery',
+    'core/templates',
+    'core/notification',
+    'core_calendar/repository',
+    'core_calendar/events',
+    'core_calendar/view_manager',
+    'core_calendar/crud',
+    'core_calendar/selectors',
+    'core/config',
+],
+function(
+    $,
+    Templates,
+    Notification,
+    CalendarRepository,
+    CalendarEvents,
+    CalendarViewManager,
+    CalendarCrud,
+    CalendarSelectors,
+    Config,
+) {
 
     var SELECTORS = {
         ROOT: "[data-region='calendar']",
@@ -68,6 +56,8 @@ define([
         VIEW_DAY_LINK: "[data-action='view-day-link']",
         CALENDAR_MONTH_WRAPPER: ".calendarwrapper",
         TODAY: '.today',
+        DAY_NUMBER_CIRCLE: '.day-number-circle',
+        DAY_NUMBER: '.day-number'
     };
 
     /**
@@ -128,7 +118,7 @@ define([
                     }
                     return;
                 })
-                .fail(Notification.exception);
+                .catch(Notification.exception);
         }
     };
 
@@ -171,20 +161,25 @@ define([
      * @param {object} root The calendar root element
      */
     var registerEventListeners = function(root) {
+        const viewingFullCalendar = document.getElementById(CalendarSelectors.fullCalendarView);
         // Listen the click on the day link to render the day view.
         root.on('click', SELECTORS.VIEW_DAY_LINK, function(e) {
-            var dayLink = $(e.target);
+            var dayLink = $(e.target).closest(SELECTORS.VIEW_DAY_LINK);
             var year = dayLink.data('year'),
                 month = dayLink.data('month'),
                 day = dayLink.data('day'),
                 courseId = dayLink.data('courseid'),
                 categoryId = dayLink.data('categoryid');
-            CalendarViewManager.refreshDayContent(root, year, month, day, courseId, categoryId, root,
+            const url = '?view=day&time=' + dayLink.data('timestamp');
+            if (viewingFullCalendar) {
+                CalendarViewManager.refreshDayContent(root, year, month, day, courseId, categoryId, root,
                     'core_calendar/calendar_day').then(function() {
-                e.preventDefault();
-                var url = '?view=day&time=' + dayLink.data('timestamp');
-                return window.history.pushState({}, '', url);
-            }).fail(Notification.exception);
+                    e.preventDefault();
+                    return CalendarViewManager.updateUrl(url);
+                }).catch(Notification.exception);
+            } else {
+                window.location.assign(Config.wwwroot + '/calendar/view.php' + url);
+            }
         });
 
         root.on('change', CalendarSelectors.elements.courseSelector, function() {
@@ -195,7 +190,7 @@ define([
                     // We need to get the selector again because the content has changed.
                     return root.find(CalendarSelectors.elements.courseSelector).val(courseId);
                 })
-                .fail(Notification.exception);
+                .catch(Notification.exception);
         });
 
         var eventFormPromise = CalendarCrud.registerEventFormModal(root),
@@ -204,30 +199,36 @@ define([
 
         if (contextId) {
             // Bind click events to calendar days.
-            root.on('click', SELECTORS.DAY, function (e) {
-
+            root.on('click', SELECTORS.DAY, function(e) {
                 var target = $(e.target);
+                const displayingSmallBlockCalendar = root.parents('aside').data('blockregion') === 'side-pre';
 
-                if (!target.is(SELECTORS.VIEW_DAY_LINK)) {
-                    var startTime = $(this).attr('data-new-event-timestamp');
-                    eventFormPromise.then(function (modal) {
-                        var wrapper = target.closest(CalendarSelectors.wrapper);
-                        modal.setCourseId(wrapper.data('courseid'));
+                if (!viewingFullCalendar && displayingSmallBlockCalendar) {
+                    const dateContainer = target.closest(SELECTORS.DAY);
+                    const url = '?view=day&time=' + dateContainer.data('day-timestamp');
+                    window.location.assign(Config.wwwroot + '/calendar/view.php' + url);
+                } else {
+                    const hasViewDayLink = target.closest(SELECTORS.VIEW_DAY_LINK).length;
+                    const shouldShowNewEventModal = !hasViewDayLink;
+                    if (shouldShowNewEventModal) {
+                        var startTime = $(this).attr('data-new-event-timestamp');
+                        eventFormPromise.then(function(modal) {
+                            var wrapper = target.closest(CalendarSelectors.wrapper);
+                            modal.setCourseId(wrapper.data('courseid'));
 
-                        var categoryId = wrapper.data('categoryid');
-                        if (typeof categoryId !== 'undefined') {
-                            modal.setCategoryId(categoryId);
-                        }
+                            var categoryId = wrapper.data('categoryid');
+                            if (typeof categoryId !== 'undefined') {
+                                modal.setCategoryId(categoryId);
+                            }
 
-                        modal.setContextId(wrapper.data('contextId'));
-                        modal.setStartTime(startTime);
-                        modal.show();
-                        return;
-                    })
-                    .fail(Notification.exception);
-
-                    e.preventDefault();
+                            modal.setContextId(wrapper.data('contextId'));
+                            modal.setStartTime(startTime);
+                            modal.show();
+                            return;
+                        }).catch(Notification.exception);
+                    }
                 }
+                e.preventDefault();
             });
         }
     };

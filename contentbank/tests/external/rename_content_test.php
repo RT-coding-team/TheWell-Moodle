@@ -33,7 +33,7 @@ require_once($CFG->dirroot . '/contentbank/tests/fixtures/testable_contenttype.p
 require_once($CFG->dirroot . '/contentbank/tests/fixtures/testable_content.php');
 require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 
-use external_api;
+use core_external\external_api;
 
 /**
  * Core content bank external functions tests.
@@ -43,7 +43,7 @@ use external_api;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @coversDefaultClass \core_contentbank\external\rename_content
  */
-class rename_content_testcase extends \externallib_advanced_testcase {
+class rename_content_test extends \externallib_advanced_testcase {
 
     /**
      * Data provider for test_rename_content.

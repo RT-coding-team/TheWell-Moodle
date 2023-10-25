@@ -24,7 +24,7 @@ namespace core_completion;
  * @copyright 2021 Mikhail Golenkov <mikhailgolenkov@catalyst-au.net>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class core_completion_criteria_testcase extends \advanced_testcase {
+class completion_criteria_test extends \advanced_testcase {
 
     /**
      * Test setup.
@@ -47,18 +47,15 @@ class core_completion_criteria_testcase extends \advanced_testcase {
     public function test_completion_criteria_activity(): void {
         global $DB;
         $timestarted = time();
-        $timecompleted = 1620000000;
 
-        // Create a course, an activity and enrol a couple of users.
+        // Create a course, an activity and enrol a user.
         $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
         $assign = $this->getDataGenerator()->create_module('assign', ['course' => $course->id], ['completion' => 1]);
-        $user1 = $this->getDataGenerator()->create_user();
-        $user2 = $this->getDataGenerator()->create_user();
+        $user = $this->getDataGenerator()->create_user();
         $studentrole = $DB->get_record('role', ['shortname' => 'student']);
-        $this->getDataGenerator()->enrol_user($user1->id, $course->id, $studentrole->id);
-        $this->getDataGenerator()->enrol_user($user2->id, $course->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, $studentrole->id);
 
-        // Set completion criteria and mark both users to complete the criteria.
+        // Set completion criteria and mark the user to complete the criteria.
         $criteriadata = (object) [
             'id' => $course->id,
             'criteria_activity' => [$assign->cmid => 1],
@@ -67,67 +64,31 @@ class core_completion_criteria_testcase extends \advanced_testcase {
         $criterion->update_config($criteriadata);
         $cmassign = get_coursemodule_from_id('assign', $assign->cmid);
         $completion = new \completion_info($course);
-        $completion->update_state($cmassign, COMPLETION_COMPLETE, $user1->id);
-        $completion->update_state($cmassign, COMPLETION_COMPLETE, $user2->id);
+        $completion->update_state($cmassign, COMPLETION_COMPLETE, $user->id);
 
-        // Update User 1 to complete the activity at $timecompleted.
-        $params = ['coursemoduleid' => $assign->cmid, 'userid' => $user1->id];
-        $DB->set_field('course_modules_completion', 'timemodified', $timecompleted, $params);
-
-        // Run completion scheduled task.
-        $task = new \core\task\completion_regular_task();
-        $this->expectOutputRegex("/Marking complete/");
-        $task->execute();
-        // Hopefully, some day MDL-33320 will be fixed and all these sleeps
-        // and double cron calls in behat and unit tests will be removed.
-        sleep(1);
-        $task->execute();
-
-        // Completion criteria for User 1 is supposed to be marked as completed at $timecompleted.
-        $result = \core_completion_external::get_activities_completion_status($course->id, $user1->id);
-        $actual = reset($result['statuses']);
-        $this->assertEquals(1, $actual['state']);
-        $this->assertEquals($timecompleted, $actual['timecompleted']);
-
-        // And the whole course is marked as completed at $timecompleted for User 1 because
-        // it's the latest criteria completion date.
-        $ccompletion = new \completion_completion(['userid' => $user1->id, 'course' => $course->id]);
-        $this->assertEquals($timecompleted, $ccompletion->timecompleted);
-        $this->assertTrue($ccompletion->is_complete());
-
-        // Completion criteria for User 2 is supposed to be marked as completed at now().
-        $result = \core_completion_external::get_activities_completion_status($course->id, $user2->id);
+        // Completion criteria for the user is supposed to be marked as completed at now().
+        $result = \core_completion_external::get_activities_completion_status($course->id, $user->id);
         $actual = reset($result['statuses']);
         $this->assertEquals(1, $actual['state']);
         $this->assertGreaterThanOrEqual($timestarted, $actual['timecompleted']);
 
-        // And the whole course is marked as completed at now() for User 2.
-        $ccompletion = new \completion_completion(['userid' => $user2->id, 'course' => $course->id]);
+        // And the whole course is marked as completed at now().
+        $ccompletion = new \completion_completion(['userid' => $user->id, 'course' => $course->id]);
         $this->assertGreaterThanOrEqual($timestarted, $ccompletion->timecompleted);
         $this->assertTrue($ccompletion->is_complete());
     }
 
     /**
-     * Test that enrolment timestart/timecreated are used when duration criteria is marked as completed.
+     * Test that enrolment timestart are used when duration criteria is marked as completed.
      */
-    public function test_completion_criteria_duration(): void {
+    public function test_completion_criteria_duration_timestart(): void {
         global $DB;
         $timestarted = 1610000000;
-        $timecreated = 1620000000;
         $durationperiod = DAYSECS;
 
         // Create a course and users.
         $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
-        $user1 = $this->getDataGenerator()->create_user();
-        $user2 = $this->getDataGenerator()->create_user();
-        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
-
-        // Enrol User 1 with time start = $timestarted.
-        $this->getDataGenerator()->enrol_user($user1->id, $course->id, $studentrole->id, 'manual', $timestarted);
-
-        // Enrol User 2 with an empty time start, but update the record like it was created at $timecreated.
-        $this->getDataGenerator()->enrol_user($user2->id, $course->id, $studentrole->id);
-        $DB->set_field('user_enrolments', 'timecreated', $timecreated, ['userid' => $user2->id]);
+        $user = $this->getDataGenerator()->create_and_enrol($course, 'student', null, 'manual', $timestarted);
 
         // Set completion criteria.
         $criteriadata = (object) [
@@ -147,13 +108,49 @@ class core_completion_criteria_testcase extends \advanced_testcase {
         sleep(1);
         $task->execute();
 
-        // The course for User 1 is supposed to be marked as completed at $timestarted + $durationperiod.
-        $ccompletion = new \completion_completion(['userid' => $user1->id, 'course' => $course->id]);
+        // The course for User is supposed to be marked as completed at $timestarted + $durationperiod.
+        $ccompletion = new \completion_completion(['userid' => $user->id, 'course' => $course->id]);
         $this->assertEquals($timestarted + $durationperiod, $ccompletion->timecompleted);
         $this->assertTrue($ccompletion->is_complete());
+    }
 
-        // The course for User 2 is supposed to be marked as completed at $timecreated + $durationperiod.
-        $ccompletion = new \completion_completion(['userid' => $user2->id, 'course' => $course->id]);
+    /**
+     * Test that enrolment timecreated are used when duration criteria is marked as completed.
+     */
+    public function test_completion_criteria_duration_timecreated(): void {
+        global $DB;
+
+        $timecreated = 1620000000;
+        $durationperiod = DAYSECS;
+
+        // Create a course and users.
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        // Create and enrol user with an empty time start, but update the record like it was created at $timecreated.
+        $user = $this->getDataGenerator()->create_and_enrol($course);
+        $DB->set_field('user_enrolments', 'timecreated', $timecreated, ['userid' => $user->id]);
+
+        // Set completion criteria.
+        $criteriadata = (object) [
+            'id' => $course->id,
+            'criteria_duration' => 1,
+            'criteria_duration_days' => $durationperiod,
+        ];
+        $criterion = new \completion_criteria_duration();
+        $criterion->update_config($criteriadata);
+
+        // Run completion scheduled task.
+        $task = new \core\task\completion_regular_task();
+        $this->expectOutputRegex("/Marking complete/");
+        $task->execute();
+
+        // Hopefully, some day MDL-33320 will be fixed and all these sleeps
+        // and double cron calls in behat and unit tests will be removed.
+        sleep(1);
+        $task->execute();
+
+        // The course for user is supposed to be marked as completed at $timecreated + $durationperiod.
+        $ccompletion = new \completion_completion(['userid' => $user->id, 'course' => $course->id]);
         $this->assertEquals($timecreated + $durationperiod, $ccompletion->timecompleted);
         $this->assertTrue($ccompletion->is_complete());
     }

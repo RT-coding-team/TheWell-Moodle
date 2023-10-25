@@ -190,6 +190,11 @@ class workshop {
     protected $evaluationinstance = null;
 
     /**
+     * @var array It gets initialised in init_initial_bar, and may have keys 'i_first' and 'i_last' depending on what is selected.
+     */
+    protected $initialbarprefs = [];
+
+    /**
      * Initializes the workshop API instance using the data from DB
      *
      * Makes deep copy of all passed records properties.
@@ -448,7 +453,7 @@ class workshop {
         }
 
         if (!is_array($extensions)) {
-            $extensions = preg_split('/[\s,;:"\']+/', $extensions, null, PREG_SPLIT_NO_EMPTY);
+            $extensions = preg_split('/[\s,;:"\']+/', $extensions, -1, PREG_SPLIT_NO_EMPTY);
         }
 
         foreach ($extensions as $i => $extension) {
@@ -680,15 +685,24 @@ class workshop {
         global $DB;
 
         list($sql, $params) = $this->get_participants_sql($musthavesubmission, $groupid);
+        list($filteringsql, $filteringparams) = $this->get_users_with_initial_filtering_sql_where();
+        $wheresql = "";
 
+        if ($filteringsql) {
+            $wheresql .= $filteringsql;
+            $params = array_merge($params, $filteringparams);
+        }
         if (empty($sql)) {
             return array();
         }
 
         list($sort, $sortparams) = users_order_by_sql('tmp');
-        $sql = "SELECT *
-                  FROM ($sql) tmp
-              ORDER BY $sort";
+        $sql = "SELECT * FROM ($sql) tmp";
+
+        if ($wheresql) {
+            $sql .= " WHERE $wheresql";
+        }
+        $sql .= " ORDER BY $sort";
 
         return $DB->get_records_sql($sql, array_merge($params, $sortparams), $limitfrom, $limitnum);
     }
@@ -861,8 +875,9 @@ class workshop {
     public function get_submissions($authorid='all', $groupid=0, $limitfrom=0, $limitnum=0) {
         global $DB;
 
-        $authorfields      = user_picture::fields('u', null, 'authoridx', 'author');
-        $gradeoverbyfields = user_picture::fields('t', null, 'gradeoverbyx', 'over');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $authorfields = $userfieldsapi->get_sql('u', false, 'author', 'authoridx', false)->selects;
+        $gradeoverbyfields = $userfieldsapi->get_sql('t', false, 'over', 'gradeoverbyx', false)->selects;
         $params            = array('workshopid' => $this->id);
         $sql = "SELECT s.id, s.workshopid, s.example, s.authorid, s.timecreated, s.timemodified,
                        s.title, s.grade, s.gradeover, s.gradeoverby, s.published,
@@ -966,8 +981,9 @@ class workshop {
 
         // we intentionally check the workshopid here, too, so the workshop can't touch submissions
         // from other instances
-        $authorfields      = user_picture::fields('u', null, 'authoridx', 'author');
-        $gradeoverbyfields = user_picture::fields('g', null, 'gradeoverbyx', 'gradeoverby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $authorfields = $userfieldsapi->get_sql('u', false, 'author', 'authoridx', false)->selects;
+        $gradeoverbyfields = $userfieldsapi->get_sql('g', false, 'gradeoverby', 'gradeoverbyx', false)->selects;
         $sql = "SELECT s.*, $authorfields, $gradeoverbyfields
                   FROM {workshop_submissions} s
             INNER JOIN {user} u ON (s.authorid = u.id)
@@ -989,8 +1005,9 @@ class workshop {
         if (empty($authorid)) {
             return false;
         }
-        $authorfields      = user_picture::fields('u', null, 'authoridx', 'author');
-        $gradeoverbyfields = user_picture::fields('g', null, 'gradeoverbyx', 'gradeoverby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $authorfields = $userfieldsapi->get_sql('u', false, 'author', 'authoridx', false)->selects;
+        $gradeoverbyfields = $userfieldsapi->get_sql('g', false, 'gradeoverby', 'gradeoverbyx', false)->selects;
         $sql = "SELECT s.*, $authorfields, $gradeoverbyfields
                   FROM {workshop_submissions} s
             INNER JOIN {user} u ON (s.authorid = u.id)
@@ -1008,7 +1025,8 @@ class workshop {
     public function get_published_submissions($orderby='finalgrade DESC') {
         global $DB;
 
-        $authorfields = user_picture::fields('u', null, 'authoridx', 'author');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $authorfields = $userfieldsapi->get_sql('u', false, 'author', 'authoridx', false)->selects;
         $sql = "SELECT s.id, s.authorid, s.timecreated, s.timemodified,
                        s.title, s.grade, s.gradeover, COALESCE(s.gradeover,s.grade) AS finalgrade,
                        $authorfields
@@ -1301,9 +1319,10 @@ class workshop {
     public function get_all_assessments() {
         global $DB;
 
-        $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
-        $authorfields   = user_picture::fields('author', null, 'authorid', 'author');
-        $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $reviewerfields = $userfieldsapi->get_sql('reviewer', false, '', 'revieweridx', false)->selects;
+        $authorfields = $userfieldsapi->get_sql('author', false, 'author', 'authorid', false)->selects;
+        $overbyfields = $userfieldsapi->get_sql('overby', false, 'overby', 'gradinggradeoverbyx', false)->selects;
         list($sort, $params) = users_order_by_sql('reviewer');
         $sql = "SELECT a.id, a.submissionid, a.reviewerid, a.timecreated, a.timemodified,
                        a.grade, a.gradinggrade, a.gradinggradeover, a.gradinggradeoverby,
@@ -1330,9 +1349,10 @@ class workshop {
     public function get_assessment_by_id($id) {
         global $DB;
 
-        $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
-        $authorfields   = user_picture::fields('author', null, 'authorid', 'author');
-        $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $reviewerfields = $userfieldsapi->get_sql('reviewer', false, 'reviewer', 'revieweridx', false)->selects;
+        $authorfields = $userfieldsapi->get_sql('author', false, 'author', 'authorid', false)->selects;
+        $overbyfields = $userfieldsapi->get_sql('overby', false, 'overby', 'gradinggradeoverbyx', false)->selects;
         $sql = "SELECT a.*, s.title, $reviewerfields, $authorfields, $overbyfields
                   FROM {workshop_assessments} a
             INNER JOIN {user} reviewer ON (a.reviewerid = reviewer.id)
@@ -1355,9 +1375,10 @@ class workshop {
     public function get_assessment_of_submission_by_user($submissionid, $reviewerid) {
         global $DB;
 
-        $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
-        $authorfields   = user_picture::fields('author', null, 'authorid', 'author');
-        $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $reviewerfields = $userfieldsapi->get_sql('reviewer', false, 'reviewer', 'revieweridx', false)->selects;
+        $authorfields = $userfieldsapi->get_sql('author', false, 'author', 'authorid', false)->selects;
+        $overbyfields = $userfieldsapi->get_sql('overby', false, 'overby', 'gradinggradeoverbyx', false)->selects;
         $sql = "SELECT a.*, s.title, $reviewerfields, $authorfields, $overbyfields
                   FROM {workshop_assessments} a
             INNER JOIN {user} reviewer ON (a.reviewerid = reviewer.id)
@@ -1379,8 +1400,9 @@ class workshop {
     public function get_assessments_of_submission($submissionid) {
         global $DB;
 
-        $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
-        $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $reviewerfields = $userfieldsapi->get_sql('reviewer', false, 'reviewer', 'revieweridx', false)->selects;
+        $overbyfields = $userfieldsapi->get_sql('overby', false, 'overby', 'gradinggradeoverbyx', false)->selects;
         list($sort, $params) = users_order_by_sql('reviewer');
         $sql = "SELECT a.*, s.title, $reviewerfields, $overbyfields
                   FROM {workshop_assessments} a
@@ -1404,9 +1426,10 @@ class workshop {
     public function get_assessments_by_reviewer($reviewerid) {
         global $DB;
 
-        $reviewerfields = user_picture::fields('reviewer', null, 'revieweridx', 'reviewer');
-        $authorfields   = user_picture::fields('author', null, 'authorid', 'author');
-        $overbyfields   = user_picture::fields('overby', null, 'gradinggradeoverbyx', 'overby');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $reviewerfields = $userfieldsapi->get_sql('reviewer', false, 'reviewer', 'revieweridx', false)->selects;
+        $authorfields = $userfieldsapi->get_sql('author', false, 'author', 'authorid', false)->selects;
+        $overbyfields = $userfieldsapi->get_sql('overby', false, 'overby', 'gradinggradeoverbyx', false)->selects;
         $sql = "SELECT a.*, $reviewerfields, $authorfields, $overbyfields,
                        s.id AS submissionid, s.title AS submissiontitle, s.timecreated AS submissioncreated,
                        s.timemodified AS submissionmodified
@@ -2034,7 +2057,8 @@ class workshop {
                 $sqlsort[] = $sqlsortfieldname . ' ' . $sqlsortfieldhow;
             }
             $sqlsort = implode(',', $sqlsort);
-            $picturefields = user_picture::fields('u', array(), 'userid');
+            $userfieldsapi = \core_user\fields::for_userpic();
+            $picturefields = $userfieldsapi->get_sql('u', false, '', 'userid', false)->selects;
             $sql = "SELECT $picturefields, s.title AS submissiontitle, s.timemodified AS submissionmodified,
                            s.grade AS submissiongrade, ag.gradinggrade
                       FROM {user} u
@@ -2051,7 +2075,7 @@ class workshop {
         $userinfo = array();
 
         // get the user details for all participants to display
-        $additionalnames = get_all_user_name_fields();
+        $additionalnames = \core_user\fields::get_name_fields();
         foreach ($participants as $participant) {
             if (!isset($userinfo[$participant->userid])) {
                 $userinfo[$participant->userid]            = new stdclass();
@@ -2089,7 +2113,8 @@ class workshop {
         if ($submissions) {
             list($submissionids, $params) = $DB->get_in_or_equal(array_keys($submissions), SQL_PARAMS_NAMED);
             list($sort, $sortparams) = users_order_by_sql('r');
-            $picturefields = user_picture::fields('r', array(), 'reviewerid');
+            $userfieldsapi = \core_user\fields::for_userpic();
+            $picturefields = $userfieldsapi->get_sql('r', false, '', 'reviewerid', false)->selects;
             $sql = "SELECT a.id AS assessmentid, a.submissionid, a.grade, a.gradinggrade, a.gradinggradeover, a.weight,
                            $picturefields, s.id AS submissionid, s.authorid
                       FROM {workshop_assessments} a
@@ -2118,7 +2143,8 @@ class workshop {
             list($participantids, $params) = $DB->get_in_or_equal(array_keys($participants), SQL_PARAMS_NAMED);
             list($sort, $sortparams) = users_order_by_sql('e');
             $params['workshopid'] = $this->id;
-            $picturefields = user_picture::fields('e', array(), 'authorid');
+            $userfieldsapi = \core_user\fields::for_userpic();
+            $picturefields = $userfieldsapi->get_sql('e', false, '', 'authorid', false)->selects;
             $sql = "SELECT a.id AS assessmentid, a.submissionid, a.grade, a.gradinggrade, a.gradinggradeover, a.reviewerid, a.weight,
                            s.id AS submissionid, $picturefields
                       FROM {user} u
@@ -3001,7 +3027,6 @@ class workshop {
         $params['other']['pathnamehashes'] = array_keys($files);
 
         $event = \mod_workshop\event\assessable_uploaded::create($params);
-        $event->set_legacy_logdata($logdata);
         $event->trigger();
 
         return $submission->id;
@@ -3027,12 +3052,13 @@ class workshop {
         $canviewallsubmissions = $canviewallsubmissions && $this->check_group_membership($submission->authorid);
 
         if (!$isreviewer and !$isauthor and !($canviewallassessments and $canviewallsubmissions)) {
-            print_error('nopermissions', 'error', $this->view_url(), 'view this assessment');
+            throw new \moodle_exception('nopermissions', 'error', $this->view_url(), 'view this assessment');
         }
 
         if ($isauthor and !$isreviewer and !$canviewallassessments and $this->phase != self::PHASE_CLOSED) {
             // Authors can see assessments of their work at the end of workshop only.
-            print_error('nopermissions', 'error', $this->view_url(), 'view assessment of own work before workshop is closed');
+            throw new \moodle_exception('nopermissions', 'error', $this->view_url(),
+                'view assessment of own work before workshop is closed');
         }
     }
 
@@ -3203,6 +3229,66 @@ class workshop {
             $record->published = !empty($data->published);
         }
         $DB->update_record('workshop_submissions', $record);
+    }
+
+    /**
+     * Get the initial first name.
+     *
+     * @return string|null initial of first name we are currently filtering by.
+     */
+    public function get_initial_first(): ?string {
+        if (empty($this->initialbarprefs['i_first'])) {
+            return null;
+        }
+
+        return $this->initialbarprefs['i_first'];
+    }
+
+    /**
+     * Get the initial last name.
+     *
+     * @return string|null initial of last name we are currently filtering by.
+     */
+    public function get_initial_last(): ?string {
+        if (empty($this->initialbarprefs['i_last'])) {
+            return null;
+        }
+
+        return $this->initialbarprefs['i_last'];
+    }
+
+    /**
+     * Init method for initial bars.
+     * @return void
+     */
+    public function init_initial_bar(): void {
+        global $SESSION;
+        if ($this->phase === self::PHASE_SETUP) {
+            return;
+        }
+
+        $ifirst = optional_param('ifirst', null, PARAM_NOTAGS);
+        $ilast = optional_param('ilast', null, PARAM_NOTAGS);
+
+        if (empty($SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id])) {
+            $SESSION->mod_workshop = new stdClass();
+            $SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id] = [];
+        }
+        if (!empty($SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_first'])) {
+            $this->initialbarprefs['i_first'] = $SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_first'];
+        }
+        if (!empty($SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_last'])) {
+            $this->initialbarprefs['i_last'] = $SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_last'];
+        }
+        if (!is_null($ifirst)) {
+            $this->initialbarprefs['i_first'] = $ifirst;
+            $SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_first'] = $ifirst;
+        }
+
+        if (!is_null($ilast)) {
+            $this->initialbarprefs['i_last'] = $ilast;
+            $SESSION->mod_workshop->initialbarprefs['id-'.$this->context->id]['i_last'] = $ilast;
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -3393,7 +3479,8 @@ class workshop {
 
         list($esql, $params) = get_enrolled_sql($this->context, $capability, $groupid, true);
 
-        $userfields = user_picture::fields('u');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
 
         $sql = "SELECT $userfields
                   FROM {user} u
@@ -3414,6 +3501,28 @@ class workshop {
         }
 
         return array($sql, $params);
+    }
+
+    /**
+     * Returns SQL to fetch all enrolled users with the first name or last name.
+     *
+     * @return array
+     */
+    protected function get_users_with_initial_filtering_sql_where(): array {
+        global $DB;
+        $conditions = [];
+        $params = [];
+        $ifirst = $this->get_initial_first();
+        $ilast = $this->get_initial_last();
+        if ($ifirst) {
+            $conditions[] = $DB->sql_like('LOWER(tmp.firstname)', ':i_first' , false, false);
+            $params['i_first'] = $DB->sql_like_escape($ifirst) . '%';
+        }
+        if ($ilast) {
+            $conditions[] = $DB->sql_like('LOWER(tmp.lastname)', ':i_last' , false, false);
+            $params['i_last'] = $DB->sql_like_escape($ilast) . '%';
+        }
+        return [implode(" AND ", $conditions), $params];
     }
 
     /**
@@ -4042,7 +4151,7 @@ abstract class workshop_submission_base {
      * Usually this is called by the contructor but can be called explicitely, too.
      */
     public function anonymize() {
-        $authorfields = explode(',', user_picture::fields());
+        $authorfields = explode(',', implode(',', \core_user\fields::get_picture_fields()));
         foreach ($authorfields as $field) {
             $prefixedusernamefield = 'author' . $field;
             unset($this->{$prefixedusernamefield});

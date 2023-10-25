@@ -208,21 +208,28 @@ class sqlsrv_native_moodle_database extends moodle_database {
 
         $this->store_settings($dbhost, $dbuser, $dbpass, $dbname, $prefix, $dboptions);
 
+        $options = [
+            'UID' => $this->dbuser,
+            'PWD' => $this->dbpass,
+            'Database' => $this->dbname,
+            'CharacterSet' => 'UTF-8',
+            'MultipleActiveResultSets' => true,
+            'ConnectionPooling' => !empty($this->dboptions['dbpersist']),
+            'ReturnDatesAsStrings' => true,
+        ];
+
         $dbhost = $this->dbhost;
         if (!empty($dboptions['dbport'])) {
             $dbhost .= ',' . $dboptions['dbport'];
         }
 
-        $this->sqlsrv = sqlsrv_connect($dbhost, array
-         (
-          'UID' => $this->dbuser,
-          'PWD' => $this->dbpass,
-          'Database' => $this->dbname,
-          'CharacterSet' => 'UTF-8',
-          'MultipleActiveResultSets' => true,
-          'ConnectionPooling' => !empty($this->dboptions['dbpersist']),
-          'ReturnDatesAsStrings' => true,
-         ));
+        // The sqlsrv_connect() has a lot of connection options to be used.
+        // Users can add any supported options with the 'extrainfo' key in the dboptions.
+        if (isset($this->dboptions['extrainfo'])) {
+            $options = array_merge($options, $this->dboptions['extrainfo']);
+        }
+
+        $this->sqlsrv = sqlsrv_connect($dbhost, $options);
 
         if ($this->sqlsrv === false) {
             $this->sqlsrv = null;
@@ -306,12 +313,12 @@ class sqlsrv_native_moodle_database extends moodle_database {
     /**
      * Called before each db query.
      * @param string $sql
-     * @param array $params array of parameters
+     * @param array|null $params An array of parameters.
      * @param int $type type of query
      * @param mixed $extrainfo driver specific extra information
      * @return void
      */
-    protected function query_start($sql, array $params = null, $type, $extrainfo = null) {
+    protected function query_start($sql, ?array $params, $type, $extrainfo = null) {
         parent::query_start($sql, $params, $type, $extrainfo);
     }
 
@@ -978,10 +985,11 @@ class sqlsrv_native_moodle_database extends moodle_database {
         $results = array();
 
         foreach ($rs as $row) {
-            $id = reset($row);
+            $rowarray = (array)$row;
+            $id = reset($rowarray);
 
             if (isset($results[$id])) {
-                $colname = key($row);
+                $colname = key($rowarray);
                 debugging("Did you remember to make the first column something unique in your call to get_records? Duplicate value '$id' found in column '$colname'.", DEBUG_DEVELOPER);
             }
             $results[$id] = (object)$row;
@@ -1006,7 +1014,8 @@ class sqlsrv_native_moodle_database extends moodle_database {
         $results = array ();
 
         foreach ($rs as $row) {
-            $results[] = reset($row);
+            $rowarray = (array)$row;
+            $results[] = reset($rowarray);
         }
         $rs->close();
 
@@ -1180,7 +1189,7 @@ class sqlsrv_native_moodle_database extends moodle_database {
     /**
      * Update record in database, as fast as possible, no safety checks, lobs not supported.
      * @param string $table name
-     * @param mixed $params data record as object or array
+     * @param stdClass|array $params data record as object or array
      * @param bool true means repeated updates expected
      * @return bool true
      * @throws dml_exception A DML specific exception is thrown for any errors.
@@ -1222,7 +1231,8 @@ class sqlsrv_native_moodle_database extends moodle_database {
      * specify the record to update
      *
      * @param string $table The database table to be checked against.
-     * @param object $dataobject An object with contents equal to fieldname=>fieldvalue. Must have an entry for 'id' to map to the table specified.
+     * @param stdClass|array $dataobject An object with contents equal to fieldname=>fieldvalue.
+     *        Must have an entry for 'id' to map to the table specified.
      * @param bool true means repeated updates expected
      * @return bool true
      * @throws dml_exception A DML specific exception is thrown for any errors.
@@ -1306,6 +1316,16 @@ class sqlsrv_native_moodle_database extends moodle_database {
         $this->do_query($sql, $params, SQL_QUERY_UPDATE);
 
         return true;
+    }
+
+    /**
+     * Return SQL for casting to char of given field/expression
+     *
+     * @param string $field Table field or SQL expression to be cast
+     * @return string
+     */
+    public function sql_cast_to_char(string $field): string {
+        return "CAST({$field} AS NVARCHAR(MAX))";
     }
 
 
@@ -1431,7 +1451,7 @@ class sqlsrv_native_moodle_database extends moodle_database {
         $arr = func_get_args();
 
         foreach ($arr as $key => $ele) {
-            $arr[$key] = ' CAST('.$ele.' AS NVARCHAR(255)) ';
+            $arr[$key] = $this->sql_cast_to_char($ele);
         }
         $s = implode(' + ', $arr);
 
@@ -1445,7 +1465,20 @@ class sqlsrv_native_moodle_database extends moodle_database {
         for ($n = count($elements) - 1; $n > 0; $n--) {
             array_splice($elements, $n, 0, $separator);
         }
-        return call_user_func_array(array($this, 'sql_concat'), $elements);
+        return call_user_func_array(array($this, 'sql_concat'), array_values($elements));
+    }
+
+    /**
+     * Return SQL for performing group concatenation on given field/expression
+     *
+     * @param string $field
+     * @param string $separator
+     * @param string $sort
+     * @return string
+     */
+    public function sql_group_concat(string $field, string $separator = ', ', string $sort = ''): string {
+        $fieldsort = $sort ? "WITHIN GROUP (ORDER BY {$sort})" : '';
+        return "STRING_AGG({$field}, '{$separator}') {$fieldsort}";
     }
 
     public function sql_isempty($tablename, $fieldname, $nullablefield, $textfield) {

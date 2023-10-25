@@ -53,11 +53,11 @@ class course_delete_modules extends \core\task\adhoc_task {
         // Set the proper user.
         if ($this->get_custom_data()->userid !== $this->get_custom_data()->realuserid) {
             $realuser = \core_user::get_user($this->get_custom_data()->realuserid, '*', MUST_EXIST);
-            cron_setup_user($realuser);
+            \core\cron::setup_user($realuser);
             \core\session\manager::loginas($this->get_custom_data()->userid, \context_system::instance(), false);
         } else {
             $user = \core_user::get_user($this->get_custom_data()->userid, '*', MUST_EXIST);
-            cron_setup_user($user);
+            \core\cron::setup_user($user);
         }
 
         $cms = $this->get_custom_data()->cms;
@@ -65,7 +65,8 @@ class course_delete_modules extends \core\task\adhoc_task {
             try {
                 course_delete_module($cm->id);
             } catch (\Exception $e) {
-                throw new \coding_exception("The course module {$cm->id} could not be deleted. {$e->getTraceAsString()}");
+                throw new \coding_exception("The course module {$cm->id} could not be deleted. "
+                    . "{$e->getMessage()}: {$e->getFile()}({$e->getLine()}) {$e->getTraceAsString()}");
             }
         }
     }

@@ -1,26 +1,22 @@
 /* core.less */
 
-// When we upgrade boostrap to v4 release, we will need to change this to be used by the text-white class.
-// Because a primary colour that is both AA accessible on grey (footer) and white is not possible, we always
-// want white default colour.
-$bg-inverse-link-color: #fff !default;
+$bg-inverse-link-color: $white !default;
+
+$dropzone-border: $gray-900 !default;
+
+$collapse-list-item-padding-y: 0.5rem !default;
+$collapse-list-item-padding-x: 1rem !default;
+$collapse-list-item-hover-bg: theme-color-level('info', -11) !default;
+$collapse-list-item-hover-border: theme-color-level('info', -9) !default;
+
+$thin-scroll-bg-thumb: $gray-600 !default;
+$thin-scroll-bg-hover: $gray-700 !default;
 
 $font-size-xs: ($font-size-base * .75) !default;
 
 #region-main {
-    overflow-x: auto;
     overflow-y: visible;
     background-color: $body-bg;
-}
-
-@include media-breakpoint-up(sm) {
-    #region-main {
-        border: $card-border-width solid $card-border-color;
-        @if $enable-rounded {
-            @include border-radius($card-border-radius);
-        }
-        padding: $card-spacer-x;
-    }
 }
 
 @include media-breakpoint-up(sm) {
@@ -43,33 +39,16 @@ $font-size-xs: ($font-size-base * .75) !default;
     }
 }
 
-$gototop-bottom-position: 50px !default;
+@mixin optional-animation($animation) {
+    animation: $animation;
 
-#goto-top-link {
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity .7s ease 0s, visibility .1s ease .8s;
-    display: block;
-    position: fixed;
-    bottom: $gototop-bottom-position;
-    right: 0;
-    a {
-        position: absolute;
-        right: 0;
-        transform: translateY(-100%);
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
     }
-}
 
-@include media-breakpoint-down(sm) {
-    #goto-top-link {
-        bottom: 0;
+    body.behat-site & {
+        animation: none;
     }
-}
-
-body.scrolled #goto-top-link {
-    opacity: 1;
-    visibility: visible;
-    transition: visibility 0s ease 0s, opacity .7s ease .1s;
 }
 
 .context-header-settings-menu .dropdown-toggle > .icon,
@@ -159,6 +138,7 @@ a:not([class]),
 .btn-link,
 .nav-link,
 .editor_atto_toolbar button,
+.editor_atto_toolbar .atto_toolbar_row,
 [role="button"],
 .list-group-item-action,
 input[type="checkbox"],
@@ -167,7 +147,6 @@ input[type="file"],
 input[type="image"],
 .sr-only-focusable,
 a.dropdown-toggle,
-.modal-dialog[tabindex="0"],
 .moodle-dialogue-base .closebutton,
 button.close,
 .form-autocomplete-selection,
@@ -179,6 +158,21 @@ button.close,
     }
     &:focus:hover {
         text-decoration: none;
+    }
+}
+
+// Modal dialogs border should be rounded too.
+.modal-dialog[tabindex="0"] {
+    &.focus,
+    &:focus {
+        outline: 0;
+        .modal-content {
+            outline: 0;
+            box-shadow: $input-btn-focus-box-shadow;
+
+            // Modal dialogs border should be rounded too.
+            @include border-radius($modal-content-border-radius);
+        }
     }
 }
 
@@ -220,7 +214,6 @@ button.close,
 .inline-list li,
 .block .list,
 .block .list li,
-.section li.activity,
 .section li.movehere,
 .tabtree li {
     list-style: none;
@@ -268,6 +261,10 @@ button.close,
     color: map-get($theme-colors, 'info');
 }
 
+.bg-primary-light {
+    background-color: $primary-light-background;
+}
+
 .fitem.advanced .text-info {
     font-weight: bold;
 }
@@ -276,8 +273,11 @@ button.close,
     text-align: right;
 }
 
-a.autolink.glossary:hover {
-    cursor: help;
+a.autolink {
+    @extend .aalink;
+    &.glossary:hover {
+        cursor: help;
+    }
 }
 /* Block which is hidden if javascript enabled, prevents fickering visible when JS from footer used! */
 .collapsibleregioncaption {
@@ -340,24 +340,11 @@ a.autolink.glossary:hover {
     display: block;
 }
 
-.collapsible-actions .collapseexpand {
-    padding-left: 20px;
-    background: url([[pix:t/collapsed]]) 2px center no-repeat;
-}
-/*rtl:raw:
-.collapsible-actions .collapseexpand {
-    background: url([[pix:t/collapsed_rtl]]) right center no-repeat;
-}
-*/
-.collapsible-actions .collapse-all {
-    background-image: url([[pix:t/expanded]]);
-}
-
 .yui-overlay .yui-widget-bd {
-    background-color: #ffee69;
-    border: 1px solid #a6982b;
-    border-top-color: #d4c237;
-    color: #000;
+    background-color: $yui-overlay-bg;
+    border: 1px solid $yui-overlay-border-color;
+    border-top-color: $yui-overlay-border-top-color;
+    color: $yui-overlay-color;
     left: 0;
     padding: 2px 5px;
     position: relative;
@@ -383,21 +370,9 @@ a.autolink.glossary:hover {
     font-weight: bold;
 }
 
-img.userpicture {
-    margin-right: 0.5rem;
-}
-
 img.resize {
     height: 1em;
     width: 1em;
-}
-
-.action-menu .dropdown-toggle {
-    text-decoration: none;
-}
-
-.action-menu {
-    white-space: nowrap;
 }
 
 .block img.resize {
@@ -448,9 +423,20 @@ form.popupform div {
 
 // Position required for table sizing inside a flex container.
 .no-overflow > .generaltable {
-    position: relative;
     margin-bottom: 0;
 }
+
+.no-overflow,
+.table-responsive {
+    .generaltable {
+        .sr-only,
+        .accesshide {
+            position: relative;
+            display: block;
+        }
+    }
+}
+
 // Accessibility features
 
 // Accessibility: text 'seen' by screen readers but not visual users.
@@ -562,21 +548,6 @@ a.skip:active {
     display: inline-block;
 }
 
-// Login
-.login-page {
-    [name="username"] {
-        margin-bottom: -1px;
-        border-bottom-right-radius: 0;
-        border-bottom-left-radius: 0;
-    }
-
-    [type="password"] {
-        margin-bottom: 10px;
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-    }
-}
-
 // Notes
 .notepost {
     margin-bottom: 1em;
@@ -654,7 +625,7 @@ table.mod_index {
 }
 
 .comment-meta span {
-    color: gray;
+    color: $comment-meta-color;
 }
 
 .comment-link img {
@@ -691,12 +662,12 @@ table.mod_index {
 }
 
 .comment-paging .curpage {
-    border: 1px solid #ccc;
+    border: 1px solid $comment-paging-current-border-color;
 }
 
 .comment-message .picture {
-    width: 20px;
     float: left;
+    margin-right: 0.25rem;
 }
 
 .comment-message .text {
@@ -773,7 +744,7 @@ img.user-image {
 }
 
 .path-tag .tag-index-items .tagarea {
-    border: 1px solid #e3e3e3;
+    border: 1px solid $tags-tagarea-border-color;
     border-radius: 4px;
     padding: 10px;
     margin-top: 10px;
@@ -786,11 +757,11 @@ img.user-image {
     font-size: 1.1em;
     font-weight: bold;
     line-height: 20px;
-    color: #999;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    color: $tags-tagarea-title-color;
+    text-shadow: 0 1px 0 $tags-tagarea-title-text-shadow-color;
     text-transform: uppercase;
     word-wrap: break-word;
-    border-bottom: solid 1px #e3e3e3;
+    border-bottom: solid 1px $tags-tagarea-title-border-color;
     margin-bottom: 10px;
 }
 
@@ -1038,7 +1009,7 @@ tr.flagged-tag a {
 */
 #webservice-doc-generator td {
     text-align: left;
-    border: 0 solid black;
+    border: 0 solid $webservice-doc-td-border-color;
 }
 
 /**
@@ -1111,7 +1082,7 @@ tr.flagged-tag a {
     margin: 3px;
 
     > a:hover {
-        border-bottom: 1px solid #666;
+        border-bottom: 1px solid $userenrolment-link-hover-border-color;
     }
 }
 
@@ -1135,8 +1106,16 @@ tr.flagged-tag a {
     margin-left: 3px;
 }
 
+#page-enrol-otherusers .userenrolment .col_role {
+    .role {
+        float: none;
+        margin: 3px 3px 3px 0;
+        padding: 3px 3px 3px 0;
+    }
+}
+
 .corelightbox {
-    background-color: #ccc;
+    background-color: $corelightbox-bg;
     position: absolute;
     top: 0;
     left: 0;
@@ -1162,6 +1141,10 @@ tr.flagged-tag a {
 .label .mod-indent {
     float: left;
     padding-top: 20px;
+}
+
+.activity.label.modtype_label .mod-indent {
+    float: none;
 }
 
 @include media-breakpoint-up(sm) {
@@ -1203,20 +1186,9 @@ tr.flagged-tag a {
 audio.mediaplugin_html5audio {
     width: 300px;
 }
-/* TinyMCE moodle media preview frame should not have padding */
-.core_media_preview.pagelayout-embedded #content {
-    padding: 0;
-}
 
 .core_media_preview.pagelayout-embedded #maincontent {
     height: 0;
-}
-
-body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-    background: none;
 }
 
 .path-rating .ratingtable {
@@ -1273,8 +1245,8 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 }
 
 .moodle-dialogue-base .moodle-dialogue-wrap {
-    background-color: #fff;
-    border: 1px solid #ccc;
+    background-color: $dialogue-base-bg;
+    border: 1px solid $dialogue-base-border-color;
 }
 
 // Show is a bootstrap 2 class - but we use it for modals. We don't want to enable it everywhere because they removed
@@ -1286,7 +1258,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 .moodle-dialogue-base .moodle-dialogue-wrap .moodle-dialogue-hd {
     display: flex;
     padding: 1rem 1rem;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid $dialogue-base-hd-border-color;
 }
 
 .moodle-dialogue-base .moodle-dialogue-wrap .moodle-dialogue-hd.yui3-widget-hd {
@@ -1356,18 +1328,18 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 }
 
 .moodle-dialogue-exception .param-stacktrace label {
-    background-color: #eee;
-    border: 1px solid #ccc;
+    background-color: $dialogue-exception-label-bg;
+    border: 1px solid $dialogue-exception-label-border-color;
     border-bottom-width: 0;
 }
 
 .moodle-dialogue-exception .param-stacktrace pre {
-    border: 1px solid #ccc;
-    background-color: #fff;
+    border: 1px solid $dialogue-exception-pre-border-color;
+    background-color: $dialogue-exception-pre-bg;
 }
 
 .moodle-dialogue-exception .param-stacktrace .stacktrace-file {
-    color: navy;
+    color: $dialogue-exception-file-color;
     font-size: $font-size-sm;
 }
 
@@ -1377,9 +1349,9 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 }
 
 .moodle-dialogue-exception .param-stacktrace .stacktrace-call {
-    color: #333;
+    color: $dialogue-exception-call-color;
     font-size: 90%;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid $dialogue-exception-call-border-color;
 }
 
 .moodle-dialogue-base .moodle-dialogue .moodle-dialogue-content .moodle-dialogue-ft:empty {
@@ -1446,7 +1418,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
     height: 100%;
     top: 0;
     left: 0;
-    background-color: white;
+    background-color: $dialogue-lightbox-bg;
     text-align: center;
     padding: 10% 0;
 }
@@ -1481,7 +1453,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 
 .chooserdialogue .moodle-dialogue-wrap .moodle-dialogue-bd {
     padding: 0;
-    background: #f2f2f2;
+    background: $chooserdialogue-bg;
 
     @include border-bottom-radius(10px);
 }
@@ -1505,7 +1477,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 /* Various settings for the options area */
 .choosercontainer #chooseform .options {
     position: relative;
-    border-bottom: 1px solid #bbb;
+    border-bottom: 1px solid $chooserdialogue-options-border-color;
 }
 /* Only set these options if we're showing the js container */
 .jschooser .choosercontainer #chooseform .alloptions {
@@ -1557,8 +1529,8 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 .choosercontainer #chooseform .option label {
     display: block;
     margin: 0;
-    padding: ($spacer / 2) 0;
-    border-bottom: 1px solid #fff;
+    padding: ($spacer * 0.5) 0;
+    border-bottom: 1px solid $choosercontainer-label-border-color;
 }
 
 .choosercontainer #chooseform .option .icon {
@@ -1591,7 +1563,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
     left: 240px;
     margin: 0;
     padding: 1.6em;
-    background-color: #fff;
+    background-color: $choosercontainer-instruction-bg;
     overflow-x: hidden;
     overflow-y: auto;
     line-height: 2em;
@@ -1603,7 +1575,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 }
 
 .choosercontainer #chooseform .selected {
-    background-color: #fff;
+    background-color: $choosercontainer-chooseform-selected-bg;
     margin-top: -1px;
     padding-top: 1px;
 }
@@ -1786,8 +1758,8 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
     position: relative;
     margin: 15px 0;
     padding: 1px 19px 14px;
-    background-color: white;
-    border: 1px solid #ddd;
+    background-color: $formlisting-bg;
+    border: 1px solid $formlisting-border-color;
 
     @include border-radius(4px);
 }
@@ -1800,9 +1772,9 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
     padding: 3px 7px;
     font-size: 12px;
     font-weight: bold;
-    background-color: whitesmoke;
-    border: 1px solid #ddd;
-    color: #9da0a4;
+    background-color: $formlistingmore-bg;
+    border: 1px solid $formlistingmore-border-color;
+    color: $formlistingmore-color;
 
     @include border-radius(4px 0 4px 0);
 }
@@ -1817,10 +1789,10 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
 .formlistingrow {
     cursor: pointer;
     border-bottom: 1px solid;
-    border-color: #e1e1e8;
-    border-left: 1px solid #e1e1e8;
-    border-right: 1px solid #e1e1e8;
-    background-color: #f7f7f9;
+    border-color: $formlistingrow-border-color;
+    border-left: 1px solid $formlistingrow-border-color;
+    border-right: 1px solid $formlistingrow-border-color;
+    background-color: $formlistingrow-bg;
 
     @include border-radius(0 0 4px 4px);
     padding: 6px;
@@ -1847,8 +1819,8 @@ a.criteria-action {
 div.criteria-description {
     padding: 10px 15px;
     margin: 5px 0;
-    background: none repeat scroll 0 0 #f9f9f9;
-    border: 1px solid #eee;
+    background: none repeat scroll 0 0 $criteria-desc-bg;
+    border: 1px solid $criteria-desc-border-color;
 }
 
 ul.badges {
@@ -1962,6 +1934,14 @@ ul.badges {
     }
 }
 
+#badge-criteria li li {
+    list-style-type: none;
+}
+
+#badge-image-col {
+    flex: 0 0 400px;
+}
+
 .badge-profile {
     vertical-align: top;
 }
@@ -2041,6 +2021,9 @@ img#persona_signin {
 
 /** Page header */
 #page-header {
+    h1.h2 {
+        font-weight: bold;
+    }
     .logo {
         margin: $spacer 0;
         img {
@@ -2070,18 +2053,11 @@ nav.navbar .logo img {
 
     // Do not remove these rules.
     overflow: hidden;
-    padding: 0.25rem;
+    padding: 0.25rem 0;
 
-    .page-header-image,
-    .page-header-headings {
-        float: left;
-        display: block;
-        position: relative;
-    }
+    display: flex;
 
     .page-header-image {
-        margin-right: 1em;
-        margin-bottom: 1em;
         & > a {
             display: inline-block;
         }
@@ -2109,7 +2085,7 @@ a.disabled {
     text-decoration: none;
     cursor: default;
     font-style: italic;
-    color: #808080;
+    color: $text-muted;
 }
 
 body.lockscroll {
@@ -2163,6 +2139,9 @@ dd:after {
                 width: 330px;
                 vertical-align: text-bottom;
                 margin-bottom: 0;
+                &[role="combobox"] {
+                    width: auto;
+                }
             }
         }
 
@@ -2200,6 +2179,14 @@ h3.sectionname .inplaceeditable.inplaceeditingon .editinstructions {
 
 /** Chart area. */
 .chart-area {
+    @include media-breakpoint-up(lg) {
+        .chart-image {
+            position: relative;
+            margin: auto;
+            height: 48vh;
+            width: 46vw;
+        }
+    }
 
     .chart-table-data {
         display: none;
@@ -2219,12 +2206,6 @@ h3.sectionname .inplaceeditable.inplaceeditingon .editinstructions {
             }
         }
     }
-}
-
-// Reset for ul.
-ul {
-    padding-left: 1rem;
-    -webkit-margin-start: 0.2rem;  /* stylelint-disable-line */
 }
 
 /* YUI 2 Tree View */
@@ -2263,8 +2244,8 @@ ul {
         left: 50%;
         top: calc(-50% - 5px);
         transform: translate(-50%, -50%);
-        background-color: #fff;
-        border: 1px solid rgba(0, 0, 0, .2);
+        background-color: $hover-tooltip-bg;
+        border: 1px solid $hover-tooltip-border-color;
         border-radius: .3rem;
         box-sizing: border-box;
         padding: 5px;
@@ -2277,7 +2258,7 @@ ul {
             display: inline-block;
             border-left: 8px solid transparent;
             border-right: 8px solid transparent;
-            border-top: 8px solid rgba(0, 0, 0, .2);
+            border-top: 8px solid $hover-tooltip-border-color;
             position: absolute;
             bottom: -8px;
             left: calc(50% - 8px);
@@ -2288,7 +2269,7 @@ ul {
             display: inline-block;
             border-left: 7px solid transparent;
             border-right: 7px solid transparent;
-            border-top: 7px solid #fff;
+            border-top: 7px solid $hover-tooltip-border-top-color;
             position: absolute;
             bottom: -6px;
             left: calc(50% - 7px);
@@ -2309,7 +2290,7 @@ ul {
     padding-right: 0;
     padding-left: 0;
     .nav {
-        margin-right: $grid-gutter-width / 2;
+        margin-right: $grid-gutter-width * 0.5;
         background-color: $card-bg;
     }
     @include media-breakpoint-down(sm) {
@@ -2324,14 +2305,76 @@ ul {
 // but really in bootstrap we want the colour of links on .bg-inverse to be changed
 // rather than being specific to the footer. This is kept for backwards compatibility.
 $footer-link-color: $bg-inverse-link-color !default;
-#page-footer a {
-    color: $footer-link-color;
-    text-decoration: underline;
-    .icon {
+
+.footer-dark {
+    a {
         color: $footer-link-color;
+        text-decoration: underline;
+
+        .icon {
+            color: $footer-link-color;
+        }
+
+        &:focus .icon {
+            color: $body-color;
+        }
     }
-    &:focus .icon {
-        color: $body-color;
+}
+
+.btn-footer-popover {
+    display: none;
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    @include box-shadow($popover-box-shadow);
+}
+
+.btn-footer-communication {
+    display: none;
+    position: fixed;
+    bottom: 5rem;
+    right: 2rem;
+    @include box-shadow($popover-box-shadow);
+}
+
+.hasstickyfooter .btn-footer-popover {
+    bottom: calc(1rem + #{$stickyfooter-height});
+}
+
+.hasstickyfooter .btn-footer-communication {
+    bottom: calc(4rem + #{$stickyfooter-height});
+}
+
+.popover.footer {
+    .popover-body {
+        padding: 0;
+        .footer-section {
+            a {
+                color: $body-color;
+                text-decoration: underline;
+                .icon {
+                    color: $body-color;
+                }
+                &:focus {
+                    text-decoration: none;
+                }
+            }
+        }
+    }
+}
+
+.footer-support-link {
+    padding-bottom: 5px;
+}
+
+@include media-breakpoint-up(sm) {
+    .jsenabled #page-footer .footer-content-popover {
+        display: none;
+    }
+    .jsenabled .btn-footer-popover,
+    .jsenabled .btn-footer-communication {
+        display: block;
+        z-index: $zindex-dropdown;
     }
 }
 
@@ -2349,38 +2392,6 @@ $footer-link-color: $bg-inverse-link-color !default;
     }
 }
 
-// Make links in a menu clickable anywhere in the row.
-.dropdown-item {
-    a {
-        display: block;
-        width: 100%;
-        color: $body-color;
-    }
-    &:active,
-    &:hover,
-    &:focus,
-    &:focus-within {
-        outline: 0;
-        background-color: $dropdown-link-active-bg;
-        color: $dropdown-link-active-color;
-        a {
-            color: $dropdown-link-active-color;
-        }
-    }
-    &[aria-current="true"] {
-        position: relative;
-        display: flex;
-        align-items: center;
-        &:before {
-            @include fa-icon();
-            content: $fa-var-circle;
-            position: absolute;
-            left: 0.4rem;
-            font-size: 0.7rem;
-        }
-    }
-}
-
 .competency-tree {
     ul {
         padding-left: 1.5rem;
@@ -2392,7 +2403,7 @@ $footer-link-color: $bg-inverse-link-color !default;
     &:focus {
         z-index: 1031;
         position: fixed;
-        background: #fff;
+        background: $sr-only-active-bg;
         padding: 7px;
         left: 0;
         top: 0;
@@ -2414,7 +2425,7 @@ $footer-link-color: $bg-inverse-link-color !default;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: $overlay-icon-bg;
 
     .loading-icon {
         position: absolute;
@@ -2484,6 +2495,19 @@ body.h5p-embed {
     }
 }
 
+#h5pcontenttypes td {
+    vertical-align: middle;
+}
+
+#page.drawers {
+    form#h5peditor,
+    form#coolh5peditor,
+    .core_contentbank_viewcontent {
+        max-width: $h5p-content-maxwidth;
+        margin: 0 auto;
+    }
+}
+
 .text-decoration-none {
     text-decoration: none !important; /* stylelint-disable-line declaration-no-important */
 }
@@ -2535,6 +2559,7 @@ input[disabled] {
 
 .custom-select {
     width: auto;
+    max-width: 100%;
 }
 
 .fade.in {
@@ -2564,6 +2589,46 @@ input[disabled] {
     }
 }
 
+.v-hidden {
+    visibility: hidden;
+}
+
+// Any dialog (modal or dropdown) forced max-widths limits.
+.dialog-big {
+    max-width: $modal-md;
+}
+
+.dialog-small {
+    max-width: $modal-sm;
+}
+
+@include media-breakpoint-up(sm) {
+    .dialog-big {
+        width: $modal-md;
+    }
+
+    .dialog-small {
+        width: $modal-sm;
+    }
+}
+
+/*
+ * Helpers to show elements only when a parent element has focus or hover.
+ */
+
+// Add this class to the element to hide.
+.v-parent-focus {
+    opacity: 0;
+    visibility: hidden;
+}
+
+// Add this class to the parent element to control focus.
+.focus-control:focus-within .v-parent-focus,
+.focus-control:hover .v-parent-focus {
+    opacity: 1;
+    visibility: visible;
+}
+
 // Emoji picker.
 $picker-width: 350px !default;
 $picker-width-xs: 320px !default;
@@ -2581,7 +2646,7 @@ $picker-emojis-per-row: 7 !default;
     .category-button {
         padding: .375rem 0;
         height: 100%;
-        width: $picker-width / $picker-emoji-category-count;
+        width: divide($picker-width, $picker-emoji-category-count);
         border-top: none;
         border-left: none;
         border-right: none;
@@ -2625,7 +2690,7 @@ $picker-emojis-per-row: 7 !default;
     }
 
     .emoji-short-name {
-        line-height: $picker-row-height / 2;
+        line-height: $picker-row-height * 0.5;
     }
 
     @include media-breakpoint-down(xs) {
@@ -2660,12 +2725,23 @@ $picker-emojis-per-row: 7 !default;
 }
 
 @each $color, $value in $theme-colors {
-    .alert-#{$color} a {
-        color: darken(theme-color-level($color, $alert-color-level), 10%);
+    .alert-#{$color} {
+        a {
+            color: darken(theme-color-level($color, $alert-color-level), 10%);
+        }
+        // Darken the close button text colour inside notification alerts for better contrast.
+        .close {
+            color: darken(theme-color-level($color, $alert-color-level), 20%);
+            opacity: 0.6;
+        }
     }
 }
 .alert a {
     font-weight: $font-weight-bold;
+}
+
+.breadcrumb:empty {
+    padding: 0;
 }
 
 @include media-breakpoint-down(sm) {
@@ -2675,13 +2751,19 @@ $picker-emojis-per-row: 7 !default;
 
     .breadcrumb:not(:empty) {
         width: 100%;
-        border: ($border-width * 2) solid $gray-200;
-        padding: $spacer / 4;
-        margin-bottom: $spacer / 2;
+        flex-wrap: nowrap;
+        margin-bottom: $spacer * 0.5;
         .breadcrumb-item {
-            padding-top: $spacer / 3;
-            padding-bottom: $spacer / 3;
-            display: inline-block;
+            padding-top: $spacer * 0.33333;
+            padding-bottom: $spacer * 0.33333;
+            display: inline-flex;
+            overflow: hidden;
+        }
+        .breadcrumb-item a,
+        .breadcrumb-item span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     }
 
@@ -2698,7 +2780,7 @@ $picker-emojis-per-row: 7 !default;
         max-width: 100%;
     }
     .card .card-body {
-        padding: $card-spacer-x / 2;
+        padding: $card-spacer-x * 0.5;
     }
     #page-header {
         .card {
@@ -2708,11 +2790,11 @@ $picker-emojis-per-row: 7 !default;
             }
         }
     }
-    .nav-tabs,
+    .nav-tabs:not(.more-nav),
     .nav-pills {
         margin: 0;
         border: 0;
-        padding: $spacer / 8;
+        padding: $spacer * 0.125;
         background-color: $gray-200;
         .nav-item {
             flex: 1 1 auto;
@@ -2721,7 +2803,7 @@ $picker-emojis-per-row: 7 !default;
         .nav-link {
             background: $white;
             border: 0;
-            margin: $spacer / 8;
+            margin: $spacer * 0.125;
             &.active {
                 @include button-outline-variant($gray-600);
                 border-color: $gray-600;
@@ -2783,5 +2865,341 @@ $scrollbar-track: lighten($primary, 40%);
     &::-webkit-scrollbar-track {
         background-color: $scrollbar-track;
         border-right: $border-width solid $white;
+    }
+}
+
+// Thin scrollbars.
+@mixin thin-scrolls($bg-track) {
+
+    // Firefox.
+    scrollbar-width: thin;
+    scrollbar-color: $thin-scroll-bg-thumb $bg-track;
+
+    // Chrome, Edge and Safari.
+    &::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $bg-track;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background-color: $thin-scroll-bg-thumb;
+        border-radius: 20px;
+        border: 3px solid $bg-track;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background-color: $thin-scroll-bg-hover;
+    }
+}
+
+// Generic dropzones and dragging styles.
+
+body.dragging {
+
+    .drop-zone {
+        border: 1px dashed $dropzone-border;
+    }
+
+    .drop-up {
+        border-top: 1px solid $dropzone-border;
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+
+    .drop-down {
+        border-bottom: 1px solid $dropzone-border;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .dragging {
+        opacity: .6;
+    }
+}
+
+.dragicon {
+    visibility: hidden;
+}
+
+.draggable:hover .dragicon {
+    visibility: visible;
+    cursor: move;
+}
+
+// Generic classes reactive components can use.
+
+.overlay-preview {
+    background-color: $overlay-preview-bg;
+    border: 2px dashed $primary;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    .overlay-preview-wrapper {
+        position: absolute;
+        top: 0;
+        padding: 2rem;
+        width: 100%;
+    }
+
+    .overlay-preview-content {
+        position: relative;
+        top: 0;
+        padding: $modal-inner-padding;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 600px;
+        background-color: $primary;
+        color: $white;
+        text-align: center;
+        font-size: $font-size-lg;
+        @include border-radius();
+    }
+}
+
+.overlay-preview-borders {
+    outline: 2px dashed $primary;
+}
+
+.waitstate {
+    display: none;
+}
+
+.stateready {
+    .waitstate {
+        display: inherit;
+    }
+    .whilenostate {
+        display: none;
+    }
+}
+
+// Collapsible list.
+
+.collapse-list {
+    .collapse-list-item {
+        padding: $collapse-list-item-padding-y $collapse-list-item-padding-x;
+        @include hover-focus() {
+            background-color: $collapse-list-item-hover-bg;
+            border-color: $collapse-list-item-hover-border;
+        }
+    }
+    .collapse-list-item-content {
+        .collapse-list-item {
+            padding-left: calc(#{$collapse-list-item-padding-x} * 3);
+        }
+    }
+}
+
+.drawers {
+    .block_myoverview {
+        border: 0;
+        & > .card-body {
+            padding-top: 0 !important; /* stylelint-disable-line declaration-no-important */
+            padding-left: 0 !important; /* stylelint-disable-line declaration-no-important */
+            padding-right: 0 !important; /* stylelint-disable-line declaration-no-important */
+        }
+    }
+}
+
+.dropdown-toggle::after {
+    @extend .fa-solid;
+    content: fa-content($fa-var-chevron-down);
+    margin-right: 0;
+    margin-left: 4px;
+    font-size: 9px;
+    width: 9px;
+    border: 0;
+
+}
+
+.dropleft .dropdown-toggle::before {
+    border: 0;
+    @extend .fa-solid;
+    content: fa-content($fa-var-chevron-left);
+    font-size: 9px;
+    margin-left: 0;
+    margin-right: 4px;
+    width: 9px;
+}
+
+.dir-rtl .dropleft .dropdown-toggle::before {
+    content: fa-content($fa-var-chevron-right);
+}
+
+.dropright .dropdown-toggle::after {
+    border: 0;
+    @extend .fa-solid;
+    content: fa-content($fa-var-chevron-right);
+}
+
+.dir-rtl .dropright .dropdown-toggle::after {
+    content: fa-content($fa-var-chevron-left);
+}
+
+
+.dropup .dropdown-toggle::after {
+    border: 0;
+    @extend .fa-solid;
+    content: fa-content($fa-var-chevron-up);
+}
+
+.select-menu {
+    li:first-child {
+        ul[role="group"] {
+            padding: 0;
+        }
+    }
+
+    ul[role="group"] {
+        padding: 0.3rem 0 0 0;
+        margin: 0;
+        li:first-child {
+            cursor: default;
+            color: $gray-600;
+            padding: 0.25rem 1.5rem;
+            display: block;
+        }
+        .dropdown-item {
+            padding-left: 2.5rem;
+        }
+    }
+    .dropdown-item[aria-selected="true"] {
+        font-weight: bold;
+    }
+}
+
+[role="listbox"] [role="option"] {
+    cursor: pointer;
+
+    &[aria-selected="true"] {
+        font-weight: bold;
+    }
+}
+
+.initialbargroups ul {
+    -webkit-margin-start: 0; /* stylelint-disable-line */
+    margin-right: -1px;
+}
+
+.page-item {
+    &:first-child {
+        .page-link {
+            .initialbargroups & {
+                @include border-left-radius(0);
+                @include border-right-radius(0);
+            }
+            .initialbargroups .pagination-lg:first-child & {
+                @include border-left-radius($pagination-border-radius-lg);
+            }
+            .initialbargroups .pagination-sm:first-child & {
+                @include border-left-radius($pagination-border-radius-sm);
+            }
+        }
+    }
+    &:last-child {
+        .page-link {
+            .initialbargroups & {
+                @include border-left-radius(0);
+                @include border-right-radius(0);
+            }
+            .initialbargroups .pagination-lg:last-child & {
+                @include border-right-radius($pagination-border-radius-lg);
+            }
+            .initialbargroups .pagination-sm:last-child & {
+                @include border-right-radius($pagination-border-radius-sm);
+            }
+        }
+    }
+}
+
+blockquote {
+    margin: 0 0.5rem 1rem;
+    padding-left: 1rem;
+    color: $gray-700;
+    border-left: 5px solid $gray-400;
+}
+
+/* Prevent long strings exceeding page width */
+.page-header-headings,
+.coursename,
+.categoryname,
+.breadcrumb-item {
+
+    &:not(.text-truncate) {
+        word-break: normal;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+}
+
+/* Showmore component */
+.showmore-container {
+    &.collapsed {
+        .collapsed-content {
+            display: block;
+        }
+        .expanded-content {
+            display: none;
+        }
+    }
+    &:not(.collapsed) {
+        .collapsed-content {
+            display: none;
+        }
+        .expanded-content {
+            display: block;
+        }
+    }
+    button {
+        float: right;
+        &.btn-link {
+            text-decoration: none;
+        }
+        .icon {
+            font-size: $btn-font-size-sm;
+            margin: 0;
+        }
+    }
+}
+
+/* Combobox search dropdowns */
+.usersearchdropdown,
+.gradesearchdropdown,
+.groupsearchdropdown {
+    max-width: 350px;
+    .searchresultitemscontainer {
+        max-height: 170px;
+        overflow: auto;
+        /* stylelint-disable declaration-no-important */
+        img {
+            height: 48px !important;
+            width: 48px !important;
+        }
+    }
+}
+
+/* Bulk actions in sticky footer. */
+#sticky-footer {
+    [data-type="bulkactions"] {
+        display: flex;
+        flex: 0 0 100%;
+        align-items: center;
+    }
+}
+
+/* Choice list component. */
+.choicelist {
+    // Choicelist is designed to fit inside a small modal.
+    min-width: calc(#{$modal-sm} - 25px);
+
+    // Align the font based icons.
+    i.icon {
+        vertical-align: middle;
     }
 }

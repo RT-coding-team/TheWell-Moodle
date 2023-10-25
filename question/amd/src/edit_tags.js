@@ -16,6 +16,8 @@
 /**
  * A javascript module to handle question tags editing.
  *
+ * @deprecated since Moodle 4.0
+ * @todo Final deprecation on Moodle 4.4 MDL-72438
  * @module     core_question/edit_tags
  * @copyright  2018 Simey Lameze <simey@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -25,7 +27,7 @@ define([
             'core/fragment',
             'core/str',
             'core/modal_events',
-            'core/modal_factory',
+            'core/modal_save_cancel',
             'core/notification',
             'core/custom_interaction_events',
             'core_question/repository',
@@ -36,7 +38,7 @@ define([
             Fragment,
             Str,
             ModalEvents,
-            ModalFactory,
+            ModalSaveCancel,
             Notification,
             CustomEvents,
             Repository,
@@ -144,13 +146,10 @@ define([
      * @param {object} root The calendar root element
      */
     var registerEventListeners = function(root) {
-        var modalPromise = ModalFactory.create(
-            {
-                type: ModalFactory.types.SAVE_CANCEL,
-                large: false
-            },
-            [root, QuestionSelectors.actions.edittags]
-        ).then(function(modal) {
+
+        var modalPromise = ModalSaveCancel.create({
+            large: false,
+        }).then(function(modal) {
             // All of this code only executes once, when the modal is
             // first created. This allows us to add any code that should
             // only be run once, such as adding event handlers to the modal.
@@ -159,7 +158,7 @@ define([
                     modal.setTitle(string);
                     return string;
                 })
-                .fail(Notification.exception);
+                .catch(Notification.exception);
 
             modal.getRoot().on(ModalEvents.save, function(e) {
                 var form = modal.getBody().find('form');
@@ -172,7 +171,7 @@ define([
                     modal.hide();
                     location.reload();
                     return;
-                }).fail(Notification.exception);
+                }).catch(Notification.exception);
 
                 // Stop the form from actually submitting and prevent it's
                 // propagation because we have already handled the event.
@@ -181,6 +180,12 @@ define([
             });
 
             return modal;
+        });
+
+        root.on('click', QuestionSelectors.actions.edittags, function(e) {
+            e.preventDefault();
+            // eslint-disable-next-line promise/catch-or-return
+            modalPromise.then((modal) => modal.show());
         });
 
         // We need to add an event handler to the tags link because there are
@@ -208,16 +213,16 @@ define([
                 modal.setBody(tagsFragment);
 
                 tagsFragment.then(function() {
-                        enableSaveButton(root);
-                        return;
-                    })
-                    .always(function() {
-                        // Always hide the loading spinner when the request
-                        // has completed.
-                        stopLoading(root);
-                        return;
-                    })
-                .fail(Notification.exception);
+                    enableSaveButton(root);
+                    return;
+                })
+                .always(function() {
+                    // Always hide the loading spinner when the request
+                    // has completed.
+                    stopLoading(root);
+                    return;
+                })
+                .catch(Notification.exception);
 
                 // Show or hide the save button depending on whether the user
                 // has the capability to edit the tags.
@@ -231,7 +236,7 @@ define([
                 setContextId(modal, contextId);
 
                 return modal;
-            }).fail(Notification.exception);
+            }).catch(Notification.exception);
 
             e.preventDefault();
         });
@@ -263,11 +268,13 @@ define([
                 enableSaveButton(root);
                 return;
             })
-            .fail(Notification.exception);
+            .catch(Notification.exception);
     };
 
     return {
         init: function(root) {
+            window.console.warn('warn: The core_question/repository has been deprecated.' +
+                'Please use qbank_tagquestion/repository instead.');
             root = $(root);
             registerEventListeners(root);
         }

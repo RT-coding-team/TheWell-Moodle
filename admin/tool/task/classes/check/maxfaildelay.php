@@ -39,15 +39,13 @@ use core\check\result;
 class maxfaildelay extends check {
 
     /**
-     * Constructor
+     * Links to the task log report
+     *
+     * @return \action_link|null
      */
-    public function __construct() {
-        global $CFG;
-        $this->id = 'cronfaildelay';
-        $this->name = get_string('checkmaxfaildelay', 'tool_task');
-        $this->actionlink = new \action_link(
-            new \moodle_url('/admin/tool/task/scheduledtasks.php'),
-            get_string('scheduledtasks', 'tool_task'));
+    public function get_action_link(): ?\action_link {
+        $url = new \moodle_url('/admin/tasklogs.php');
+        return new \action_link($url, get_string('tasklogs', 'tool_task'));
     }
 
     /**
@@ -76,6 +74,19 @@ class maxfaildelay extends check {
                 $failures++;
                 $details .= get_string('faildelay', 'tool_task') . ': ' . format_time($faildelay);
                 $details .= ' - ' . $task->get_name() . ' (' .get_class($task) . ")<br>";
+            }
+        }
+
+        $tasks = \core\task\manager::get_failed_adhoc_tasks();
+        foreach ($tasks as $task) {
+            $faildelay = $task->get_fail_delay();
+            if ($faildelay > $maxdelay) {
+                $maxdelay = $faildelay;
+            }
+            if ($faildelay > 0) {
+                $failures++;
+                $details .= get_string('faildelay', 'tool_task') . ': ' . format_time($faildelay);
+                $details .= ' - ' .get_class($task) . " ID = " . $task->get_id() ."<br>";
             }
         }
 

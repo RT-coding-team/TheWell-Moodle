@@ -89,6 +89,7 @@ class provider implements
                 'userid' => 'privacy:metadata:userid',
                 'timecreated' => 'privacy:metadata:timecreated',
                 'timemodified' => 'timemodified',
+                'timestarted' => 'privacy:metadata:timestarted',
                 'status' => 'gradingstatus',
                 'groupid' => 'privacy:metadata:groupid',
                 'attemptnumber' => 'attemptnumber',
@@ -486,7 +487,7 @@ class provider implements
      * Find out if this user has graded any users.
      *
      * @param  int $userid The user ID (potential teacher).
-     * @param  assign $assign The assignment object.
+     * @param  \assign $assign The assignment object.
      * @return array If successful an array of objects with userids that this user graded, otherwise false.
      */
     protected static function get_graded_users(int $userid, \assign $assign) {
@@ -566,6 +567,7 @@ class provider implements
         $submissiondata = (object)[
             'timecreated' => transform::datetime($submission->timecreated),
             'timemodified' => transform::datetime($submission->timemodified),
+            'timestarted' => transform::datetime($submission->timestarted),
             'status' => get_string('submissionstatus_' . $submission->status, 'mod_assign'),
             'groupid' => $submission->groupid,
             'attemptnumber' => ($submission->attemptnumber + 1),

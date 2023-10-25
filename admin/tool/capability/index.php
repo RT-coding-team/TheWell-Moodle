@@ -40,7 +40,7 @@ admin_externalpage_setup('toolcapability');
 
 // Prepare the list of capabilities to choose from.
 $capabilitychoices = array();
-foreach ($context->get_capabilities() as $cap) {
+foreach ($context->get_capabilities('name') as $cap) {
     $capabilitychoices[$cap->name] = $cap->name . ': ' . get_capability_string($cap->name);
 }
 
@@ -55,11 +55,8 @@ $form = new tool_capability_settings_form(null, array(
     'capabilities' => $capabilitychoices,
     'roles' => $rolechoices
 ));
-$PAGE->requires->yui_module(
-    'moodle-tool_capability-search',
-    'M.tool_capability.init_capability_search',
-    array(array('strsearch' => get_string('search')))
-);
+
+$PAGE->requires->js_call_amd('tool_capability/search', 'init');
 
 // Log.
 $capabilities = array();

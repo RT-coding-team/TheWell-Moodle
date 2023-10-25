@@ -6,6 +6,7 @@
 
 .userprofile .page-context-header {
     margin-bottom: 10px;
+    column-count: 1;
 }
 
 .userprofile .description {
@@ -73,7 +74,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(255, 255, 255, 0.7);
+        background-color: $user-loading-icon-bg;
 
         .icon {
             position: absolute;
@@ -314,5 +315,14 @@
 [data-filterregion="value"] {
     div:first-of-type {
         @extend .align-top;
+    }
+}
+
+#page-user-contactsitesupport {
+    .supporticon {
+        i {
+            font-size: 35px;
+        }
+
     }
 }

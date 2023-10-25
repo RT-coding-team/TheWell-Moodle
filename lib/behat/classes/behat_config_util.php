@@ -334,6 +334,34 @@ class behat_config_util {
     }
 
     /**
+     * Sort the list of components contexts.
+     *
+     * This ensures that contexts are sorted consistently.
+     * Core hooks defined in the behat_hooks class _must_ be defined first.
+     *
+     * @param array $contexts
+     * @return array The sorted context list
+     */
+    protected function sort_component_contexts(array $contexts): array {
+        // Ensure that the lib_tests are first as they include the root of all tests, hooks, and more.
+        uksort($contexts, function($a, $b): int {
+            if ($a === 'behat_hooks') {
+                return -1;
+            }
+            if ($b === 'behat_hooks') {
+                return 1;
+            }
+
+            if ($a == $b) {
+                return 0;
+            }
+            return ($a < $b) ? -1 : 1;
+        });
+
+        return $contexts;
+    }
+
+    /**
      * Behat config file specifing the main context class,
      * the required Behat extensions and Moodle test wwwroot.
      *
@@ -524,7 +552,7 @@ class behat_config_util {
                 'extensions' => array(
                     'Behat\MinkExtension' => array(
                         'base_url' => $CFG->behat_wwwroot,
-                        'goutte' => null,
+                        'browserkit_http' => null,
                         'webdriver' => $webdriverwdhost
                     ),
                     'Moodle\BehatExtension' => array(
@@ -638,7 +666,7 @@ class behat_config_util {
                 [
                     'capabilities' => [
                         'extra_capabilities' => [
-                            'chromeOptions' => [
+                            'goog:chromeOptions' => [
                                 'args' => [
                                     'unlimited-storage',
                                     'disable-web-security',
@@ -650,6 +678,16 @@ class behat_config_util {
                 $values
             );
 
+            // Selenium no longer supports non-w3c browser control.
+            // Rename chromeOptions to goog:chromeOptions, which is the W3C variant of this.
+            if (array_key_exists('chromeOptions', $values['capabilities']['extra_capabilities'])) {
+                $values['capabilities']['extra_capabilities']['goog:chromeOptions'] = array_merge_recursive(
+                    $values['capabilities']['extra_capabilities']['goog:chromeOptions'],
+                    $values['capabilities']['extra_capabilities']['chromeOptions'],
+                );
+                unset($values['capabilities']['extra_capabilities']['chromeOptions']);
+            }
+
             // If the mobile app is enabled, check its version and add appropriate tags.
             if ($mobiletags = $this->get_mobile_version_tags()) {
                 if (!empty($values['tags'])) {
@@ -659,13 +697,13 @@ class behat_config_util {
                 }
             }
 
-            $values['capabilities']['extra_capabilities']['chromeOptions']['args'] = array_map(function($arg): string {
+            $values['capabilities']['extra_capabilities']['goog:chromeOptions']['args'] = array_map(function($arg): string {
                 if (substr($arg, 0, 2) === '--') {
                     return substr($arg, 2);
                 }
                 return $arg;
-            }, $values['capabilities']['extra_capabilities']['chromeOptions']['args']);
-            sort($values['capabilities']['extra_capabilities']['chromeOptions']['args']);
+            }, $values['capabilities']['extra_capabilities']['goog:chromeOptions']['args']);
+            sort($values['capabilities']['extra_capabilities']['goog:chromeOptions']['args']);
         }
 
         // Fill tags information.
@@ -718,44 +756,25 @@ class behat_config_util {
     protected function get_mobile_version_tags($verbose = true) : string {
         global $CFG;
 
-        if (!empty($CFG->behat_ionic_dirroot)) {
-            // Get app version from package.json.
-            $jsonpath = $CFG->behat_ionic_dirroot . '/package.json';
-            $json = @file_get_contents($jsonpath);
-            if (!$json) {
-                throw new coding_exception('Unable to load app version from ' . $jsonpath);
-            }
-            $package = json_decode($json);
-            if ($package === null || empty($package->version)) {
-                throw new coding_exception('Invalid app package data in ' . $jsonpath);
-            }
-            $installedversion = $package->version;
-        } else if (!empty($CFG->behat_ionic_wwwroot)) {
-            // Get app version from env.json inside wwwroot.
-            $jsonurl = $CFG->behat_ionic_wwwroot . '/assets/env.json';
-            $json = @file_get_contents($jsonurl);
-            if (!$json) {
-                // Fall back to ionic 3 config file.
-                $jsonurl = $CFG->behat_ionic_wwwroot . '/config.json';
-                $json = @file_get_contents($jsonurl);
-                if (!$json) {
-                    throw new coding_exception('Unable to load app version from ' . $jsonurl);
-                }
-                $config = json_decode($json);
-                if ($config === null || empty($config->versionname)) {
-                    throw new coding_exception('Invalid app config data in ' . $jsonurl);
-                }
-                $installedversion = str_replace('-dev', '', $config->versionname);
-            } else {
-                $env = json_decode($json);
-                if (empty($env->build->version ?? null)) {
-                    throw new coding_exception('Invalid app config data in ' . $jsonurl);
-                }
-                $installedversion = $env->build->version;
-            }
-        } else {
+        if (empty($CFG->behat_ionic_wwwroot)) {
             return '';
         }
+
+        // Get app version from env.json inside wwwroot.
+        $jsonurl = $CFG->behat_ionic_wwwroot . '/assets/env.json';
+        $json = @file_get_contents($jsonurl);
+
+        if (!$json) {
+            throw new coding_exception('Unable to load app version from ' . $jsonurl);
+        }
+
+        $env = json_decode($json);
+
+        if (empty($env->build->version ?? null)) {
+            throw new coding_exception('Invalid app config data in ' . $jsonurl);
+        }
+
+        $installedversion = $env->build->version;
 
         // Read all feature files to check which mobile tags are used. (Note: This could be cached
         // but ideally, it is the sort of thing that really ought to be refreshed by doing a new
@@ -884,7 +903,7 @@ class behat_config_util {
                 && (!defined('PHPUNIT_TEST') || !PHPUNIT_TEST)) {
             echo "Bucket weightings:\n";
             foreach ($weights as $k => $weight) {
-                echo $k + 1 . ": " . str_repeat('*', 70 * $nbuckets * $weight / $totalweight) . PHP_EOL;
+                echo $k + 1 . ": " . str_repeat('*', (int)(70 * $nbuckets * $weight / $totalweight)) . PHP_EOL;
             }
         }
 
@@ -1427,8 +1446,7 @@ class behat_config_util {
 
         // Mobile app tests are not theme-specific, so run only for the default theme (and if
         // configured).
-        if ((empty($CFG->behat_ionic_dirroot) && empty($CFG->behat_ionic_wwwroot)) ||
-                $theme !== $this->get_default_theme()) {
+        if (empty($CFG->behat_ionic_wwwroot) || $theme !== $this->get_default_theme()) {
             $themeblacklisttags[] = '@app';
         }
 
@@ -1537,8 +1555,9 @@ class behat_config_util {
         }
 
         // Sort the list of contexts.
-        ksort($contexts);
+        $contexts = $this->sort_component_contexts($contexts);
 
+        // Cache it for subsequent fetches.
         $this->themecontexts[$theme] = $contexts;
 
         return $contexts;

@@ -16,14 +16,27 @@ Feature: Marking guides can be created and edited
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
       | student1 | C1     | student        |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
-    And I add a "Assignment" to section "1" and I fill the form with:
-      | Assignment name | Test assignment 1 name      |
-      | Description     | Test assignment description |
+    And the following "activity" exists:
+      | activity                              | assign                           |
+      | course                                | C1                               |
+      | idnumber                              | assign1                          |
+      | name                                  | Test assignment 1 name           |
+      | intro                                 | Test assignment description      |
+      | section                               | 1                                |
+      | assignsubmission_file_enabled         | 1                                |
+      | assignsubmission_onlinetext_enabled   | 1                                |
+      | assignsubmission_file_maxfiles        | 1                                |
+      | assignsubmission_file_maxsizebytes    | 1000                             |
+      | assignfeedback_comments_enabled       | 1                                |
+      | assignfeedback_file_enabled           | 1                                |
+      | assignfeedback_comments_commentinline | 1                                |
+    And I am on the "Test assignment 1 name" "assign activity editing" page logged in as teacher1
+    And I set the following fields to these values:
       | Grading method  | Marking guide               |
+    And I press "Save and return to course"
     # Defining a marking guide
     When I go to "Test assignment 1 name" advanced grading definition page
+    And I change window size to "large"
     And I set the following fields to these values:
       | Name        | Assignment 1 marking guide     |
       | Description | Marking guide test description |
@@ -73,7 +86,8 @@ Feature: Marking guides can be created and edited
   @javascript
   Scenario: Grading and viewing graded marking guide
     # Grading a student.
-    When I go to "Student 1" "Test assignment 1 name" activity advanced grading page
+    When I navigate to "Assignment" in current page administration
+    And I go to "Student 1" "Test assignment 1 name" activity advanced grading page
     And I grade by filling the marking guide with:
       | Guide criterion A | 25 | Very good  |
       | Guide criterion B | 20 |            |
@@ -85,9 +99,8 @@ Feature: Marking guides can be created and edited
     And I wait "1" seconds
     Then the field "Guide criterion B criterion remark" matches value "Comment \"4\""
     When I press "Save changes"
-    And I follow "Edit settings"
-    And I follow "Test assignment 1 name"
-    And I navigate to "View all submissions" in current page administration
+    And I am on the "Test assignment 1 name" "assign activity" page
+    And I follow "View all submissions"
     # Checking that the user grade is correct.
     Then I should see "80" in the "Student 1" "table_row"
     And I log out

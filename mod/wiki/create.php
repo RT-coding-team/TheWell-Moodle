@@ -36,7 +36,7 @@ $uid = optional_param('uid', 0, PARAM_INT);
 // so sesskey must be checked
 if ($action == 'create') {
     if (!confirm_sesskey()) {
-        print_error('invalidsesskey');
+        throw new \moodle_exception('invalidsesskey');
     }
 }
 
@@ -44,20 +44,20 @@ if (!empty($swid)) {
     $subwiki = wiki_get_subwiki($swid);
 
     if (!$wiki = wiki_get_wiki($subwiki->wikiid)) {
-        print_error('incorrectwikiid', 'wiki');
+        throw new \moodle_exception('incorrectwikiid', 'wiki');
     }
 
 } else {
     $subwiki = wiki_get_subwiki_by_group($wid, $group, $uid);
 
     if (!$wiki = wiki_get_wiki($wid)) {
-        print_error('incorrectwikiid', 'wiki');
+        throw new \moodle_exception('incorrectwikiid', 'wiki');
     }
 
 }
 
 if (!$cm = get_coursemodule_from_instance('wiki', $wiki->id)) {
-    print_error('invalidcoursemodule');
+    throw new \moodle_exception('invalidcoursemodule');
 }
 
 $groups = new stdClass();
@@ -65,13 +65,13 @@ if (groups_get_activity_groupmode($cm)) {
     $modulecontext = context_module::instance($cm->id);
     $canaccessgroups = has_capability('moodle/site:accessallgroups', $modulecontext);
     if ($canaccessgroups) {
-        $groups->availablegroups = groups_get_all_groups($cm->course);
+        $groups->availablegroups = groups_get_all_groups($cm->course, 0, 0, 'g.*', false, true);
         $allpart = new stdClass();
         $allpart->id = '0';
         $allpart->name = get_string('allparticipants');
         array_unshift($groups->availablegroups, $allpart);
     } else {
-        $groups->availablegroups = groups_get_all_groups($cm->course, $USER->id);
+        $groups->availablegroups = groups_get_all_groups($cm->course, $USER->id, 0, 'g.*', false, true);
     }
     if (!empty($group)) {
         $groups->currentgroup = $group;

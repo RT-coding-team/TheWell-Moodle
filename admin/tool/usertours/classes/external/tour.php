@@ -14,23 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Web Service functions for steps.
- *
- * @package    tool_usertours
- * @copyright  2016 Andrew Nicols <andrew@nicols.co.uk>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 namespace tool_usertours\external;
 
-defined('MOODLE_INTERNAL') || die();
-
-use external_api;
-use external_function_parameters;
-use external_single_structure;
-use external_multiple_structure;
-use external_value;
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
+use core_external\external_single_structure;
+use core_external\external_value;
 use tool_usertours\tour as tourinstance;
 use tool_usertours\step;
 
@@ -101,9 +91,11 @@ class tour extends external_api {
      */
     public static function fetch_and_start_tour_returns() {
         return new external_single_structure([
-            'tourconfig'    => new external_single_structure([
-                'name'      => new external_value(PARAM_RAW, 'Tour Name'),
-                'steps'     => new external_multiple_structure(self::step_structure_returns()),
+            'tourconfig'        => new external_single_structure([
+                'name'          => new external_value(PARAM_RAW, 'Tour Name'),
+                'steps'         => new external_multiple_structure(self::step_structure_returns()),
+                'endtourlabel'  => new external_value(PARAM_RAW, 'Label of the end tour button'),
+                'displaystepnumbers' => new external_value(PARAM_BOOL, 'display step number'),
             ], 'Tour config', VALUE_OPTIONAL)
         ]);
     }

@@ -45,6 +45,12 @@ use core\check\result;
  */
 class riskxss_result extends \core\check\result {
 
+    /** @var array SQL parameters. */
+    protected $params = [];
+
+    /** @var string SQL statement. */
+    protected $sqlfrom;
+
     /**
      * Constructor
      */
@@ -90,7 +96,8 @@ class riskxss_result extends \core\check\result {
 
         global $CFG, $DB;
 
-        $userfields = \user_picture::fields('u');
+        $userfieldsapi = \core_user\fields::for_userpic();
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $users = $DB->get_records_sql("SELECT DISTINCT $userfields $this->sqlfrom", $this->params);
         foreach ($users as $uid => $user) {
             $url = "$CFG->wwwroot/user/view.php?id=$user->id";

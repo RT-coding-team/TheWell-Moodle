@@ -21,7 +21,7 @@ Feature: Course content can be downloaded
     And I set the following fields to these values:
     | Download course content feature available | 1 |
     And I press "Save changes"
-    And I navigate to "Courses > Course default settings" in site administration
+    And I navigate to "Courses > Default settings > Course default settings" in site administration
     And I set the field "Enable download course content" to "Yes"
     And I press "Save changes"
     And I log out
@@ -30,8 +30,7 @@ Feature: Course content can be downloaded
   Scenario: A student can download course content when the feature is enabled in their course
     Given I log in as "student1"
     When I am on "Hockey 101" course homepage
-    And "Download course content" "button" should exist
-    And I press "Download course content"
+    And I navigate to "Download course content" in current page administration
     Then I should see "You are about to download a zip file"
     # Without the ability to check the downloaded file, the absence of an exception being thrown here is considered a success.
     And I click on "Download" "button" in the "Download course content" "dialogue"

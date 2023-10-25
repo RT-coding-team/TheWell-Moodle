@@ -48,6 +48,8 @@
 
 defined('MOODLE_INTERNAL') || die;
 
+use mod_lti\local\ltiopenid\registration_helper;
+
 /**
  * Structure step to restore one lti activity
  */
@@ -75,6 +77,8 @@ class restore_lti_activity_structure_step extends restore_activity_structure_ste
             $submission = new restore_path_element('ltisubmission', '/activity/lti/ltisubmissions/ltisubmission');
             $paths[] = $submission;
         }
+
+        $paths[] = new restore_path_element('lticoursevisible', '/activity/lti/lticoursevisible');
 
         // Add support for subplugin structures.
         $this->add_subplugin_structure('ltisource', $lti);
@@ -134,6 +138,10 @@ class restore_lti_activity_structure_step extends restore_activity_structure_ste
         $this->newltitype = false;
         if (!$ltitypeid && $data->course == $courseid) {
             unset($data->toolproxyid); // Course tools can not use LTI2.
+            if (!empty($data->clientid)) {
+                // Need to rebuild clientid to ensure uniqueness.
+                $data->clientid = registration_helper::get()->new_clientid();
+            }
             $ltitypeid = $DB->insert_record('lti_types', $data);
             $this->newltitype = true;
             $this->set_mapping('ltitype', $oldid, $ltitypeid);
@@ -141,6 +149,23 @@ class restore_lti_activity_structure_step extends restore_activity_structure_ste
 
         // Add the typeid entry back to LTI module.
         $DB->update_record('lti', ['id' => $this->get_new_parentid('lti'), 'typeid' => $ltitypeid]);
+    }
+
+    /**
+     * Process an lti coursevisible restore
+     * @param mixed $data The data from backup XML file
+     * @return void
+     */
+    protected function process_lticoursevisible($data) {
+        global $DB;
+
+        $data = (object)$data;
+        $data->typeid = $this->get_new_parentid('ltitype');
+        $data->courseid = $this->get_courseid();
+
+        if ($data->typeid) {
+            $DB->insert_record('lti_coursevisible', $data);
+        }
     }
 
     /**

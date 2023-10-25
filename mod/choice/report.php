@@ -19,11 +19,11 @@
     $PAGE->set_url($url);
 
     if (! $cm = get_coursemodule_from_id('choice', $id)) {
-        print_error("invalidcoursemodule");
+        throw new \moodle_exception("invalidcoursemodule");
     }
 
     if (! $course = $DB->get_record("course", array("id" => $cm->course))) {
-        print_error("coursemisconf");
+        throw new \moodle_exception("coursemisconf");
     }
 
     require_login($course, false, $cm);
@@ -33,7 +33,7 @@
     require_capability('mod/choice:readresponses', $context);
 
     if (!$choice = choice_get_choice($cm->instance)) {
-        print_error('invalidcoursemodule');
+        throw new \moodle_exception('invalidcoursemodule');
     }
 
     $strchoice = get_string("modulename", "choice");
@@ -63,21 +63,26 @@
         }
     }
 
+    $groupmode = groups_get_activity_groupmode($cm);
+
     if (!$download) {
-        $PAGE->navbar->add($strresponses);
         $PAGE->set_title(format_string($choice->name).": $strresponses");
         $PAGE->set_heading($course->fullname);
+        $PAGE->activityheader->set_attrs([
+            'hidecompletion' => true,
+            'description' => ''
+        ]);
         echo $OUTPUT->header();
-        echo $OUTPUT->heading(format_string($choice->name), 2, null);
+        echo $OUTPUT->heading($strresponses);
+
         /// Check to see if groups are being used in this choice
-        $groupmode = groups_get_activity_groupmode($cm);
         if ($groupmode) {
             groups_get_activity_group($cm, true);
-            groups_print_activity_menu($cm, $CFG->wwwroot . '/mod/choice/report.php?id='.$id);
+            $groupsactivitymenu = groups_print_activity_menu($cm, $CFG->wwwroot . '/mod/choice/report.php?id=' . $id,
+                true);
+            echo html_writer::div($groupsactivitymenu, 'mb-2');
         }
     } else {
-        $groupmode = groups_get_activity_groupmode($cm);
-
         // Trigger the report downloaded event.
         $eventdata = array();
         $eventdata['context'] = $context;
@@ -95,7 +100,8 @@
 
     $users = choice_get_response_data($choice, $cm, $groupmode, $onlyactive);
 
-    $extrafields = get_extra_user_fields($context);
+    // TODO Does not support custom user profile fields (MDL-70456).
+    $extrafields = \core_user\fields::get_identity_fields($context, false);
 
     if ($download == "ods" && has_capability('mod/choice:downloadresponses', $context)) {
         require_once("$CFG->libdir/odslib.class.php");
@@ -118,7 +124,7 @@
 
         // Add headers for extra user fields.
         foreach ($extrafields as $field) {
-            $myxls->write_string(0, $i++, get_user_field_name($field));
+            $myxls->write_string(0, $i++, \core_user\fields::get_display_name($field));
         }
 
         $myxls->write_string(0, $i++, get_string("group"));
@@ -128,26 +134,28 @@
         $row = 1;
         if ($users) {
             foreach ($users as $option => $userid) {
-                $option_text = choice_get_option_text($choice, $option);
-                foreach ($userid as $user) {
-                    $i = 0;
-                    $myxls->write_string($row, $i++, $user->lastname);
-                    $myxls->write_string($row, $i++, $user->firstname);
-                    foreach ($extrafields as $field) {
-                        $myxls->write_string($row, $i++, $user->$field);
-                    }
-                    $ug2 = '';
-                    if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
-                        foreach ($usergrps as $ug) {
-                            $ug2 = $ug2 . $ug->name;
+                if (!($choice->showunanswered  == 0 && $option == 0)) {
+                    $option_text = choice_get_option_text($choice, $option);
+                    foreach ($userid as $user) {
+                        $i = 0;
+                        $myxls->write_string($row, $i++, $user->lastname);
+                        $myxls->write_string($row, $i++, $user->firstname);
+                        foreach ($extrafields as $field) {
+                            $myxls->write_string($row, $i++, $user->$field);
                         }
-                    }
-                    $myxls->write_string($row, $i++, $ug2);
+                        $ug2 = '';
+                        if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
+                            foreach ($usergrps as $ug) {
+                                $ug2 = $ug2 . $ug->name;
+                            }
+                        }
+                        $myxls->write_string($row, $i++, $ug2);
 
-                    if (isset($option_text)) {
-                        $myxls->write_string($row, $i++, format_string($option_text, true));
+                        if (isset($option_text)) {
+                            $myxls->write_string($row, $i++, format_string($option_text, true));
+                        }
+                        $row++;
                     }
-                    $row++;
                 }
             }
         }
@@ -179,7 +187,7 @@
 
         // Add headers for extra user fields.
         foreach ($extrafields as $field) {
-            $myxls->write_string(0, $i++, get_user_field_name($field));
+            $myxls->write_string(0, $i++, \core_user\fields::get_display_name($field));
         }
 
         $myxls->write_string(0, $i++, get_string("group"));
@@ -190,25 +198,27 @@
         if ($users) {
             foreach ($users as $option => $userid) {
                 $i = 0;
-                $option_text = choice_get_option_text($choice, $option);
-                foreach($userid as $user) {
-                    $i = 0;
-                    $myxls->write_string($row, $i++, $user->lastname);
-                    $myxls->write_string($row, $i++, $user->firstname);
-                    foreach ($extrafields as $field) {
-                        $myxls->write_string($row, $i++, $user->$field);
-                    }
-                    $ug2 = '';
-                    if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
-                        foreach ($usergrps as $ug) {
-                            $ug2 = $ug2 . $ug->name;
+                if (!($choice->showunanswered  == 0 && $option == 0)) {
+                    $option_text = choice_get_option_text($choice, $option);
+                    foreach($userid as $user) {
+                        $i = 0;
+                        $myxls->write_string($row, $i++, $user->lastname);
+                        $myxls->write_string($row, $i++, $user->firstname);
+                        foreach ($extrafields as $field) {
+                            $myxls->write_string($row, $i++, $user->$field);
                         }
+                        $ug2 = '';
+                        if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
+                            foreach ($usergrps as $ug) {
+                                $ug2 = $ug2 . $ug->name;
+                            }
+                        }
+                        $myxls->write_string($row, $i++, $ug2);
+                        if (isset($option_text)) {
+                            $myxls->write_string($row, $i++, format_string($option_text, true));
+                        }
+                        $row++;
                     }
-                    $myxls->write_string($row, $i++, $ug2);
-                    if (isset($option_text)) {
-                        $myxls->write_string($row, $i++, format_string($option_text, true));
-                    }
-                    $row++;
                 }
             }
         }
@@ -235,7 +245,7 @@
 
         // Add headers for extra user fields.
         foreach ($extrafields as $field) {
-            echo get_user_field_name($field) . "\t";
+            echo \core_user\fields::get_display_name($field) . "\t";
         }
 
         echo get_string("group"). "\t";
@@ -245,24 +255,26 @@
         $i=0;
         if ($users) {
             foreach ($users as $option => $userid) {
-                $option_text = choice_get_option_text($choice, $option);
-                foreach($userid as $user) {
-                    echo $user->lastname . "\t";
-                    echo $user->firstname . "\t";
-                    foreach ($extrafields as $field) {
-                        echo $user->$field . "\t";
-                    }
-                    $ug2 = '';
-                    if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
-                        foreach ($usergrps as $ug) {
-                            $ug2 = $ug2. $ug->name;
+                if (!($choice->showunanswered  == 0 && $option == 0)) {
+                    $option_text = choice_get_option_text($choice, $option);
+                    foreach($userid as $user) {
+                        echo $user->lastname . "\t";
+                        echo $user->firstname . "\t";
+                        foreach ($extrafields as $field) {
+                            echo $user->$field . "\t";
                         }
+                        $ug2 = '';
+                        if ($usergrps = groups_get_all_groups($course->id, $user->id)) {
+                            foreach ($usergrps as $ug) {
+                                $ug2 = $ug2. $ug->name;
+                            }
+                        }
+                        echo $ug2. "\t";
+                        if (isset($option_text)) {
+                            echo format_string($option_text,true);
+                        }
+                        echo "\n";
                     }
-                    echo $ug2. "\t";
-                    if (isset($option_text)) {
-                        echo format_string($option_text,true);
-                    }
-                    echo "\n";
                 }
             }
         }

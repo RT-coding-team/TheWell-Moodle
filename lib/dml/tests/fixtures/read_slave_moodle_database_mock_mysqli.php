@@ -23,6 +23,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace core;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__.'/../../mysqli_native_moodle_database.php');
@@ -36,7 +38,7 @@ require_once(__DIR__.'/test_moodle_read_slave_trait.php');
  * @copyright  2018 Catalyst IT
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class read_slave_moodle_database_mock_mysqli extends mysqli_native_moodle_database {
+class read_slave_moodle_database_mock_mysqli extends \mysqli_native_moodle_database {
     use test_moodle_read_slave_trait;
 
     /**
@@ -56,7 +58,7 @@ class read_slave_moodle_database_mock_mysqli extends mysqli_native_moodle_databa
      * @param string|array $sql query
      * @param array|null $tablenames an array of xmldb table names affected by this request.
      * @return bool true
-     * @throws ddl_change_structure_exception A DDL specific exception is thrown for any errors.
+     * @throws \ddl_change_structure_exception A DDL specific exception is thrown for any errors.
      */
     public function change_database_structure($sql, $tablenames = null) {
         return true;

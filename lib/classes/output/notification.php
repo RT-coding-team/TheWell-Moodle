@@ -84,9 +84,10 @@ class notification implements \renderable, \templatable {
      * Notification constructor.
      *
      * @param string $message the message to print out
-     * @param string $messagetype one of the NOTIFY_* constants..
+     * @param ?string $messagetype one of the NOTIFY_* constants..
+     * @param bool $closebutton Whether to show a close icon to remove the notification (default true).
      */
-    public function __construct($message, $messagetype = null) {
+    public function __construct($message, $messagetype = null, $closebutton = true) {
         $this->message = $message;
 
         if (empty($messagetype)) {
@@ -94,6 +95,8 @@ class notification implements \renderable, \templatable {
         }
 
         $this->messagetype = $messagetype;
+
+        $this->closebutton = $closebutton;
     }
 
     /**
@@ -153,8 +156,8 @@ class notification implements \renderable, \templatable {
     /**
      * Export this data so it can be used as the context for a mustache template.
      *
-     * @param renderer_base $output typically, the renderer that's calling this function
-     * @return stdClass data context for a mustache template
+     * @param \renderer_base $output typically, the renderer that's calling this function
+     * @return array data context for a mustache template
      */
     public function export_for_template(\renderer_base $output) {
         return array(

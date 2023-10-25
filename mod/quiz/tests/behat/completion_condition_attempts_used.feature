@@ -1,4 +1,4 @@
-@mod @mod_quiz
+@mod @mod_quiz @core_completion @javascript
 Feature: Set a quiz to be marked complete when the student uses all attempts allowed
   In order to ensure a student has learned the material before being marked complete
   As a teacher
@@ -25,8 +25,8 @@ Feature: Set a quiz to be marked complete when the student uses all attempts all
       | questioncategory | qtype     | name           | questiontext              |
       | Test questions   | truefalse | First question | Answer the first question |
     And the following "activities" exist:
-      | activity | name           | course | idnumber | attempts | gradepass | completion | completionusegrade | completionpass | completionattemptsexhausted |
-      | quiz     | Test quiz name | C1     | quiz1    | 2        | 5.00      | 2          | 1                  | 1              | 1                           |
+      | activity | name           | course | idnumber | attempts | gradepass | completion | completionusegrade | completionpassgrade | completionattemptsexhausted |
+      | quiz     | Test quiz name | C1     | quiz1    | 2        | 5.00      | 2          | 1                  | 1                   | 1                           |
     And quiz "Test quiz name" contains the following questions:
       | question       | page |
       | First question | 1    |
@@ -34,19 +34,34 @@ Feature: Set a quiz to be marked complete when the student uses all attempts all
       | slot | response |
       |   1  | False    |
 
-  Scenario: student1 uses up both attempts without passing
-    When I log in as "student1"
-    And I am on "Course 1" course homepage
-    And the "Test quiz name" "quiz" activity with "auto" completion should be marked as not complete
+  Scenario Outline: Student attempts the quiz - pass and fails
+    When I am on the "Course 1" course page logged in as student1
+    And the "Receive a grade" completion condition of "Test quiz name" is displayed as "done"
+    And the "Receive a passing grade" completion condition of "Test quiz name" is displayed as "failed"
+    And the "Receive a pass grade or complete all available attempts" completion condition of "Test quiz name" is displayed as "todo"
     And I follow "Test quiz name"
     And I press "Re-attempt quiz"
-    And I set the field "False" to "1"
+    And I set the field "<answer>" to "1"
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
+    And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I am on "Course 1" course homepage
-    Then "Completed: Test quiz name" "icon" should exist in the "li.modtype_quiz" "css_element"
+    Then the "Receive a grade" completion condition of "Test quiz name" is displayed as "done"
+    And the "Receive a passing grade" completion condition of "Test quiz name" is displayed as "<passcompletionexpected>"
+    And the "Receive a pass grade or complete all available attempts" completion condition of "Test quiz name" is displayed as "done"
+    And I click on "Test quiz name" "link" in the "region-main" "region"
+    And the "Receive a grade" completion condition of "Test quiz name" is displayed as "done"
+    And the "Receive a passing grade" completion condition of "Test quiz name" is displayed as "<passcompletionexpected>"
+    And the "Receive a pass grade or complete all available attempts" completion condition of "Test quiz name" is displayed as "done"
     And I log out
-    And I log in as "teacher1"
+    And I am on the "Test quiz name" "quiz activity" page logged in as teacher1
+    And "Test quiz name" should have the "Receive a pass grade or complete all available attempts" completion condition
     And I am on "Course 1" course homepage
-    And I navigate to "Reports > Activity completion" in current page administration
-    And "Completed" "icon" should exist in the "Student 1" "table_row"
+    And I navigate to "Reports" in current page administration
+    And I click on "Activity completion" "link"
+    And "<expectedactivitycompletion>" "icon" should exist in the "Student 1" "table_row"
+
+    Examples:
+      | answer | passcompletionexpected | expectedactivitycompletion                 |
+      | False  | failed                 | Completed (did not achieve pass grade)     |
+      | True   | done                   | Completed (achieved pass grade)            |

@@ -101,6 +101,24 @@ $functions = array(
         'ajax'          => true
     ),
 
+    'mod_lti_get_tool_types_and_proxies' => [
+        'classname'     => 'mod_lti\external\get_tool_types_and_proxies',
+        'methodname'    => 'execute',
+        'description'   => 'Get a list of the tool types and tool proxies',
+        'type'          => 'read',
+        'capabilities'  => 'moodle/site:config',
+        'ajax'          => true
+    ],
+
+    'mod_lti_get_tool_types_and_proxies_count' => [
+        'classname'     => 'mod_lti\external\get_tool_types_and_proxies_count',
+        'methodname'    => 'execute',
+        'description'   => 'Get total number of the tool types and tool proxies',
+        'type'          => 'read',
+        'capabilities'  => 'moodle/site:config',
+        'ajax'          => true
+    ],
+
     'mod_lti_create_tool_type' => array(
         'classname'     => 'mod_lti_external',
         'methodname'    => 'create_tool_type',
@@ -125,6 +143,22 @@ $functions = array(
         'description'   => 'Delete a tool type',
         'type'          => 'write',
         'capabilities'  => 'moodle/site:config',
+        'ajax'          => true
+    ),
+
+    'mod_lti_delete_course_tool_type' => array(
+        'classname'     => 'mod_lti\external\delete_course_tool_type',
+        'description'   => 'Delete a course tool type',
+        'type'          => 'write',
+        'capabilities'  => 'mod/lti:addcoursetool',
+        'ajax'          => true
+    ),
+
+    'mod_lti_toggle_showinactivitychooser' => array(
+        'classname'     => 'mod_lti\external\toggle_showinactivitychooser',
+        'description'   => 'Toggle showinactivitychooser for a tool type in a course',
+        'type'          => 'write',
+        'capabilities'  => 'mod/lti:addcoursetool',
         'ajax'          => true
     ),
 

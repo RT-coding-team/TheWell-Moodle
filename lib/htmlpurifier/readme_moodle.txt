@@ -1,4 +1,4 @@
-Description of HTML Purifier v4.12.0 library import into Moodle
+Description of HTML Purifier library import into Moodle
 
 * Make new (or delete contents of) /lib/htmlpurifier/
 * Copy everything from /library/ folder to /lib/htmlpurifier/
@@ -15,7 +15,6 @@ Description of HTML Purifier v4.12.0 library import into Moodle
 * add locallib.php with Moodle specific extensions to /lib/htmlpurifier/
 * add this readme_moodle.txt to /lib/htmlpurifier/
 
-Modifications:
-(verify if we need to apply them on every upgrade, remove when not needed)
-* MDL-67115 applied https://github.com/ezyang/htmlpurifier/pull/243 towards
-  php74 compatibility.
+Local changes:
+* 2023-06-06 Applied patch https://github.com/ezyang/htmlpurifier/pull/346 to avoid PHP 8.2 deprecations.
+  See MDL-78143 for more details.

@@ -34,6 +34,21 @@ $settings->add(
         16
     )
 );
+$settings->add(new admin_setting_configcheckbox(
+        'cachestore_redis/test_encryption',
+        get_string('encrypt_connection', 'cachestore_redis'),
+        get_string('encrypt_connection', 'cachestore_redis'),
+        false));
+$settings->add(
+    new admin_setting_configtext(
+        'cachestore_redis/test_cafile',
+        get_string('ca_file', 'cachestore_redis'),
+        get_string('ca_file', 'cachestore_redis'),
+        '',
+        PARAM_TEXT,
+        16
+    )
+);
 $settings->add(
     new admin_setting_configpasswordunmask(
         'cachestore_redis/test_password',
@@ -60,3 +75,9 @@ if (class_exists('Redis')) { // Only if Redis is available.
         )
     );
 }
+
+$settings->add(new admin_setting_configcheckbox(
+        'cachestore_redis/test_ttl',
+        get_string('test_ttl', 'cachestore_redis'),
+        get_string('test_ttl_desc', 'cachestore_redis'),
+        false));

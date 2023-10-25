@@ -25,6 +25,9 @@
 require_once($CFG->libdir . '/gradelib.php');
 require_once($CFG->dirroot . '/grade/export/lib.php');
 
+use \core_grades\output\action_bar;
+use \core_grades\output\general_action_bar;
+
 /**
  * This class iterates over all users that are graded in a course.
  * Returns detailed info about users and their grades.
@@ -703,141 +706,6 @@ function print_natural_aggregation_upgrade_notice($courseid, $context, $thispage
 }
 
 /**
- * Print grading plugin selection popup form.
- *
- * @param array   $plugin_info An array of plugins containing information for the selector
- * @param boolean $return return as string
- *
- * @return nothing or string if $return true
- */
-function print_grade_plugin_selector($plugin_info, $active_type, $active_plugin, $return=false) {
-    global $CFG, $OUTPUT, $PAGE;
-
-    $menu = array();
-    $count = 0;
-    $active = '';
-
-    foreach ($plugin_info as $plugin_type => $plugins) {
-        if ($plugin_type == 'strings') {
-            continue;
-        }
-
-        $first_plugin = reset($plugins);
-
-        $sectionname = $plugin_info['strings'][$plugin_type];
-        $section = array();
-
-        foreach ($plugins as $plugin) {
-            $link = $plugin->link->out(false);
-            $section[$link] = $plugin->string;
-            $count++;
-            if ($plugin_type === $active_type and $plugin->id === $active_plugin) {
-                $active = $link;
-            }
-        }
-
-        if ($section) {
-            $menu[] = array($sectionname=>$section);
-        }
-    }
-
-    // finally print/return the popup form
-    if ($count > 1) {
-        $select = new url_select($menu, $active, null, 'choosepluginreport');
-        $select->set_label(get_string('gradereport', 'grades'), array('class' => 'accesshide'));
-        if ($return) {
-            return $OUTPUT->render($select);
-        } else {
-            echo $OUTPUT->render($select);
-        }
-    } else {
-        // only one option - no plugin selector needed
-        return '';
-    }
-}
-
-/**
- * Print grading plugin selection tab-based navigation.
- *
- * @param string  $active_type type of plugin on current page - import, export, report or edit
- * @param string  $active_plugin active plugin type - grader, user, cvs, ...
- * @param array   $plugin_info Array of plugins
- * @param boolean $return return as string
- *
- * @return nothing or string if $return true
- */
-function grade_print_tabs($active_type, $active_plugin, $plugin_info, $return=false) {
-    global $CFG, $COURSE;
-
-    if (!isset($currenttab)) { //TODO: this is weird
-        $currenttab = '';
-    }
-
-    $tabs = array();
-    $top_row  = array();
-    $bottom_row = array();
-    $inactive = array($active_plugin);
-    $activated = array($active_type);
-
-    $count = 0;
-    $active = '';
-
-    foreach ($plugin_info as $plugin_type => $plugins) {
-        if ($plugin_type == 'strings') {
-            continue;
-        }
-
-        // If $plugins is actually the definition of a child-less parent link:
-        if (!empty($plugins->id)) {
-            $string = $plugins->string;
-            if (!empty($plugin_info[$active_type]->parent)) {
-                $string = $plugin_info[$active_type]->parent->string;
-            }
-
-            $top_row[] = new tabobject($plugin_type, $plugins->link, $string);
-            continue;
-        }
-
-        $first_plugin = reset($plugins);
-        $url = $first_plugin->link;
-
-        if ($plugin_type == 'report') {
-            $url = $CFG->wwwroot.'/grade/report/index.php?id='.$COURSE->id;
-        }
-
-        $top_row[] = new tabobject($plugin_type, $url, $plugin_info['strings'][$plugin_type]);
-
-        if ($active_type == $plugin_type) {
-            foreach ($plugins as $plugin) {
-                $bottom_row[] = new tabobject($plugin->id, $plugin->link, $plugin->string);
-                if ($plugin->id == $active_plugin) {
-                    $inactive = array($plugin->id);
-                }
-            }
-        }
-    }
-
-    // Do not display rows that contain only one item, they are not helpful.
-    if (count($top_row) > 1) {
-        $tabs[] = $top_row;
-    }
-    if (count($bottom_row) > 1) {
-        $tabs[] = $bottom_row;
-    }
-    if (empty($tabs)) {
-        return;
-    }
-
-    $rv = html_writer::div(print_tabs($tabs, $active_plugin, $inactive, $activated, true), 'grade-navigation');
-
-    if ($return) {
-        return $rv;
-    } else {
-        echo $rv;
-    }
-}
-
-/**
  * grade_get_plugin_info
  *
  * @param int    $courseid The course id
@@ -887,14 +755,23 @@ function grade_get_plugin_info($courseid, $active_type, $active_plugin) {
         $plugin_info['export'] = $exports;
     }
 
+    // Let other plugins add plugins here so that we get extra tabs
+    // in the gradebook.
+    $callbacks = get_plugins_with_function('extend_gradebook_plugininfo', 'lib.php');
+    foreach ($callbacks as $plugins) {
+        foreach ($plugins as $pluginfunction) {
+            $plugin_info = $pluginfunction($plugin_info, $courseid);
+        }
+    }
+
     foreach ($plugin_info as $plugin_type => $plugins) {
         if (!empty($plugins->id) && $active_plugin == $plugins->id) {
             $plugin_info['strings']['active_plugin_str'] = $plugins->string;
             break;
         }
         foreach ($plugins as $plugin) {
-            if (is_a($plugin, 'grade_plugin_info')) {
-                if ($active_plugin == $plugin->id) {
+            if (is_a($plugin, grade_plugin_info::class)) {
+                if ($plugin_type === $active_type && $active_plugin == $plugin->id) {
                     $plugin_info['strings']['active_plugin_str'] = $plugin->string;
                 }
             }
@@ -902,6 +779,37 @@ function grade_get_plugin_info($courseid, $active_type, $active_plugin) {
     }
 
     return $plugin_info;
+}
+
+/**
+ * Load a valid list of gradable users in a course.
+ *
+ * @param int $courseid The course ID.
+ * @param int|null $groupid The group ID (optional).
+ * @return array $users A list of enrolled gradable users.
+ */
+function get_gradable_users(int $courseid, ?int $groupid = null): array {
+    global $CFG;
+
+    $context = context_course::instance($courseid);
+    // Create a graded_users_iterator because it will properly check the groups etc.
+    $defaultgradeshowactiveenrol = !empty($CFG->grade_report_showonlyactiveenrol);
+    $onlyactiveenrol = get_user_preferences('grade_report_showonlyactiveenrol', $defaultgradeshowactiveenrol) ||
+        !has_capability('moodle/course:viewsuspendedusers', $context);
+
+    $course = get_course($courseid);
+    $gui = new graded_users_iterator($course, null, $groupid);
+    $gui->require_active_enrolment($onlyactiveenrol);
+    $gui->init();
+
+    // Flatten the users.
+    $users = [];
+    while ($user = $gui->next_user()) {
+        $users[$user->user->id] = $user->user;
+    }
+    $gui->close();
+
+    return $users;
 }
 
 /**
@@ -957,32 +865,35 @@ class grade_plugin_info {
 }
 
 /**
- * Prints the page headers, breadcrumb trail, page heading, (optional) dropdown navigation menu and
- * (optional) navigation tabs for any gradebook page. All gradebook pages MUST use these functions
- * in favour of the usual print_header(), print_header_simple(), print_heading() etc.
- * !IMPORTANT! Use of tabs.php file in gradebook pages is forbidden unless tabs are switched off at
- * the site level for the gradebook ($CFG->grade_navmethod = GRADE_NAVMETHOD_DROPDOWN).
+ * Prints the page headers, breadcrumb trail, page heading, (optional) navigation and for any gradebook page.
+ * All gradebook pages MUST use these functions in favour of the usual print_header(), print_header_simple(),
+ * print_heading() etc.
  *
- * @param int     $courseid Course id
- * @param string  $active_type The type of the current page (report, settings,
- *                             import, export, scales, outcomes, letters)
- * @param string  $active_plugin The plugin of the current page (grader, fullview etc...)
- * @param string  $heading The heading of the page. Tries to guess if none is given
+ * @param int $courseid Course id
+ * @param string $active_type The type of the current page (report, settings,
+ *                            import, export, scales, outcomes, letters)
+ * @param string|null $active_plugin The plugin of the current page (grader, fullview etc...)
+ * @param string|bool $heading The heading of the page.
  * @param boolean $return Whether to return (true) or echo (false) the HTML generated by this function
- * @param string  $bodytags Additional attributes that will be added to the <body> tag
- * @param string  $buttons Additional buttons to display on the page
- * @param boolean $shownavigation should the gradebook navigation drop down (or tabs) be shown?
- * @param string  $headerhelpidentifier The help string identifier if required.
- * @param string  $headerhelpcomponent The component for the help string.
- * @param stdClass $user The user object for use with the user context header.
- *
+ * @param string|bool $buttons Additional buttons to display on the page
+ * @param boolean $shownavigation should the gradebook navigation be shown?
+ * @param string|null $headerhelpidentifier The help string identifier if required.
+ * @param string|null $headerhelpcomponent The component for the help string.
+ * @param stdClass|null $user The user object for use with the user context header.
+ * @param action_bar|null $actionbar The actions bar which will be displayed on the page if $shownavigation is set
+ *                                  to true. If $actionbar is not explicitly defined, the general action bar
+ *                                  (\core_grades\output\general_action_bar) will be used by default.
+ * @param null $unused This parameter has been deprecated since 4.3 and should not be used anymore.
  * @return string HTML code or nothing if $return == false
  */
-function print_grade_page_head($courseid, $active_type, $active_plugin=null,
-                               $heading = false, $return=false,
-                               $buttons=false, $shownavigation=true, $headerhelpidentifier = null, $headerhelpcomponent = null,
-                               $user = null) {
-    global $CFG, $OUTPUT, $PAGE;
+function print_grade_page_head(int $courseid, string $active_type, ?string $active_plugin = null, string|bool $heading = false,
+       bool $return = false, $buttons = false, bool $shownavigation = true, ?string $headerhelpidentifier = null,
+       ?string $headerhelpcomponent = null, ?stdClass $user = null, ?action_bar $actionbar = null, $unused = null) {
+    global $CFG, $OUTPUT, $PAGE, $USER;
+
+    if ($unused !== null) {
+        debugging('Deprecated argument passed to ' . __FUNCTION__, DEBUG_DEVELOPER);
+    }
 
     // Put a warning on all gradebook pages if the course has modules currently scheduled for background deletion.
     require_once($CFG->dirroot . '/course/lib.php');
@@ -998,23 +909,31 @@ function print_grade_page_head($courseid, $active_type, $active_plugin=null,
 
     $plugin_info = grade_get_plugin_info($courseid, $active_type, $active_plugin);
 
-    // Determine the string of the active plugin
-    $stractive_plugin = ($active_plugin) ? $plugin_info['strings']['active_plugin_str'] : $heading;
+    // Determine the string of the active plugin.
     $stractive_type = $plugin_info['strings'][$active_type];
-
-    if (empty($plugin_info[$active_type]->id) || !empty($plugin_info[$active_type]->parent)) {
-        $title = $PAGE->course->fullname.': ' . $stractive_type . ': ' . $stractive_plugin;
-    } else {
-        $title = $PAGE->course->fullname.': ' . $stractive_plugin;
-    }
+    $stractiveplugin = ($active_plugin) ? $plugin_info['strings']['active_plugin_str'] : $heading;
 
     if ($active_type == 'report') {
         $PAGE->set_pagelayout('report');
     } else {
         $PAGE->set_pagelayout('admin');
     }
-    $PAGE->set_title(get_string('grades') . ': ' . $stractive_type);
-    $PAGE->set_heading($title);
+    $coursecontext = context_course::instance($courseid);
+    // Title will be constituted by information starting from the unique identifying information for the page.
+    if (in_array($active_type, ['report', 'settings'])) {
+        $uniquetitle = $stractiveplugin;
+    } else {
+        $uniquetitle = $stractive_type . ': ' . $stractiveplugin;
+    }
+    $titlecomponents = [
+        $uniquetitle,
+        get_string('grades'),
+        $coursecontext->get_context_name(false),
+    ];
+    $PAGE->set_title(implode(moodle_page::TITLE_SEPARATOR, $titlecomponents));
+    $PAGE->set_heading($PAGE->course->fullname);
+    $PAGE->set_secondary_active_tab('grades');
+
     if ($buttons instanceof single_button) {
         $buttons = $OUTPUT->render($buttons);
     }
@@ -1034,59 +953,41 @@ function print_grade_page_head($courseid, $active_type, $active_plugin=null,
         echo $returnval;
     }
 
-    // Guess heading if not given explicitly
-    if (!$heading) {
-        $heading = $stractive_plugin;
-    }
-
     if ($shownavigation) {
-        $navselector = null;
-        if ($courseid != SITEID &&
-                ($CFG->grade_navmethod == GRADE_NAVMETHOD_COMBO || $CFG->grade_navmethod == GRADE_NAVMETHOD_DROPDOWN)) {
-            // It's absolutely essential that this grade plugin selector is shown after the user header. Just ask Fred.
-            $navselector = print_grade_plugin_selector($plugin_info, $active_type, $active_plugin, true);
-            if ($return) {
-                $returnval .= $navselector;
-            } else if (!isset($user)) {
-                echo $navselector;
-            }
-        }
-
-        $output = '';
-        // Add a help dialogue box if provided.
-        if (isset($headerhelpidentifier)) {
-            $output = $OUTPUT->heading_with_help($heading, $headerhelpidentifier, $headerhelpcomponent);
-        } else {
-            if (isset($user)) {
-                $output = $OUTPUT->context_header(
-                        array(
-                            'heading' => html_writer::link(new moodle_url('/user/view.php', array('id' => $user->id,
-                                'course' => $courseid)), fullname($user)),
-                            'user' => $user,
-                            'usercontext' => context_user::instance($user->id)
-                        ), 2
-                    ) . $navselector;
-            } else {
-                $output = $OUTPUT->heading($heading);
-            }
+        $renderer = $PAGE->get_renderer('core_grades');
+        // If the navigation action bar is not explicitly defined, use the general (default) action bar.
+        if (!$actionbar) {
+            $actionbar = new general_action_bar($PAGE->context, $PAGE->url, $active_type, $active_plugin);
         }
 
         if ($return) {
-            $returnval .= $output;
+            $returnval .= $renderer->render_action_bar($actionbar);
         } else {
-            echo $output;
-        }
-
-        if ($courseid != SITEID &&
-                ($CFG->grade_navmethod == GRADE_NAVMETHOD_COMBO || $CFG->grade_navmethod == GRADE_NAVMETHOD_TABS)) {
-            $returnval .= grade_print_tabs($active_type, $active_plugin, $plugin_info, $return);
+            echo $renderer->render_action_bar($actionbar);
         }
     }
 
-    $returnval .= print_natural_aggregation_upgrade_notice($courseid,
-                                                           context_course::instance($courseid),
-                                                           $PAGE->url,
-                                                           $return);
+    $output = '';
+    // Add a help dialogue box if provided.
+    if (isset($headerhelpidentifier) && !empty($heading)) {
+        $output = $OUTPUT->heading_with_help($heading, $headerhelpidentifier, $headerhelpcomponent);
+    } else if (isset($user)) {
+        $renderer = $PAGE->get_renderer('core_grades');
+        // If the user is viewing their own grade report, no need to show the "Message"
+        // and "Add to contact" buttons in the user heading.
+        $showuserbuttons = $user->id != $USER->id;
+        $output = $renderer->user_heading($user, $courseid, $showuserbuttons);
+    } else if (!empty($heading)) {
+        $output = $OUTPUT->heading($heading);
+    }
+
+    if ($return) {
+        $returnval .= $output;
+    } else {
+        echo $output;
+    }
+
+    $returnval .= print_natural_aggregation_upgrade_notice($courseid, $coursecontext, $PAGE->url, $return);
 
     if ($return) {
         return $returnval;
@@ -1137,6 +1038,12 @@ class grade_plugin_return {
      * @var int
      */
     public $page;
+    /**
+     * Search string
+     *
+     * @var string
+     */
+    public $search;
 
     /**
      * Constructor
@@ -1150,6 +1057,7 @@ class grade_plugin_return {
         $this->userid   = optional_param('gpr_userid', null, PARAM_INT);
         $this->groupid  = optional_param('gpr_groupid', null, PARAM_INT);
         $this->page     = optional_param('gpr_page', null, PARAM_INT);
+        $this->search   = optional_param('gpr_search', '', PARAM_NOTAGS);
 
         foreach ($params as $key => $value) {
             if (property_exists($this, $key)) {
@@ -1303,6 +1211,12 @@ class grade_plugin_return {
         if (!empty($this->page)) {
             $result .= '<input type="hidden" name="gpr_page" value="'.$this->page.'" />';
         }
+
+        if (!empty($this->search)) {
+            $result .= html_writer::empty_tag('input',
+                ['type' => 'hidden', 'name' => 'gpr_search', 'value' => $this->search]);
+        }
+
         return $result;
     }
 
@@ -1351,10 +1265,9 @@ class grade_plugin_return {
      * Add return tracking params into url
      *
      * @param moodle_url $url A URL
-     *
-     * @return string $url with return tracking params
+     * @return moodle_url with return tracking params
      */
-    public function add_url_params(moodle_url $url) {
+    public function add_url_params(moodle_url $url): moodle_url {
         if (empty($this->type)) {
             return $url;
         }
@@ -1581,7 +1494,7 @@ class grade_structure {
                         if (isset($modinfo->instances[$module][$instanceid])) {
                             $icon->url = $modinfo->instances[$module][$instanceid]->get_icon_url();
                         } else {
-                            $icon->pix = 'icon';
+                            $icon->pix = 'monologo';
                             $icon->component = $element['object']->itemmodule;
                         }
                         $icon->title = s(get_string('modulename', $element['object']->itemmodule));
@@ -1618,6 +1531,48 @@ class grade_structure {
     }
 
     /**
+     * Returns the string that describes the type of the element.
+     *
+     * @param array $element An array representing an element in the grade_tree
+     * @return string The string that describes the type of the grade element
+     */
+    public function get_element_type_string(array $element): string {
+        // If the element is a grade category.
+        if ($element['type'] == 'category') {
+            return get_string('category', 'grades');
+        }
+        // If the element is a grade item.
+        if (in_array($element['type'], ['item', 'courseitem', 'categoryitem'])) {
+            // If calculated grade item.
+            if ($element['object']->is_calculated()) {
+                return get_string('calculatedgrade', 'grades');
+            }
+            // If aggregated type grade item.
+            if ($element['object']->is_aggregate_item()) {
+                return get_string('aggregation', 'core_grades');
+            }
+            // If external grade item (module, plugin, etc.).
+            if ($element['object']->is_external_item()) {
+                // If outcome grade item.
+                if ($element['object']->is_outcome_item()) {
+                    return get_string('outcome', 'grades');
+                }
+                return get_string('modulename', $element['object']->itemmodule);
+            }
+            // If manual grade item.
+            if ($element['object']->itemtype == 'manual') {
+                // If outcome grade item.
+                if ($element['object']->is_outcome_item()) {
+                    return get_string('outcome', 'grades');
+                }
+                return get_string('manualitem', 'grades');
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Returns name of element optionally with icon and link
      *
      * @param array &$element An array representing an element in the grade_tree
@@ -1627,11 +1582,13 @@ class grade_structure {
      * @param bool  $withdescription Show description if defined by this item.
      * @param bool  $fulltotal If the item is a category total, returns $categoryname."total"
      *                         instead of "Category total" or "Course total"
+     * @param moodle_url|null $sortlink Link to sort column.
      *
      * @return string header
      */
-    public function get_element_header(&$element, $withlink = false, $icon = true, $spacerifnone = false,
-        $withdescription = false, $fulltotal = false) {
+    public function get_element_header(array &$element, bool $withlink = false, bool $icon = true,
+            bool $spacerifnone = false, bool $withdescription = false, bool $fulltotal = false,
+            ?moodle_url $sortlink = null) {
         $header = '';
 
         if ($icon) {
@@ -1647,15 +1604,28 @@ class grade_structure {
             return $header;
         }
 
-        if ($withlink && $url = $this->get_activity_link($element)) {
-            $a = new stdClass();
-            $a->name = get_string('modulename', $element['object']->itemmodule);
-            $a->title = $titleunescaped;
-            $title = get_string('linktoactivity', 'grades', $a);
-
-            $header = html_writer::link($url, $header, array('title' => $title, 'class' => 'gradeitemheader'));
+        if ($sortlink) {
+            $url = $sortlink;
+            $header = html_writer::link($url, $header, [
+                'title' => $titleunescaped,
+                'class' => 'gradeitemheader '
+            ]);
         } else {
-            $header = html_writer::span($header, 'gradeitemheader', array('title' => $titleunescaped, 'tabindex' => '0'));
+            if ($withlink && $url = $this->get_activity_link($element)) {
+                $a = new stdClass();
+                $a->name = get_string('modulename', $element['object']->itemmodule);
+                $a->title = $titleunescaped;
+                $title = get_string('linktoactivity', 'grades', $a);
+                $header = html_writer::link($url, $header, [
+                    'title' => $title,
+                    'class' => 'gradeitemheader ',
+                ]);
+            } else {
+                $header = html_writer::span($header, 'gradeitemheader ', [
+                    'title' => $titleunescaped,
+                    'tabindex' => '0'
+                ]);
+            }
         }
 
         if ($withdescription) {
@@ -1783,9 +1753,13 @@ class grade_structure {
      *
      * @param grade_grade $grade
      * @return string
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_grade_analysis_icon(grade_grade $grade) {
         global $OUTPUT;
+        debugging('The function get_grade_analysis_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
 
         $url = $this->get_grade_analysis_url($grade);
         if (is_null($url)) {
@@ -1795,6 +1769,53 @@ class grade_structure {
         $title = get_string('gradeanalysis', 'core_grades');
         return $OUTPUT->action_icon($url, new pix_icon('t/preview', ''), null,
                 ['title' => $title, 'aria-label' => $title]);
+    }
+
+    /**
+     * Returns a link leading to the grade analysis page
+     *
+     * @param grade_grade $grade
+     * @return string|null
+     */
+    public function get_grade_analysis_link(grade_grade $grade): ?string {
+        $url = $this->get_grade_analysis_url($grade);
+        if (is_null($url)) {
+            return null;
+        }
+
+        $gradeanalysisstring = get_string('gradeanalysis', 'grades');
+        return html_writer::link($url, $gradeanalysisstring,
+            ['class' => 'dropdown-item', 'aria-label' => $gradeanalysisstring, 'role' => 'menuitem']);
+    }
+
+    /**
+     * Returns an action menu for the grade.
+     *
+     * @param grade_grade $grade A grade_grade object
+     * @return string
+     */
+    public function get_grade_action_menu(grade_grade $grade) : string {
+        global $OUTPUT;
+
+        $menuitems = [];
+
+        $url = $this->get_grade_analysis_url($grade);
+        if ($url) {
+            $title = get_string('gradeanalysis', 'core_grades');
+            $menuitems[] = new action_menu_link_secondary($url, null, $title);
+        }
+
+        if ($menuitems) {
+            $menu = new action_menu($menuitems);
+            $icon = $OUTPUT->pix_icon('i/moremenu', get_string('actions'));
+            $extraclasses = 'btn btn-link btn-icon icon-size-3 d-flex align-items-center justify-content-center';
+            $menu->set_menu_trigger($icon, $extraclasses);
+            $menu->set_menu_left();
+
+            return $OUTPUT->render($menu);
+        } else {
+            return '';
+        }
     }
 
     /**
@@ -1863,9 +1884,13 @@ class grade_structure {
      * @param object $gpr A grade_plugin_return object
      * @param bool $returnactionmenulink return the instance of action_menu_link instead of string
      * @return string|action_menu_link
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_reset_icon($element, $gpr, $returnactionmenulink = false) {
         global $CFG, $OUTPUT;
+        debugging('The function get_reset_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
 
         // Limit to category items set to use the natural weights aggregation method, and users
         // with the capability to manage grades.
@@ -1891,15 +1916,116 @@ class grade_structure {
     }
 
     /**
+     * Returns a link to reset weights for the given element.
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_reset_weights_link(array $element, object $gpr): ?string {
+
+        // Limit to category items set to use the natural weights aggregation method, and users
+        // with the capability to manage grades.
+        if ($element['type'] != 'category' || $element['object']->aggregation != GRADE_AGGREGATE_SUM ||
+                !has_capability('moodle/grade:manage', $this->context)) {
+            return null;
+        }
+
+        $title = get_string('resetweightsshort', 'grades');
+        $str = get_string('resetweights', 'grades', $this->get_params_for_iconstr($element));
+        $url = new moodle_url('/grade/edit/tree/action.php', [
+            'id' => $this->courseid,
+            'action' => 'resetweights',
+            'eid' => $element['eid'],
+            'sesskey' => sesskey(),
+        ]);
+        $gpr->add_url_params($url);
+        return html_writer::link($url, $title,
+            ['class' => 'dropdown-item', 'aria-label' => $str, 'role' => 'menuitem']);
+    }
+
+    /**
+     * Returns a link to delete a given element.
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_delete_link(array $element, object $gpr): ?string {
+        if ($element['type'] == 'item' || ($element['type'] == 'category' && $element['depth'] > 1)) {
+            if (grade_edit_tree::element_deletable($element)) {
+                $deleteconfirmationurl = new moodle_url('index.php', [
+                    'id' => $this->courseid,
+                    'action' => 'delete',
+                    'confirm' => 1,
+                    'eid' => $element['eid'],
+                    'sesskey' => sesskey(),
+                ]);
+                $gpr->add_url_params($deleteconfirmationurl);
+                $title = get_string('delete');
+                return html_writer::link(
+                    '',
+                    $title,
+                    [
+                        'class' => 'dropdown-item',
+                        'aria-label' => $title,
+                        'role' => 'menuitem',
+                        'data-modal' => 'confirmation',
+                        'data-modal-title-str' => json_encode(['confirm', 'core']),
+                        'data-modal-content-str' => json_encode([
+                            'deletecheck',
+                            '',
+                            $element['object']->get_name()
+                        ]),
+                        'data-modal-yes-button-str' => json_encode(['delete', 'core']),
+                        'data-modal-destination' => $deleteconfirmationurl->out(false),
+                    ]
+                );
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns a link to duplicate a given element.
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_duplicate_link(array $element, object $gpr): ?string {
+        if ($element['type'] == 'item' || ($element['type'] == 'category' && $element['depth'] > 1)) {
+            if (grade_edit_tree::element_duplicatable($element)) {
+                $duplicateparams = [];
+                $duplicateparams['id'] = $this->courseid;
+                $duplicateparams['action'] = 'duplicate';
+                $duplicateparams['eid'] = $element['eid'];
+                $duplicateparams['sesskey'] = sesskey();
+                $url = new moodle_url('index.php', $duplicateparams);
+                $title = get_string('duplicate');
+                $gpr->add_url_params($url);
+                return html_writer::link($url, $title,
+                    ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Return edit icon for give element
      *
      * @param array  $element An array representing an element in the grade_tree
      * @param object $gpr A grade_plugin_return object
      * @param bool $returnactionmenulink return the instance of action_menu_link instead of string
      * @return string|action_menu_link
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_edit_icon($element, $gpr, $returnactionmenulink = false) {
         global $CFG, $OUTPUT;
+
+        debugging('The function get_edit_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
 
         if (!has_capability('moodle/grade:manage', $this->context)) {
             if ($element['type'] == 'grade' and has_capability('moodle/grade:edit', $this->context)) {
@@ -1973,15 +2099,144 @@ class grade_structure {
     }
 
     /**
+     * Returns a link leading to the edit grade/grade item/category page
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_edit_link(array $element, object $gpr): ?string {
+        global $CFG;
+
+        $url = null;
+        $title = '';
+        if ((!has_capability('moodle/grade:manage', $this->context) &&
+            (!($element['type'] == 'grade') || !has_capability('moodle/grade:edit', $this->context)))) {
+                return null;
+        }
+
+        $object = $element['object'];
+
+        if ($element['type'] == 'grade') {
+            if (empty($object->id)) {
+                $url = new moodle_url('/grade/edit/tree/grade.php',
+                    ['courseid' => $this->courseid, 'itemid' => $object->itemid, 'userid' => $object->userid]);
+            } else {
+                $url = new moodle_url('/grade/edit/tree/grade.php',
+                    ['courseid' => $this->courseid, 'id' => $object->id]);
+            }
+            $url = $gpr->add_url_params($url);
+            $title = get_string('editgrade', 'grades');
+        } else if (($element['type'] == 'item') || ($element['type'] == 'categoryitem') ||
+            ($element['type'] == 'courseitem')) {
+            $url = new moodle_url('#');
+            if (empty($object->outcomeid) || empty($CFG->enableoutcomes)) {
+                return html_writer::link($url, get_string('itemsedit', 'grades'), [
+                    'class' => 'dropdown-item',
+                    'aria-label' => get_string('itemsedit', 'grades'),
+                    'role' => 'menuitem',
+                    'data-gprplugin' => $gpr->plugin,
+                    'data-courseid' => $this->courseid,
+                    'data-itemid' => $object->id, 'data-trigger' => 'add-item-form'
+                ]);
+            } else if (count(grade_outcome::fetch_all_available($this->courseid)) > 0) {
+                return html_writer::link($url, get_string('itemsedit', 'grades'), [
+                    'class' => 'dropdown-item',
+                    get_string('itemsedit', 'grades'),
+                    'role' => 'menuitem',
+                    'data-gprplugin' => $gpr->plugin,
+                    'data-courseid' => $this->courseid,
+                    'data-itemid' => $object->id, 'data-trigger' => 'add-outcome-form'
+                ]);
+            }
+        } else if ($element['type'] == 'category') {
+            $url = new moodle_url('#');
+            $title = get_string('categoryedit', 'grades');
+            return html_writer::link($url, $title, [
+                'class' => 'dropdown-item',
+                'aria-label' => $title,
+                'role' => 'menuitem',
+                'data-gprplugin' => $gpr->plugin,
+                'data-courseid' => $this->courseid,
+                'data-category' => $object->id,
+                'data-trigger' => 'add-category-form'
+            ]);
+        }
+        return html_writer::link($url, $title,
+            ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+    }
+
+    /**
+     * Returns link to the advanced grading page
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_advanced_grading_link(array $element, object $gpr): ?string {
+        global $CFG;
+
+        /** @var array static cache of the grade.php file existence flags */
+        static $hasgradephp = [];
+
+        $itemtype = $element['object']->itemtype;
+        $itemmodule = $element['object']->itemmodule;
+        $iteminstance = $element['object']->iteminstance;
+        $itemnumber = $element['object']->itemnumber;
+
+        // Links only for module items that have valid instance, module and are
+        // called from grade_tree with valid modinfo.
+        if ($itemtype == 'mod' && $iteminstance && $itemmodule && $this->modinfo) {
+
+            // Get $cm efficiently and with visibility information using modinfo.
+            $instances = $this->modinfo->get_instances();
+            if (!empty($instances[$itemmodule][$iteminstance])) {
+                $cm = $instances[$itemmodule][$iteminstance];
+
+                // Do not add link if activity is not visible to the current user.
+                if ($cm->uservisible) {
+                    if (!array_key_exists($itemmodule, $hasgradephp)) {
+                        if (file_exists($CFG->dirroot . '/mod/' . $itemmodule . '/grade.php')) {
+                            $hasgradephp[$itemmodule] = true;
+                        } else {
+                            $hasgradephp[$itemmodule] = false;
+                        }
+                    }
+
+                    // If module has grade.php, add link to that.
+                    if ($hasgradephp[$itemmodule]) {
+                        $args = array('id' => $cm->id, 'itemnumber' => $itemnumber);
+                        if (isset($element['userid'])) {
+                            $args['userid'] = $element['userid'];
+                        }
+
+                        $url = new moodle_url('/mod/' . $itemmodule . '/grade.php', $args);
+                        $title = get_string('advancedgrading', 'gradereport_grader', $itemmodule);
+                        $gpr->add_url_params($url);
+                        return html_writer::link($url, $title,
+                            ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Return hiding icon for give element
      *
      * @param array  $element An array representing an element in the grade_tree
      * @param object $gpr A grade_plugin_return object
      * @param bool $returnactionmenulink return the instance of action_menu_link instead of string
      * @return string|action_menu_link
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_hiding_icon($element, $gpr, $returnactionmenulink = false) {
         global $CFG, $OUTPUT;
+        debugging('The function get_hiding_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
 
         if (!$element['object']->can_control_visibility()) {
             return $returnactionmenulink ? null : '';
@@ -2031,15 +2286,61 @@ class grade_structure {
     }
 
     /**
+     * Returns a link with url to hide/unhide grade/grade item/grade category
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     * @return string|null
+     */
+    public function get_hiding_link(array $element, object $gpr): ?string {
+        if (!$element['object']->can_control_visibility() || !has_capability('moodle/grade:manage', $this->context) ||
+            !has_capability('moodle/grade:hide', $this->context)) {
+            return null;
+        }
+
+        $url = new moodle_url('/grade/edit/tree/action.php',
+            ['id' => $this->courseid, 'sesskey' => sesskey(), 'eid' => $element['eid']]);
+        $url = $gpr->add_url_params($url);
+
+        if ($element['object']->is_hidden()) {
+            $url->param('action', 'show');
+            $title = get_string('show');
+        } else {
+            $url->param('action', 'hide');
+            $title = get_string('hide');
+        }
+
+        $url = html_writer::link($url, $title,
+            ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+
+        if ($element['type'] == 'grade') {
+            $item = $element['object']->grade_item;
+            if ($item->hidden) {
+                $strparamobj = new stdClass();
+                $strparamobj->itemname = $item->get_name(true, true);
+                $strnonunhideable = get_string('nonunhideableverbose', 'grades', $strparamobj);
+                $url = html_writer::span($title, 'text-muted dropdown-item',
+                    ['title' => $strnonunhideable, 'aria-label' => $title, 'role' => 'menuitem']);
+            }
+        }
+
+        return $url;
+    }
+
+    /**
      * Return locking icon for given element
      *
      * @param array  $element An array representing an element in the grade_tree
      * @param object $gpr A grade_plugin_return object
      *
      * @return string
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_locking_icon($element, $gpr) {
         global $CFG, $OUTPUT;
+        debugging('The function get_locking_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
 
         $strparams = $this->get_params_for_iconstr($element);
         $strunlock = get_string('unlockverbose', 'grades', $strparams);
@@ -2088,15 +2389,86 @@ class grade_structure {
     }
 
     /**
+     * Returns link to lock/unlock grade/grade item/grade category
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     *
+     * @return string|null
+     */
+    public function get_locking_link(array $element, object $gpr): ?string {
+
+        if (has_capability('moodle/grade:manage', $this->context) && isset($element['object'])) {
+            $title = '';
+            $url = new moodle_url('/grade/edit/tree/action.php',
+                ['id' => $this->courseid, 'sesskey' => sesskey(), 'eid' => $element['eid']]);
+            $url = $gpr->add_url_params($url);
+
+            if ($element['type'] == 'category') {
+                // Grade categories themselves cannot be locked. We lock/unlock their grade items.
+                $children = $element['object']->get_children(true);
+                $alllocked = true;
+                foreach ($children as $child) {
+                    if (!$child['object']->is_locked()) {
+                        $alllocked = false;
+                        break;
+                    }
+                }
+                if ($alllocked && has_capability('moodle/grade:unlock', $this->context)) {
+                    $title = get_string('unlock', 'grades');
+                    $url->param('action', 'unlock');
+                } else if (!$alllocked && has_capability('moodle/grade:lock', $this->context)) {
+                    $title = get_string('lock', 'grades');
+                    $url->param('action', 'lock');
+                } else {
+                    return null;
+                }
+            } else if (($element['type'] == 'grade') && ($element['object']->grade_item->is_locked())) {
+                // Don't allow an unlocking action for a grade whose grade item is locked: just print a state icon.
+                $strparamobj = new stdClass();
+                $strparamobj->itemname = $element['object']->grade_item->get_name(true, true);
+                $strnonunlockable = get_string('nonunlockableverbose', 'grades', $strparamobj);
+                $title = get_string('unlock', 'grades');
+                return html_writer::span($title, 'text-muted dropdown-item', ['title' => $strnonunlockable,
+                    'aria-label' => $title, 'role' => 'menuitem']);
+            } else if ($element['object']->is_locked()) {
+                if (has_capability('moodle/grade:unlock', $this->context)) {
+                    $title = get_string('unlock', 'grades');
+                    $url->param('action', 'unlock');
+                } else {
+                    return null;
+                }
+            } else {
+                if (has_capability('moodle/grade:lock', $this->context)) {
+                    $title = get_string('lock', 'grades');
+                    $url->param('action', 'lock');
+                } else {
+                    return null;
+                }
+            }
+
+            return html_writer::link($url, $title,
+                ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+        } else {
+            return null;
+        }
+    }
+
+    /**
      * Return calculation icon for given element
      *
      * @param array  $element An array representing an element in the grade_tree
      * @param object $gpr A grade_plugin_return object
      * @param bool $returnactionmenulink return the instance of action_menu_link instead of string
      * @return string|action_menu_link
+     * @deprecated since Moodle 4.2 - The row is not shown anymore - we have actions menu.
+     * @todo MDL-77307 This will be deleted in Moodle 4.6.
      */
     public function get_calculation_icon($element, $gpr, $returnactionmenulink = false) {
         global $CFG, $OUTPUT;
+        debugging('The function get_calculation_icon() is deprecated, please do not use it anymore.',
+            DEBUG_DEVELOPER);
+
         if (!has_capability('moodle/grade:manage', $this->context)) {
             return $returnactionmenulink ? null : '';
         }
@@ -2133,6 +2505,271 @@ class grade_structure {
 
         return $returnactionmenulink ? null : '';
     }
+
+    /**
+     * Returns link to edit calculation for a grade item.
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     *
+     * @return string|null
+     */
+    public function get_edit_calculation_link(array $element, object $gpr): ?string {
+
+        if (has_capability('moodle/grade:manage', $this->context) && isset($element['object'])) {
+            $object = $element['object'];
+            $isscale = $object->gradetype == GRADE_TYPE_SCALE;
+            $isvalue = $object->gradetype == GRADE_TYPE_VALUE;
+
+            // Show calculation icon only when calculation possible.
+            if (!$object->is_external_item() && ($isscale || $isvalue)) {
+                $editcalculationstring = get_string('editcalculation', 'grades');
+                $url = new moodle_url('/grade/edit/tree/calculation.php',
+                    ['courseid' => $this->courseid, 'id' => $object->id]);
+                $url = $gpr->add_url_params($url);
+                return html_writer::link($url, $editcalculationstring,
+                    ['class' => 'dropdown-item', 'aria-label' => $editcalculationstring, 'role' => 'menuitem']);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sets status icons for the grade.
+     *
+     * @param array $element array with grade item info
+     * @return string|null status icons container HTML
+     */
+    public function set_grade_status_icons(array $element): ?string {
+        global $OUTPUT;
+
+        $context = [
+            'hidden' => $element['object']->is_hidden(),
+        ];
+
+        if ($element['object'] instanceof grade_grade) {
+            $grade = $element['object'];
+            $context['overridden'] = $grade->is_overridden();
+            $context['excluded'] = $grade->is_excluded();
+            $context['feedback'] = !empty($grade->feedback) && $grade->load_grade_item()->gradetype != GRADE_TYPE_TEXT;
+        }
+
+        $context['classes'] = 'grade_icons data-collapse_gradeicons';
+
+        if ($element['object'] instanceof grade_category) {
+            $context['classes'] = 'category_grade_icons';
+
+            $children = $element['object']->get_children(true);
+            $alllocked = true;
+            foreach ($children as $child) {
+                if (!$child['object']->is_locked()) {
+                    $alllocked = false;
+                    break;
+                }
+            }
+            if ($alllocked) {
+                $context['locked'] = true;
+            }
+        } else {
+            $context['locked'] = $element['object']->is_locked();
+        }
+
+        // Don't even attempt rendering if there is no status to show.
+        if (in_array(true, $context)) {
+            return $OUTPUT->render_from_template('core_grades/status_icons', $context);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Returns an action menu for the grade.
+     *
+     * @param array $element Array with cell info.
+     * @param string $mode Mode - gradeitem or user
+     * @param grade_plugin_return $gpr
+     * @param moodle_url|null $baseurl
+     * @return string
+     */
+    public function get_cell_action_menu(array $element, string $mode, grade_plugin_return $gpr,
+            ?moodle_url $baseurl = null): string {
+        global $OUTPUT, $USER;
+
+        $context = new stdClass();
+
+        if ($mode == 'gradeitem' || $mode == 'setup') {
+            $editable = true;
+
+            if ($element['type'] == 'grade') {
+                $context->datatype = 'grade';
+
+                $item = $element['object']->grade_item;
+                if ($item->is_course_item() || $item->is_category_item()) {
+                    $editable = (bool)get_config('moodle', 'grade_overridecat');;
+                }
+
+                if (!empty($USER->editing)) {
+                    if ($editable) {
+                        $context->editurl = $this->get_edit_link($element, $gpr);
+                    }
+                    $context->hideurl = $this->get_hiding_link($element, $gpr);
+                    $context->lockurl = $this->get_locking_link($element, $gpr);
+                }
+
+                $context->gradeanalysisurl = $this->get_grade_analysis_link($element['object']);
+            } else if (($element['type'] == 'item') || ($element['type'] == 'categoryitem') ||
+                    ($element['type'] == 'courseitem') || ($element['type'] == 'userfield')) {
+
+                $context->datatype = 'item';
+
+                if ($element['type'] == 'item') {
+                    if ($mode == 'setup') {
+                        $context->deleteurl = $this->get_delete_link($element, $gpr);
+                        $context->duplicateurl = $this->get_duplicate_link($element, $gpr);
+                    } else {
+                        $context =
+                            grade_report::get_additional_context($this->context, $this->courseid,
+                                $element, $gpr, $mode, $context, true);
+                        $context->advancedgradingurl = $this->get_advanced_grading_link($element, $gpr);
+                    }
+                    $context->divider1 = true;
+                }
+
+                if (($element['type'] == 'item') ||
+                    (($element['type'] == 'userfield') && ($element['name'] !== 'fullname'))) {
+                    $context->divider2 = true;
+                }
+
+                if (!empty($USER->editing) || $mode == 'setup') {
+                    if (($element['type'] == 'userfield') && ($element['name'] !== 'fullname')) {
+                        $context->divider2 = true;
+                    } else if (($mode !== 'setup') && ($element['type'] !== 'userfield')) {
+                        $context->divider1 = true;
+                        $context->divider2 = true;
+                    }
+
+                    if ($element['type'] == 'item') {
+                        $context->editurl = $this->get_edit_link($element, $gpr);
+                    }
+
+                    $context->editcalculationurl =
+                        $this->get_edit_calculation_link($element, $gpr);
+
+                    if (isset($element['object'])) {
+                        $object = $element['object'];
+                        if ($object->itemmodule !== 'quiz') {
+                            $context->hideurl = $this->get_hiding_link($element, $gpr);
+                        }
+                    }
+                    $context->lockurl = $this->get_locking_link($element, $gpr);
+                }
+
+                // Sorting item.
+                if ($baseurl) {
+                    $sortlink = clone($baseurl);
+                    if (isset($element['object']->id)) {
+                        $sortlink->param('sortitemid', $element['object']->id);
+                    } else if ($element['type'] == 'userfield') {
+                        $context->datatype = $element['name'];
+                        $sortlink->param('sortitemid', $element['name']);
+                    }
+
+                    if (($element['type'] == 'userfield') && ($element['name'] == 'fullname')) {
+                        $sortlink->param('sortitemid', 'firstname');
+                        $context->ascendingfirstnameurl = $this->get_sorting_link($sortlink, $gpr);
+                        $context->descendingfirstnameurl = $this->get_sorting_link($sortlink, $gpr, 'desc');
+
+                        $sortlink->param('sortitemid', 'lastname');
+                        $context->ascendinglastnameurl = $this->get_sorting_link($sortlink, $gpr);
+                        $context->descendinglastnameurl = $this->get_sorting_link($sortlink, $gpr, 'desc');
+                    } else {
+                        $context->ascendingurl = $this->get_sorting_link($sortlink, $gpr);
+                        $context->descendingurl = $this->get_sorting_link($sortlink, $gpr, 'desc');
+                    }
+                }
+                if ($mode !== 'setup') {
+                    $context = grade_report::get_additional_context($this->context, $this->courseid,
+                        $element, $gpr, $mode, $context);
+                }
+            } else if ($element['type'] == 'category') {
+                $context->datatype = 'category';
+                if ($mode !== 'setup') {
+                    $mode = 'category';
+                    $context = grade_report::get_additional_context($this->context, $this->courseid,
+                        $element, $gpr, $mode, $context);
+                } else {
+                    $context->deleteurl = $this->get_delete_link($element, $gpr);
+                    $context->resetweightsurl = $this->get_reset_weights_link($element, $gpr);
+                }
+
+                if (!empty($USER->editing) || $mode == 'setup') {
+                    if ($mode !== 'setup') {
+                        $context->divider1 = true;
+                    }
+                    $context->editurl = $this->get_edit_link($element, $gpr);
+                    $context->hideurl = $this->get_hiding_link($element, $gpr);
+                    $context->lockurl = $this->get_locking_link($element, $gpr);
+                }
+            }
+
+            if (isset($element['object'])) {
+                $context->dataid = $element['object']->id;
+            } else if ($element['type'] == 'userfield') {
+                $context->dataid = $element['name'];
+            }
+
+            if ($element['type'] != 'text' && !empty($element['object']->feedback)) {
+                $viewfeedbackstring = get_string('viewfeedback', 'grades');
+                $context->viewfeedbackurl = html_writer::link('#', $viewfeedbackstring, ['class' => 'dropdown-item',
+                    'aria-label' => $viewfeedbackstring, 'role' => 'menuitem', 'data-action' => 'feedback',
+                    'data-courseid' => $this->courseid]);
+            }
+        } else if ($mode == 'user') {
+            $context->datatype = 'user';
+            $context = grade_report::get_additional_context($this->context, $this->courseid, $element, $gpr, $mode, $context, true);
+            $context->dataid = $element['userid'];
+        }
+
+        // Omit the second divider if there is nothing between it and the first divider.
+        if (!isset($context->ascendingfirstnameurl) && !isset($context->ascendingurl)) {
+            $context->divider2 = false;
+        }
+
+        if ($mode == 'setup') {
+            $context->databoundary = 'window';
+        }
+
+        if (!empty($USER->editing) || isset($context->gradeanalysisurl) || isset($context->gradesonlyurl)
+                || isset($context->aggregatesonlyurl) || isset($context->fullmodeurl) || isset($context->reporturl0)
+                || isset($context->ascendingfirstnameurl) || isset($context->ascendingurl)
+                || isset($context->viewfeedbackurl) || ($mode == 'setup')) {
+            return $OUTPUT->render_from_template('core_grades/cellmenu', $context);
+        }
+        return '';
+    }
+
+    /**
+     * Returns link to sort grade item column
+     *
+     * @param moodle_url $sortlink A base link for sorting
+     * @param object $gpr A grade_plugin_return object
+     * @param string $direction Direction od sorting
+     * @return string
+     */
+    public function get_sorting_link(moodle_url $sortlink, object $gpr, string $direction = 'asc'): string {
+
+        if ($direction == 'asc') {
+            $title = get_string('asc');
+        } else {
+            $title = get_string('desc');
+        }
+
+        $sortlink->param('sort', $direction);
+        $gpr->add_url_params($sortlink);
+        return html_writer::link($sortlink, $title,
+            ['class' => 'dropdown-item', 'aria-label' => $title, 'role' => 'menuitem']);
+    }
+
 }
 
 /**
@@ -2845,7 +3482,8 @@ function grade_button($type, $courseid, $object) {
 function grade_extend_settings($plugininfo, $courseid) {
     global $PAGE;
 
-    $gradenode = $PAGE->settingsnav->prepend(get_string('gradeadministration', 'grades'), null, navigation_node::TYPE_CONTAINER);
+    $gradenode = $PAGE->settingsnav->prepend(get_string('gradeadministration', 'grades'), null, navigation_node::TYPE_CONTAINER,
+        null, 'gradeadmin');
 
     $strings = array_shift($plugininfo);
 
@@ -2966,6 +3604,32 @@ abstract class grade_helper {
     protected static $aggregationstrings = null;
 
     /**
+     * Cached grade tree plugin strings
+     * @var array
+     */
+    protected static $langstrings = [];
+
+    /**
+     * First checks the cached language strings, then returns match if found, or uses get_string()
+     * to get it from the DB, caches it then returns it.
+     *
+     * @deprecated since 4.3
+     * @todo MDL-78780 This will be deleted in Moodle 4.7.
+     * @param string $strcode
+     * @param string|null $section Optional language section
+     * @return string
+     */
+    public static function get_lang_string(string $strcode, ?string $section = null): string {
+        debugging('grade_helper::get_lang_string() is deprecated, please use' .
+            ' get_string() instead.', DEBUG_DEVELOPER);
+
+        if (empty(self::$langstrings[$strcode])) {
+            self::$langstrings[$strcode] = get_string($strcode, $section);
+        }
+        return self::$langstrings[$strcode];
+    }
+
+    /**
      * Gets strings commonly used by the describe plugins
      *
      * report => get_string('view'),
@@ -3050,7 +3714,7 @@ abstract class grade_helper {
      * @return array
      */
     public static function get_plugins_reports($courseid) {
-        global $SITE;
+        global $SITE, $CFG;
 
         if (self::$gradereports !== null) {
             return self::$gradereports;
@@ -3061,6 +3725,11 @@ abstract class grade_helper {
         foreach (core_component::get_plugin_list('gradereport') as $plugin => $plugindir) {
             //some reports make no sense if we're not within a course
             if ($courseid==$SITE->id && ($plugin=='grader' || $plugin=='user')) {
+                continue;
+            }
+
+            // Remove outcomes report if outcomes not enabled.
+            if ($plugin === 'outcomes' && empty($CFG->enableoutcomes)) {
                 continue;
             }
 
@@ -3081,7 +3750,7 @@ abstract class grade_helper {
 
             // Add link to preferences tab if such a page exists
             if (file_exists($plugindir.'/preferences.php')) {
-                $url = new moodle_url('/grade/report/'.$plugin.'/preferences.php', array('id'=>$courseid));
+                $url = new moodle_url('/grade/report/'.$plugin.'/preferences.php', array('id' => $courseid));
                 $gradepreferences[$plugin] = new grade_plugin_info($plugin, $url,
                     get_string('preferences', 'grades') . ': ' . $pluginstr);
             }
@@ -3121,7 +3790,7 @@ abstract class grade_helper {
     /**
      * Get information on outcomes
      * @param int $courseid
-     * @return grade_plugin_info
+     * @return grade_plugin_info[]|false
      */
     public static function get_info_outcomes($courseid) {
         global $CFG, $SITE;
@@ -3331,14 +4000,10 @@ abstract class grade_helper {
         // Sets the list of custom profile fields
         $customprofilefields = array_map('trim', explode(',', $CFG->grade_export_customprofilefields));
         if ($includecustomfields && !empty($customprofilefields)) {
-            list($wherefields, $whereparams) = $DB->get_in_or_equal($customprofilefields);
-            $customfields = $DB->get_records_sql("SELECT f.*
-                                                    FROM {user_info_field} f
-                                                    JOIN {user_info_category} c ON f.categoryid=c.id
-                                                    WHERE f.shortname $wherefields
-                                                    ORDER BY c.sortorder ASC, f.sortorder ASC", $whereparams);
+            $customfields = profile_get_user_fields_with_data(0);
 
-            foreach ($customfields as $field) {
+            foreach ($customfields as $fieldobj) {
+                $field = (object)$fieldobj->get_field_config_for_external();
                 // Make sure we can display this custom field
                 if (!in_array($field->shortname, $customprofilefields)) {
                     continue;
@@ -3377,5 +4042,22 @@ abstract class grade_helper {
         }
         return $result;
     }
-}
 
+    /**
+     * Resets all static caches.
+     *
+     * @return void
+     */
+    public static function reset_caches() {
+        self::$managesetting = null;
+        self::$gradereports = null;
+        self::$gradereportpreferences = null;
+        self::$scaleinfo = null;
+        self::$outcomeinfo = null;
+        self::$letterinfo = null;
+        self::$importplugins = null;
+        self::$exportplugins = null;
+        self::$pluginstrings = null;
+        self::$aggregationstrings = null;
+    }
+}

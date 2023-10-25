@@ -124,7 +124,8 @@ class report_log_table_log extends table_sql {
         }
 
         // If we reach that point new users logs have been generated since the last users db query.
-        $fields = get_all_user_name_fields(true);
+        $userfieldsapi = \core_user\fields::for_name();
+        $fields = $userfieldsapi->get_sql('', false, '', '', false)->selects;
         if ($user = \core_user::get_user($userid, $fields)) {
             $this->userfullnames[$userid] = fullname($user, has_capability('moodle/site:viewfullnames', $this->get_context()));
         } else {
@@ -143,9 +144,9 @@ class report_log_table_log extends table_sql {
     public function col_time($event) {
 
         if (empty($this->download)) {
-            $dateformat = get_string('strftimedatetime', 'core_langconfig');
+            $dateformat = get_string('strftimedatetimeaccurate', 'core_langconfig');
         } else {
-            $dateformat = get_string('strftimedatetimeshort', 'core_langconfig');
+            $dateformat = get_string('strftimedatetimeshortaccurate', 'core_langconfig');
         }
         return userdate($event->timecreated, $dateformat);
     }
@@ -273,12 +274,7 @@ class report_log_table_log extends table_sql {
      */
     public function col_eventname($event) {
         // Event name.
-        if ($this->filterparams->logreader instanceof logstore_legacy\log\store) {
-            // Hack for support of logstore_legacy.
-            $eventname = $event->eventname;
-        } else {
-            $eventname = $event->get_name();
-        }
+        $eventname = $event->get_name();
         // Only encode as an action link if we're not downloading.
         if (($url = $event->get_url()) && empty($this->download)) {
             $eventname = $this->action_link($url, $eventname, 'action');
@@ -323,7 +319,7 @@ class report_log_table_log extends table_sql {
         $ip = $logextra['ip'];
 
         if (empty($this->download)) {
-            $url = new moodle_url("/iplookup/index.php?ip={$ip}&user={$event->userid}");
+            $url = new moodle_url("/iplookup/index.php?popup=1&ip={$ip}&user={$event->userid}");
             $ip = $this->action_link($url, $ip, 'ip');
         }
         return $ip;
@@ -369,17 +365,7 @@ class report_log_table_log extends table_sql {
         global $DB;
 
         // In new logs we have a field to pick, and in legacy try get this from action.
-        if ($this->filterparams->logreader instanceof logstore_legacy\log\store) {
-            $action = $this->get_legacy_crud_action($this->filterparams->action);
-            $firstletter = substr($action, 0, 1);
-            if ($firstletter == '-') {
-                $sql = $DB->sql_like('action', ':action', false, true, true);
-                $params['action'] = '%'.substr($action, 1).'%';
-            } else {
-                $sql = $DB->sql_like('action', ':action', false);
-                $params['action'] = '%'.$action.'%';
-            }
-        } else if (!empty($this->filterparams->action)) {
+        if (!empty($this->filterparams->action)) {
              list($sql, $params) = $DB->get_in_or_equal(str_split($this->filterparams->action),
                     SQL_PARAMS_NAMED, 'crud');
             $sql = "crud " . $sql;
@@ -401,16 +387,10 @@ class report_log_table_log extends table_sql {
         $joins = array();
         $params = array();
 
-        if ($this->filterparams->logreader instanceof logstore_legacy\log\store) {
-            // The legacy store doesn't support context level.
-            $joins[] = "cmid = :cmid";
-            $params['cmid'] = $this->filterparams->modid;
-        } else {
-            $joins[] = "contextinstanceid = :contextinstanceid";
-            $joins[] = "contextlevel = :contextmodule";
-            $params['contextinstanceid'] = $this->filterparams->modid;
-            $params['contextmodule'] = CONTEXT_MODULE;
-        }
+        $joins[] = "contextinstanceid = :contextinstanceid";
+        $joins[] = "contextlevel = :contextmodule";
+        $params['contextinstanceid'] = $this->filterparams->modid;
+        $params['contextmodule'] = CONTEXT_MODULE;
 
         $sql = implode(' AND ', $joins);
         return array($sql, $params);
@@ -429,8 +409,7 @@ class report_log_table_log extends table_sql {
         $params = array();
 
         // If we filter by userid and module id we also need to filter by crud and edulevel to ensure DB index is engaged.
-        $useextendeddbindex = !($this->filterparams->logreader instanceof logstore_legacy\log\store)
-                && !empty($this->filterparams->userid) && !empty($this->filterparams->modid);
+        $useextendeddbindex = !empty($this->filterparams->userid) && !empty($this->filterparams->modid);
 
         $groupid = 0;
         if (!empty($this->filterparams->courseid) && $this->filterparams->courseid != SITEID) {
@@ -502,16 +481,14 @@ class report_log_table_log extends table_sql {
             }
         }
 
-        if (!($this->filterparams->logreader instanceof logstore_legacy\log\store)) {
-            // Filter out anonymous actions, this is N/A for legacy log because it never stores them.
-            if ($this->filterparams->modid) {
-                $context = context_module::instance($this->filterparams->modid);
-            } else {
-                $context = context_course::instance($this->filterparams->courseid);
-            }
-            if (!has_capability('moodle/site:viewanonymousevents', $context)) {
-                $joins[] = "anonymous = 0";
-            }
+        // Filter out anonymous actions, this is N/A for legacy log because it never stores them.
+        if ($this->filterparams->modid) {
+            $context = context_module::instance($this->filterparams->modid);
+        } else {
+            $context = context_course::instance($this->filterparams->courseid);
+        }
+        if (!has_capability('moodle/site:viewanonymousevents', $context)) {
+            $joins[] = "anonymous = 0";
         }
 
         $selector = implode(' AND ', $joins);
@@ -589,7 +566,9 @@ class report_log_table_log extends table_sql {
         // Get user fullname and put that in return list.
         if (!empty($userids)) {
             list($usql, $uparams) = $DB->get_in_or_equal($userids);
-            $users = $DB->get_records_sql("SELECT id," . get_all_user_name_fields(true) . " FROM {user} WHERE id " . $usql,
+            $userfieldsapi = \core_user\fields::for_name();
+            $users = $DB->get_records_sql("SELECT id," . $userfieldsapi->get_sql('', false, '', '', false)->selects .
+                    " FROM {user} WHERE id " . $usql,
                     $uparams);
             foreach ($users as $userid => $user) {
                 $this->userfullnames[$userid] = fullname($user, has_capability('moodle/site:viewfullnames', $this->get_context()));

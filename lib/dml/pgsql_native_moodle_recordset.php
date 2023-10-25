@@ -35,6 +35,7 @@ require_once(__DIR__.'/moodle_recordset.php');
  */
 class pgsql_native_moodle_recordset extends moodle_recordset {
 
+    /** @var PgSql\Result|resource|null */
     protected $result;
     /** @var current row as array.*/
     protected $current;
@@ -54,7 +55,7 @@ class pgsql_native_moodle_recordset extends moodle_recordset {
      *
      * When using cursors, $result will be null initially.
      *
-     * @param resource|null $result A pg_query() result object to create a recordset from.
+     * @param resource|PgSql\Result|null $result A pg_query() result object to create a recordset from.
      * @param pgsql_native_moodle_database $db Database object (only required when using cursors)
      * @param string $cursorname Name of cursor or '' if none
      */
@@ -74,7 +75,7 @@ class pgsql_native_moodle_recordset extends moodle_recordset {
         // Find out if there are any blobs.
         $numfields = pg_num_fields($this->result);
         for ($i = 0; $i < $numfields; $i++) {
-            $type = pg_field_type($this->result, $i);
+            $type = $this->db->pg_field_type($this->result, $i);
             if ($type == 'bytea') {
                 $this->blobs[] = pg_field_name($this->result, $i);
             }
@@ -133,10 +134,11 @@ class pgsql_native_moodle_recordset extends moodle_recordset {
         return $row;
     }
 
-    public function current() {
+    public function current(): stdClass {
         return (object)$this->current;
     }
 
+    #[\ReturnTypeWillChange]
     public function key() {
         // return first column value as key
         if (!$this->current) {
@@ -146,11 +148,11 @@ class pgsql_native_moodle_recordset extends moodle_recordset {
         return $key;
     }
 
-    public function next() {
+    public function next(): void {
         $this->current = $this->fetch_next();
     }
 
-    public function valid() {
+    public function valid(): bool {
         return !empty($this->current);
     }
 

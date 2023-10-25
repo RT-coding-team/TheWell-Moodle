@@ -14,13 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Tests for the Dropbox API (v2).
- *
- * @package     repository_dropbox
- * @copyright   Andrew Nicols <andrew@nicols.co.uk>
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace repository_dropbox;
 
 /**
  * Tests for the Dropbox API (v2).
@@ -29,7 +23,7 @@
  * @copyright   Andrew Nicols <andrew@nicols.co.uk>
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class repository_dropbox_api_testcase extends advanced_testcase {
+class api_test extends \advanced_testcase {
     /**
      * Data provider for has_additional_results.
      *
@@ -83,7 +77,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_has_additional_results($result, $expected) {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(null)
+            ->onlyMethods([])
             ->getMock();
 
         $this->assertEquals($expected, $mock->has_additional_results($result));
@@ -159,7 +153,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_check_and_handle_api_errors($info, $data, $exception, $exceptionmessage) {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(null)
+            ->onlyMethods([])
             ->getMock();
 
         $mock->info = $info;
@@ -254,7 +248,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_supports_thumbnail($entry, $expected) {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(null)
+            ->onlyMethods([])
             ->getMock();
 
         $this->assertEquals($expected, $mock->supports_thumbnail($entry));
@@ -266,7 +260,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_logout_revocation() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(['fetch_dropbox_data'])
+            ->onlyMethods(['fetch_dropbox_data'])
             ->getMock();
 
         $mock->expects($this->once())
@@ -282,7 +276,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_logout_revocation_catch_auth_exception() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(['fetch_dropbox_data'])
+            ->onlyMethods(['fetch_dropbox_data'])
             ->getMock();
 
         $mock->expects($this->once())
@@ -298,7 +292,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_logout_revocation_does_not_catch_other_exceptions() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods(['fetch_dropbox_data'])
+            ->onlyMethods(['fetch_dropbox_data'])
             ->getMock();
 
         $mock->expects($this->once())
@@ -315,7 +309,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_fetch_dropbox_data_endpoint() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'request',
                 'get_api_endpoint',
                 'get_content_endpoint',
@@ -350,7 +344,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_fetch_dropbox_data_postfields_null() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'request',
             ])
             ->getMock();
@@ -377,7 +371,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_fetch_dropbox_data_postfields_data() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'request',
             ])
             ->getMock();
@@ -405,7 +399,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_fetch_dropbox_data_recurse_on_additional_records() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'request',
                 'get_api_endpoint',
             ])
@@ -456,7 +450,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_fetch_dropbox_content() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'request',
                 'setHeader',
                 'get_content_endpoint',
@@ -514,7 +508,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_get_file_share_info_existing() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'fetch_dropbox_data',
                 'normalize_file_share_info',
             ])
@@ -547,7 +541,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_get_file_share_info_new() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'fetch_dropbox_data',
                 'normalize_file_share_info',
             ])
@@ -588,7 +582,7 @@ class repository_dropbox_api_testcase extends advanced_testcase {
     public function test_get_file_share_info_new_failure() {
         $mock = $this->getMockBuilder(\repository_dropbox\dropbox::class)
             ->disableOriginalConstructor()
-            ->setMethods([
+            ->onlyMethods([
                 'fetch_dropbox_data',
                 'normalize_file_share_info',
             ])

@@ -2233,7 +2233,7 @@ Y.extend(COMMENTSEARCH, M.core.dialogue, {
      * @method initializer
      * @return void
      */
-    initializer: function(config) {
+    initializer: function() {
         var editor,
             container,
             placeholder,
@@ -2259,8 +2259,6 @@ Y.extend(COMMENTSEARCH, M.core.dialogue, {
 
         // Set the body content.
         this.set('bodyContent', container);
-
-        COMMENTSEARCH.superclass.initializer.call(this, config);
     },
 
     /**
@@ -2622,7 +2620,7 @@ var COMMENT = function(editor, gradeid, pageno, x, y, width, colour, rawtext) {
      * @return bool true if menu is active, else false.
      */
     this.is_menu_active = function() {
-        return this.menu.get('visible');
+        return this.menu !== null && this.menu.get('visible');
     };
 
     /**
@@ -3782,6 +3780,24 @@ EDITOR.prototype = {
                     var data = this.handle_response_data(response),
                         poll = false;
                     if (data) {
+                        // When we are requesting the readonly version of the pages, they should
+                        // always be available (see document_services::get_page_images_for_attempt)
+                        // so we can just serve them immediately without triggering any document
+                        // conversion or polling.
+                        //
+                        // This is necessary to prevent situations where the student has updated
+                        // their submission and the teacher has annotated a previous version of
+                        // the submission in the assignment grader. In this situation if a student
+                        // views the online version of the annotated PDF ("View annotated PDF" link)
+                        // the readonly pages here and the updated pages (awaiting conversion) will
+                        // never match, and the code endlessly polls.
+                        //
+                        // See also: MDL-45580, MDL-66626, MDL-75898.
+                        if (this.get('readonly') === true) {
+                            this.prepare_pages_for_display(data);
+                            return;
+                        }
+
                         this.documentstatus = data.status;
                         if (data.status === 0) {
                             // The combined document is still waiting for input to be ready.
@@ -4895,6 +4911,7 @@ EDITOR.prototype = {
 
         try {
             options = Object.defineProperty({}, "passive", {
+                // eslint-disable-next-line getter-return
                 get: function() {
                     passivesupported = true;
                 }

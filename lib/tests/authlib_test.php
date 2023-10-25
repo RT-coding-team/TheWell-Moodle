@@ -14,22 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+
+namespace core;
+
 /**
  * Authentication related tests.
  *
- * @package    core_auth
- * @category   phpunit
+ * @package    core
+ * @category   test
  * @copyright  2012 Petr Skoda {@link http://skodak.org}
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-
-/**
- * Functional test for authentication related APIs.
- */
-class core_authlib_testcase extends advanced_testcase {
+class authlib_test extends \advanced_testcase {
     public function test_lockout() {
         global $CFG;
         require_once("$CFG->libdir/authlib.php");
@@ -193,8 +189,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(AUTH_LOGIN_FAILED, $reason);
         // Test Event.
         $this->assertInstanceOf('\core\event\user_login_failed', $event);
-        $expectedlogdata = array(SITEID, 'login', 'error', 'index.php', 'username1');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], 'username1');
         $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_FAILED);
@@ -213,8 +207,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(AUTH_LOGIN_FAILED, $reason);
         // Test Event.
         $this->assertInstanceOf('\core\event\user_login_failed', $event);
-        $expectedlogdata = array(SITEID, 'login', 'error', 'index.php', 'username1');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], 'username1');
         $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_FAILED);
@@ -265,8 +257,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(AUTH_LOGIN_SUSPENDED, $reason);
         // Test Event.
         $this->assertInstanceOf('\core\event\user_login_failed', $event);
-        $expectedlogdata = array(SITEID, 'login', 'error', 'index.php', 'username2');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], 'username2');
         $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_SUSPENDED);
@@ -284,8 +274,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(AUTH_LOGIN_SUSPENDED, $reason);
         // Test Event.
         $this->assertInstanceOf('\core\event\user_login_failed', $event);
-        $expectedlogdata = array(SITEID, 'login', 'error', 'index.php', 'username3');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], 'username3');
         $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_SUSPENDED);
@@ -303,8 +291,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(AUTH_LOGIN_NOUSER, $reason);
         // Test Event.
         $this->assertInstanceOf('\core\event\user_login_failed', $event);
-        $expectedlogdata = array(SITEID, 'login', 'error', 'index.php', 'username4');
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], 'username4');
         $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_NOUSER);
@@ -347,7 +333,7 @@ class core_authlib_testcase extends advanced_testcase {
         $result = authenticate_user_login('username4', 'a', false, $reason);
         $events = $sink->get_events();
         $sink->close();
-        $notifications = \core\notification::fetch();
+        $notifications = notification::fetch();
         $this->assertInstanceOf('stdClass', $result);
         $this->assertEquals(AUTH_LOGIN_OK, $reason);
         $this->assertEquals(get_user_preferences('auth_forcepasswordchange', false, $result), false);
@@ -370,7 +356,7 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(count($events), 1);
         $this->assertEquals(reset($events)->eventname, '\core\event\user_password_policy_failed');
         // Check notification fired.
-        $notifications = \core\notification::fetch();
+        $notifications = notification::fetch();
         $this->assertEquals(count($notifications), 1);
 
         // Now the same tests with a user that passes the password policy.
@@ -381,7 +367,7 @@ class core_authlib_testcase extends advanced_testcase {
         $result = authenticate_user_login('username5', 'ThisPassword1sSecure!', false, $reason);
         $events = $sink->get_events();
         $sink->close();
-        $notifications = \core\notification::fetch();
+        $notifications = notification::fetch();
         $this->assertInstanceOf('stdClass', $result);
         $this->assertEquals(AUTH_LOGIN_OK, $reason);
         $this->assertEquals(get_user_preferences('auth_forcepasswordchange', false, $result), false);
@@ -396,7 +382,7 @@ class core_authlib_testcase extends advanced_testcase {
         $result = authenticate_user_login('username5', 'ThisPassword1sSecure!', false, $reason);
         $events = $sink->get_events();
         $sink->close();
-        $notifications = \core\notification::fetch();
+        $notifications = notification::fetch();
         $this->assertInstanceOf('stdClass', $result);
         $this->assertEquals(AUTH_LOGIN_OK, $reason);
         $this->assertEquals(get_user_preferences('auth_forcepasswordchange', false, $result), false);
@@ -404,13 +390,57 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertEquals(count($events), 0);
         // Check no notifications.
         $this->assertEquals(count($notifications), 0);
+
+        // Capture failed login reCaptcha.
+        $CFG->recaptchapublickey = 'randompublickey';
+        $CFG->recaptchaprivatekey = 'randomprivatekey';
+        $CFG->enableloginrecaptcha = true;
+
+        // Login with blank captcha.
+        $sink = $this->redirectEvents();
+        $result = authenticate_user_login('username1', 'password1', false, $reason, false, '');
+        $events = $sink->get_events();
+        $sink->close();
+        $event = array_pop($events);
+
+        $this->assertFalse($result);
+        $this->assertEquals(AUTH_LOGIN_FAILED_RECAPTCHA, $reason);
+
+        // Test event.
+        $this->assertInstanceOf('\core\event\user_login_failed', $event);
+        $eventdata = $event->get_data();
+        $this->assertSame($eventdata['other']['username'], 'username1');
+        $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_FAILED_RECAPTCHA);
+        $this->assertEventContextNotUsed($event);
+
+        // Login with invalid captcha.
+        $sink = $this->redirectEvents();
+        $result = authenticate_user_login('username1', 'password1', false, $reason, false, 'invalidcaptcha');
+        $events = $sink->get_events();
+        $sink->close();
+        $event = array_pop($events);
+
+        $this->assertFalse($result);
+        $this->assertEquals(AUTH_LOGIN_FAILED_RECAPTCHA, $reason);
+
+        // Test event.
+        $this->assertInstanceOf('\core\event\user_login_failed', $event);
+        $eventdata = $event->get_data();
+        $this->assertSame($eventdata['other']['username'], 'username1');
+        $this->assertSame($eventdata['other']['reason'], AUTH_LOGIN_FAILED_RECAPTCHA);
+        $this->assertEventContextNotUsed($event);
+
+        // Unset settings.
+        unset($CFG->recaptchapublickey);
+        unset($CFG->recaptchaprivatekey);
+        unset($CFG->enableloginrecaptcha);
     }
 
     public function test_user_loggedin_event_exceptions() {
         try {
             $event = \core\event\user_loggedin::create(array('objectid' => 1));
             $this->fail('\core\event\user_loggedin requires other[\'username\']');
-        } catch(Exception $e) {
+        } catch(\Exception $e) {
             $this->assertInstanceOf('coding_exception', $e);
         }
     }
@@ -434,8 +464,8 @@ class core_authlib_testcase extends advanced_testcase {
         // inject our own validation method here and revert it back once we are done. This custom validator method is
         // identical to the default 'php' validator with the only difference: it has the FILTER_FLAG_EMAIL_UNICODE set
         // so that it allows to use non-ASCII characters in email addresses.
-        $defaultvalidator = moodle_phpmailer::$validator;
-        moodle_phpmailer::$validator = function($address) {
+        $defaultvalidator = \moodle_phpmailer::$validator;
+        \moodle_phpmailer::$validator = function($address) {
             return (bool) filter_var($address, FILTER_VALIDATE_EMAIL, FILTER_FLAG_EMAIL_UNICODE);
         };
 
@@ -472,6 +502,6 @@ class core_authlib_testcase extends advanced_testcase {
         $this->assertArrayNotHasKey('email', $errors);
 
         // Restore the original email address validator.
-        moodle_phpmailer::$validator = $defaultvalidator;
+        \moodle_phpmailer::$validator = $defaultvalidator;
     }
 }

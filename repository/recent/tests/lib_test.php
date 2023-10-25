@@ -23,6 +23,9 @@
  * @copyright  Catalyst IT
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+namespace repository_recent;
+
+use repository;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -38,12 +41,12 @@ require_once($CFG->dirroot . '/files/externallib.php');
  * @copyright  Catalyst IT
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class repository_recent_lib_testcase extends advanced_testcase {
+class lib_test extends \advanced_testcase {
 
     /** @var repository Recent repository */
     private $repo;
 
-    /** @var context repository */
+    /** @var \context repository */
     private $usercontext;
 
     /**
@@ -52,7 +55,7 @@ class repository_recent_lib_testcase extends advanced_testcase {
     protected function setUp(): void {
         global $USER;
         $this->setAdminUser();
-        $this->usercontext = context_user::instance($USER->id);
+        $this->usercontext = \context_user::instance($USER->id);
         $repoid = $this->getDataGenerator()->create_repository('recent')->id;
         $this->repo = repository::get_repository_by_id($repoid, $this->usercontext);
     }
@@ -167,7 +170,7 @@ class repository_recent_lib_testcase extends advanced_testcase {
      * @param string $filename file name
      * @param string $filearea file area
      * @param int $itemid item id
-     * @return stored_file the newly created file
+     * @return \stored_file the newly created file
      */
     private function create_test_file($filename, $filearea, $itemid = 0) {
         global $USER;
@@ -189,11 +192,11 @@ class repository_recent_lib_testcase extends advanced_testcase {
     /**
      * Create reference file
      *
-     * @param stored_file $file source file
+     * @param \stored_file $file source file
      * @param string $filename file name
      * @param string $filearea file area
      * @param int $itemid item id
-     * @return stored_file the newly created file
+     * @return \stored_file the newly created file
      */
     private function create_reference_file($file, $filename, $filearea, $itemid = 0) {
         global $USER, $DB;

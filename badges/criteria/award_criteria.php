@@ -129,6 +129,24 @@ abstract class award_criteria {
     public $params = array();
 
     /**
+     * Criteria type.
+     * @var string
+     */
+    public $criteriatype;
+
+    /**
+     * Required parameters.
+     * @var string
+     */
+    public $required_param = '';
+
+    /**
+     * Optional parameters.
+     * @var array
+     */
+    public $optional_params = [];
+
+    /**
      * The base constructor
      *
      * @param array $params
@@ -158,7 +176,7 @@ abstract class award_criteria {
         $types = badges_list_criteria(false);
 
         if (!isset($params['criteriatype']) || !isset($types[$params['criteriatype']])) {
-            print_error('error:invalidcriteriatype', 'badges');
+            throw new \moodle_exception('error:invalidcriteriatype', 'badges');
         }
 
         $class = 'award_criteria_' . $types[$params['criteriatype']];

@@ -82,7 +82,7 @@ class contenttype extends \core_contentbank\contenttype {
     public function get_icon(\core_contentbank\content $content): string {
         global $OUTPUT, $DB;
 
-        $iconurl = $OUTPUT->image_url('f/h5p-64', 'moodle')->out(false);
+        $iconurl = $OUTPUT->image_url('f/h5p')->out(false);
         $file = $content->get_file();
         if (!empty($file)) {
             $h5p = \core_h5p\api::get_content_from_pathnamehash($file->get_pathnamehash());
@@ -110,7 +110,7 @@ class contenttype extends \core_contentbank\contenttype {
      * @return array
      */
     protected function get_implemented_features(): array {
-        return [self::CAN_UPLOAD, self::CAN_EDIT, self::CAN_DOWNLOAD];
+        return [self::CAN_UPLOAD, self::CAN_EDIT, self::CAN_DOWNLOAD, self::CAN_COPY];
     }
 
     /**
@@ -148,22 +148,25 @@ class contenttype extends \core_contentbank\contenttype {
         $types = [];
         $h5pfilestorage = new file_storage();
         foreach ($h5pcontenttypes as $h5pcontenttype) {
-            $library = [
-                'name' => $h5pcontenttype->machine_name,
-                'majorVersion' => $h5pcontenttype->major_version,
-                'minorVersion' => $h5pcontenttype->minor_version,
-            ];
-            $key = H5PCore::libraryToString($library);
-            $type = new stdClass();
-            $type->key = $key;
-            $type->typename = $h5pcontenttype->title;
-            $type->typeeditorparams = 'library=' . $key;
-            $type->typeicon = $h5pfilestorage->get_icon_url(
-                $h5pcontenttype->id,
-                $h5pcontenttype->machine_name,
-                $h5pcontenttype->major_version,
-                $h5pcontenttype->minor_version);
-            $types[] = $type;
+            if ($h5pcontenttype->enabled) {
+                // Only enabled content-types will be displayed.
+                $library = [
+                    'name' => $h5pcontenttype->machine_name,
+                    'majorVersion' => $h5pcontenttype->major_version,
+                    'minorVersion' => $h5pcontenttype->minor_version,
+                ];
+                $key = H5PCore::libraryToString($library);
+                $type = new stdClass();
+                $type->key = $key;
+                $type->typename = $h5pcontenttype->title;
+                $type->typeeditorparams = 'library=' . $key;
+                $type->typeicon = $h5pfilestorage->get_icon_url(
+                    $h5pcontenttype->id,
+                    $h5pcontenttype->machine_name,
+                    $h5pcontenttype->major_version,
+                    $h5pcontenttype->minor_version);
+                $types[] = $type;
+            }
         }
 
         return $types;

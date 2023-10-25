@@ -58,6 +58,7 @@ Feature: Basic recycle bin functionality
     And I am on "Course 1" course homepage
     And I should see "Test assign 1" in the "Topic 1" "section"
 
+  @javascript
   Scenario: Restore a deleted course
     Given I log in as "admin"
     And I go to the courses management page
@@ -77,9 +78,7 @@ Feature: Basic recycle bin functionality
     And I wait to be redirected
     And I go to the courses management page
     And I should see "Course 2" in the "#course-listing" "css_element"
-    And I am on "Course 2" course homepage
-    And I navigate to "Users > Groups" in current page administration
-    And I follow "Overview"
+    And I am on the "Course 2" "groups overview" page
     And "Student 1" "text" should exist in the "Group A" "table_row"
     And "Student 2" "text" should exist in the "Group A" "table_row"
     And "Student 2" "text" should exist in the "Group B" "table_row"
@@ -124,8 +123,7 @@ Feature: Basic recycle bin functionality
   Scenario: Show recycle bin on category action menu
     Given I log in as "admin"
     And I navigate to "Courses >  Manage courses and categories" in site administration
-    And I click on "Actions menu" "link"
-    And I click on "Recycle bin" "link"
+    And I navigate to "Recycle bin" in current page administration
     Then I should see "There are no items in the recycle bin."
 
   @javascript

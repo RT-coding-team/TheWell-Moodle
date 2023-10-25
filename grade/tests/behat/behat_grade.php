@@ -40,6 +40,7 @@ class behat_grade extends behat_base {
      * @param string $itemname
      */
     public function i_give_the_grade($grade, $userfullname, $itemname) {
+        $this->execute('behat_navigation::i_close_block_drawer_if_open');
         $gradelabel = $userfullname . ' ' . $itemname;
         $fieldstr = get_string('useractivitygrade', 'gradereport_grader', $gradelabel);
 
@@ -47,74 +48,62 @@ class behat_grade extends behat_base {
     }
 
     /**
-     * Enters a quick feedback via the gradebook for a specific grade item and user when viewing
-     * the 'Grader report' with editing mode turned on.
-     *
-     * @Given /^I give the feedback "(?P<grade_number>(?:[^"]|\\")*)" to the user "(?P<username_string>(?:[^"]|\\")*)" for the grade item "(?P<grade_activity_string>(?:[^"]|\\")*)"$/
-     * @param string $feedback
-     * @param string $userfullname the user's fullname as returned by fullname()
-     * @param string $itemname
-     */
-    public function i_give_the_feedback($feedback, $userfullname, $itemname) {
-        $gradelabel = $userfullname . ' ' . $itemname;
-        $fieldstr = get_string('useractivityfeedback', 'gradereport_grader', $gradelabel);
-
-        $this->execute('behat_forms::i_set_the_field_to', array($this->escape($fieldstr), $this->escape($feedback)));
-    }
-
-    /**
      * Changes the settings of a grade item or category or the course.
      *
      * Teacher must be either on the grade setup page or on the Grader report page with editing mode turned on.
      *
-     * @Given /^I set the following settings for grade item "(?P<grade_item_string>(?:[^"]|\\")*)":$/
+     * @Given /^I set the following settings for grade item "(?P<grade_item_string>(?:[^"]|\\")*)" of type "([^"]*)" on "([^"]*)" page:$/
      * @param string $gradeitem
+     * @param string $type
+     * @param string $page
      * @param TableNode $data
      */
-    public function i_set_the_following_settings_for_grade_item($gradeitem, TableNode $data) {
-
-        $gradeitem = behat_context_helper::escape($gradeitem);
+    public function i_set_the_following_settings_for_grade_item(string $gradeitem, string $type, string $page, TableNode $data) {
+        $this->execute("behat_navigation::i_close_block_drawer_if_open");
 
         if ($this->running_javascript()) {
-            $xpath = "//tr[contains(.,$gradeitem)]//*[contains(@class,'moodle-actionmenu')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $this->execute("behat_action_menu::i_open_the_action_menu_in",
-                        array("//tr[contains(.,$gradeitem)]",
-                                "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, $type, $page]);
         }
 
-        $savechanges = get_string('savechanges', 'grades');
-        $edit = behat_context_helper::escape(get_string('edit') . '  ');
-        $linkxpath = "//a[./*[contains(concat(' ', normalize-space(@class), ' '), ' icon ') " .
-                "and starts-with(@title,$edit) and contains(@title,$gradeitem)]]";
+        $linktext = $type == 'gradeitem' ? get_string('itemsedit', 'grades') : get_string('categoryedit', 'grades');
 
-        $this->execute("behat_general::i_click_on", array($this->escape($linkxpath), "xpath_element"));
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", $linktext);
+
+        if ($type !== 'gradeitem') {
+            $this->execute('behat_general::i_click_on_in_the', [get_string('showmore', 'form'),
+                'link', '.modal-dialog', 'css_element']);
+        }
+
         $this->execute("behat_forms::i_set_the_following_fields_to_these_values", $data);
-        $this->execute('behat_forms::press_button', $this->escape($savechanges));
+        if ($this->getSession()->getPage()->find('xpath', './/button[@data-action="save"]')) {
+            $container = $this->get_selected_node("core_grades > gradeitem modal", "form");
+            $node = $this->find('xpath', './/button[@data-action="save"]', false, $container);
+            $node->press();
+        } else {
+            $savechanges = get_string('savechanges', 'grades');
+            $this->execute('behat_forms::press_button', $this->escape($savechanges));
+        }
     }
 
     /**
-     * Hids a grade item or category.
+     * Hids a grade item or category on gradebook setup or grader page.
      *
      * Teacher must be on the grade setup page.
      *
-     * @Given /^I hide the grade item "(?P<grade_item_string>(?:[^"]|\\")*)"$/
+     * @Given /^I hide the grade item "(?P<grade_item_string>(?:[^"]|\\")*)" of type "([^"]*)" on "([^"]*)" page$/
      * @param string $gradeitem
+     * @param string $type
+     * @param string $page
      */
-    public function i_hide_the_grade_item($gradeitem) {
+    public function i_hide_the_grade_item(string $gradeitem, string $type, string $page) {
 
-        $gradeitem = behat_context_helper::escape($gradeitem);
+        $linktext = get_string('hide');
 
         if ($this->running_javascript()) {
-            $xpath = "//tr[contains(.,$gradeitem)]//*[contains(@class,'moodle-actionmenu')]//a[contains(@class,'toggle-display')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $this->execute("behat_general::i_click_on", array($this->escape($xpath), "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, $type, $page]);
         }
 
-        $this->execute("behat_general::i_click_on_in_the", array(get_string('hide'), 'link',
-            "//tr[descendant::*[text() = " . $this->escape($gradeitem) . "]]", 'xpath_element'));
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", $linktext);
     }
 
     /**
@@ -125,19 +114,14 @@ class behat_grade extends behat_base {
      * @Given /^I duplicate the grade item "(?P<grade_item_string>(?:[^"]|\\")*)"$/
      * @param string $gradeitem
      */
-    public function i_duplicate_the_grade_item($gradeitem) {
-
-        $gradeitem = behat_context_helper::escape($gradeitem);
+    public function i_duplicate_the_grade_item(string $gradeitem) {
+        $linktext = get_string('duplicate');
 
         if ($this->running_javascript()) {
-            $xpath = "//tr[contains(.,$gradeitem)]//*[contains(@class,'moodle-actionmenu')]//a[contains(@class,'toggle-display')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $this->execute("behat_general::i_click_on", array($this->escape($xpath), "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, 'gradeitem', 'setup']);
         }
 
-        $this->execute("behat_general::i_click_on_in_the", array(get_string('duplicate'), 'link',
-            "//tr[descendant::*[text() = " . $this->escape($gradeitem) . "]]", 'xpath_element'));
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", $linktext);
     }
 
     /**
@@ -151,23 +135,14 @@ class behat_grade extends behat_base {
      */
     public function i_set_calculation_for_grade_item_with_idnumbers($calculation, $gradeitem, TableNode $data) {
 
-        $gradeitem = behat_context_helper::escape($gradeitem);
+        $edit = get_string('editcalculation', 'grades');
 
         if ($this->running_javascript()) {
-            $xpath = "//tr[contains(.,$gradeitem)]//*[contains(@class,'moodle-actionmenu')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $this->execute("behat_action_menu::i_open_the_action_menu_in",
-                        array("//tr[contains(.,$gradeitem)]",
-                                "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, 'gradeitem', 'setup']);
         }
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", $edit);
 
-        // Going to edit calculation.
         $savechanges = get_string('savechanges', 'grades');
-        $edit = behat_context_helper::escape(get_string('editcalculation', 'grades'));
-        $linkxpath = "//a[./*[contains(concat(' ', normalize-space(@class), ' '), ' icon ') " .
-                "and starts-with(@title,$edit) and contains(@title,$gradeitem)]]";
-        $this->execute("behat_general::i_click_on", array($this->escape($linkxpath), "xpath_element"));
 
         // Mapping names to idnumbers.
         $datahash = $data->getRowsHash();
@@ -180,11 +155,11 @@ class behat_grade extends behat_base {
                     "parent::li[@class='categoryitem' or @class='courseitem']" .
                     "/parent::ul/parent::li[starts-with(text(),'" . $gradeitem . "')]" .
                     "]";
-            $this->execute('behat_forms::i_set_the_field_with_xpath_to', array($inputxpath, $idnumber));
+            $this->execute('behat_forms::i_set_the_field_with_xpath_to', [$inputxpath, $idnumber]);
         }
 
         $this->execute('behat_forms::press_button', get_string('addidnumbers', 'grades'));
-        $this->execute('behat_forms::i_set_the_field_to', array(get_string('calculation', 'grades'), $calculation));
+        $this->execute('behat_forms::i_set_the_field_to', [get_string('calculation', 'grades'), $calculation]);
         $this->execute('behat_forms::press_button', $savechanges);
 
     }
@@ -198,25 +173,16 @@ class behat_grade extends behat_base {
      * @param string $gradeitem The grade item name.
      * @param TableNode $data The grade item name - idnumbers relation.
      */
-    public function i_set_calculation_for_grade_category_with_idnumbers($calculation, $gradeitem, TableNode $data) {
+    public function i_set_calculation_for_grade_category_with_idnumbers(string $calculation, string $gradeitem, TableNode $data) {
 
-        $gradecategorytotal = behat_context_helper::escape($gradeitem . ' total');
-        $gradeitem = behat_context_helper::escape($gradeitem);
+        $edit = get_string('editcalculation', 'grades');
 
         if ($this->running_javascript()) {
-            $xpath = "//tr[contains(.,$gradecategorytotal)]//*[contains(@class,'moodle-actionmenu')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $xpath = "//tr[contains(.,$gradecategorytotal)]";
-                $this->execute("behat_action_menu::i_open_the_action_menu_in", array($xpath, "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, 'gradeitem', 'setup']);
         }
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", $edit);
 
-        // Going to edit calculation.
         $savechanges = get_string('savechanges', 'grades');
-        $edit = behat_context_helper::escape(get_string('editcalculation', 'grades'));
-        $linkxpath = "//a[./*[contains(concat(' ', normalize-space(@class), ' '), ' icon ') " .
-                "and starts-with(@title,$edit) and contains(@title,$gradeitem)]]";
-        $this->execute("behat_general::i_click_on", array($this->escape($linkxpath), "xpath_element"));
 
         // Mapping names to idnumbers.
         $datahash = $data->getRowsHash();
@@ -234,7 +200,7 @@ class behat_grade extends behat_base {
 
         $this->execute('behat_forms::press_button', get_string('addidnumbers', 'grades'));
 
-        $this->execute('behat_forms::i_set_the_field_to', array(get_string('calculation', 'grades'), $calculation));
+        $this->execute('behat_forms::i_set_the_field_to', [get_string('calculation', 'grades'), $calculation]);
         $this->execute('behat_forms::press_button', $savechanges);
     }
 
@@ -244,23 +210,15 @@ class behat_grade extends behat_base {
      * Teacher must be on the grade setup page.
      *
      * @Given /^I reset weights for grade category "(?P<grade_item_string>(?:[^"]|\\")*)"$/
-     * @param $gradeitem
+     * @param string $gradeitem
      */
-    public function i_reset_weights_for_grade_category($gradeitem) {
-
-        $steps = array();
+    public function i_reset_weights_for_grade_category(string $gradeitem) {
 
         if ($this->running_javascript()) {
-            $gradeitemliteral = behat_context_helper::escape($gradeitem);
-            $xpath = "//tr[contains(.,$gradeitemliteral)]//*[contains(@class,'moodle-actionmenu')]";
-            if ($this->getSession()->getPage()->findAll('xpath', $xpath)) {
-                $xpath = "//tr[contains(.,$gradeitemliteral)]";
-                $this->execute("behat_action_menu::i_open_the_action_menu_in", array($xpath, "xpath_element"));
-            }
+            $this->execute("behat_grades::i_click_on_grade_item_menu", [$gradeitem, 'category', 'setup']);
         }
-
-        $linktext = get_string('resetweights', 'grades', (object)array('itemname' => $gradeitem));
-        $this->execute("behat_general::i_click_on", array($this->escape($linktext), "link"));
+        $linktext = get_string('resetweightsshort', 'grades');
+        $this->execute("behat_action_menu::i_choose_in_the_open_action_menu", [$this->escape($linktext), "link"]);
     }
 
     /**
@@ -279,9 +237,13 @@ class behat_grade extends behat_base {
     /**
      * Select the tab in the gradebook. We must be on one of the gradebook pages already.
      *
+     * @deprecated since 4.0 - use behat_forms::i_set_the_field_to() instead.
      * @param string $gradepath examples: "View > User report", "Letters > View", "Scales"
      */
     protected function select_in_gradebook_tabs($gradepath) {
+        debugging('The function select_in_gradebook_tabs() is deprecated, please use ' .
+            'behat_forms::i_set_the_field_to() instead.', DEBUG_DEVELOPER);
+
         $gradepath = preg_split('/\s*>\s*/', trim($gradepath));
         if (count($gradepath) > 2) {
             throw new coding_exception('Grade path is too long (must have no more than two items separated with ">")');
@@ -309,25 +271,207 @@ class behat_grade extends behat_base {
     }
 
     /**
-     * Navigates to the course gradebook and selects a specified item from the grade navigation tabs.
+     * Navigates to the course gradebook and selects the specified item from the general grade navigation selector.
      *
      * Examples:
      * - I navigate to "Setup > Gradebook setup" in the course gradebook
      * - I navigate to "Scales" in the course gradebook
-     * - I navigate to "Letters > View" in the course gradebook
-     * - I navigate to "View > User report" in the course gradebook // for teachers
-     * - I navigate to "User report" in the course gradebook // for students
+     * - I navigate to "More > Grade letters" in the course gradebook
      *
      * @Given /^I navigate to "(?P<gradepath_string>(?:[^"]|\\")*)" in the course gradebook$/
-     * @param string $gradepath
+     * @param string $gradepath The path string. If the path has two items (ex. "More > Grade letters"), the first item
+     *                          ("More") will be used to identify an option group in the navigation selector, while the
+     *                          second ("Grade letters") will be used to identify an option within that option group.
+     *                          Otherwise, a single item in a path (ex. "Scales") will be used to identify an option in
+     *                          the navigation selector regardless of the option group.
      */
     public function i_navigate_to_in_the_course_gradebook($gradepath) {
         // If we are not on one of the gradebook pages already, follow "Grades" link in the navigation drawer.
         $xpath = '//div[contains(@class,\'grade-navigation\')]';
         if (!$this->getSession()->getPage()->findAll('xpath', $xpath)) {
-            $this->execute('behat_navigation::i_select_from_flat_navigation_drawer', get_string('grades'));
+            $this->execute('behat_navigation::i_select_from_secondary_navigation', get_string('grades'));
         }
 
-        $this->select_in_gradebook_tabs($gradepath);
+        $this->execute('behat_forms::i_set_the_field_to', [get_string('gradebooknavigationmenu', 'grades'), $gradepath]);
+    }
+
+    /**
+     * Navigates to the imports page in the course gradebook and selects the specified import type from the grade
+     * imports navigation selector.
+     *
+     * Examples:
+     * - I navigate to "CSV file" import page in the course gradebook
+     *
+     * @Given /^I navigate to "(?P<importoption_string>(?:[^"]|\\")*)" import page in the course gradebook$/
+     * @param string $gradeimportoption The name of an existing grade import option.
+     */
+    public function i_navigate_to_import_page_in_the_course_gradebook($gradeimportoption) {
+        $this->i_navigate_to_in_the_course_gradebook("More > Import");
+        $this->execute('behat_forms::i_set_the_field_to', [get_string('importas', 'grades'), $gradeimportoption]);
+    }
+
+    /**
+     * Navigates to the exports page in the course gradebook and selects the specified export type from the grade
+     * exports navigation selector.
+     *
+     * Examples:
+     * - I navigate to "XML file" export page in the course gradebook
+     *
+     * @Given /^I navigate to "(?P<exportoption_string>(?:[^"]|\\")*)" export page in the course gradebook$/
+     * @param string $gradeexportoption The name of an existing grade export option.
+     */
+    public function i_navigate_to_export_page_in_the_course_gradebook($gradeexportoption) {
+        $this->i_navigate_to_in_the_course_gradebook("More > Export");
+        $this->execute('behat_forms::i_set_the_field_to', [get_string('exportas', 'grades'), $gradeexportoption]);
+    }
+
+    /**
+     * Select a given option from a navigation URL selector in the gradebook. We must be on one of the gradebook pages
+     * already.
+     *
+     * @deprecated since 4.1 - use behat_forms::i_set_the_field_to() instead.
+     * @param string $path The string path that is used to identify an item within the navigation selector. If the path
+     *                     has two items (ex. "More > Grade letters"), the first item ("More") will be used to identify
+     *                     an option group in the navigation selector, while the second ("Grade letters") will be used to
+     *                     identify an option within that option group. Otherwise, a single item in a path (ex. "Scales")
+     *                     will be used to identify an option in the navigation selector regardless of the option group.
+     * @param string $formid The ID of the form element which contains the navigation URL selector element.
+     */
+    protected function select_in_gradebook_navigation_selector(string $path, string $formid) {
+        debugging('The function select_in_gradebook_navigation_selector() is deprecated, please use ' .
+            'behat_forms::i_set_the_field_to() instead.', DEBUG_DEVELOPER);
+
+        // Split the path string by ">".
+        $path = preg_split('/\s*>\s*/', trim($path));
+
+        // Make sure that the path does not have more than two items separated with ">".
+        if (count($path) > 2) {
+            throw new coding_exception('The path is too long (must have no more than two items separated with ">")');
+        }
+
+        // Get the select element.
+        $selectxpath = "//form[contains(@id,'{$formid}')]//select";
+        $select = $this->find('xpath', $selectxpath);
+
+        // Define the xpath to the option element depending on the provided path.
+        // If two items are provided in the path, the first item will be considered as an identifier of an existing
+        // option group in the select select element, while the second item will identify an existing option within
+        // that option group.
+        // If one item is provided in the path, this item will identify any existing option in the select element
+        // regardless of the option group. Also, this is useful when option elements are not a part of an option group
+        // which is possible.
+        if (count($path) === 2) {
+            $optionxpath = $selectxpath . '/optgroup[@label="' . $this->escape($path[0]) . '"]' .
+                '/option[contains(.,"' . $this->escape($path[1]) . '")]';
+        } else {
+            $optionxpath = $selectxpath . '//option[contains(.,"' . $this->escape($path[0]) . '")]';
+        }
+
+        // Get the option element that we are looking to select.
+        $option = $this->find('xpath', $optionxpath);
+
+        // Select the given option in the select element.
+        $field = behat_field_manager::get_field_instance('select', $select, $this->getSession());
+        $field->set_value($this->escape($option->getValue()));
+
+        if (!$this->running_javascript()) {
+            $this->execute('behat_general::i_click_on_in_the', [get_string('go'), 'button',
+                "#{$formid}", 'css_element']);
+        }
+    }
+
+    /**
+     * We tend to use this series of steps a bit so define em once.
+     *
+     * @param string $haystack What are we searching within?
+     * @param string $needle What are we looking for?
+     * @param bool $fieldset Do we want to set the search field at the same time?
+     * @return string
+     * @throws coding_exception
+     */
+    private function get_dropdown_selector(string $haystack, string $needle, bool $fieldset = true): string {
+        $this->execute("behat_general::wait_until_the_page_is_ready");
+
+        // Set the default field to search and handle any special preamble.
+        $string = get_string('searchusers', 'core');
+        $selector = '.usersearchdropdown';
+        if (strtolower($haystack) === 'group') {
+            $string = get_string('searchgroups', 'core');
+            $selector = '.groupsearchdropdown';
+            $trigger = ".groupsearchwidget";
+            $node = $this->find("css_element", $selector);
+            if (!$node->isVisible()) {
+                $this->execute("behat_general::i_click_on", [$trigger, "css_element"]);
+            }
+        } else if (strtolower($haystack) === 'grade') {
+            $string = get_string('searchitems', 'core');
+            $selector = '.gradesearchdropdown';
+            $trigger = ".gradesearchwidget";
+            $node = $this->find("css_element", $selector);
+            if (!$node->isVisible()) {
+                $this->execute("behat_general::i_click_on", [$trigger, "css_element"]);
+            }
+        }
+
+        if ($fieldset) {
+            $this->execute("behat_forms::set_field_value", [$string, $needle]);
+            $this->execute("behat_general::wait_until_exists", [$needle, "list_item"]);
+        }
+        return $selector;
+    }
+
+    /**
+     * Confirm if a value is within the search widget within the gradebook.
+     *
+     * Examples:
+     * - I confirm "User" in "user" search within the gradebook widget exists
+     * - I confirm "Group" in "group" search within the gradebook widget exists
+     * - I confirm "Grade item" in "grade" search within the gradebook widget exists
+     *
+     * @Given /^I confirm "(?P<needle>(?:[^"]|\\")*)" in "(?P<haystack>(?:[^"]|\\")*)" search within the gradebook widget exists$/
+     * @param string $needle The value to search for.
+     * @param string $haystack The type of the search widget.
+     */
+    public function i_confirm_in_search_within_the_gradebook_widget_exists($needle, $haystack) {
+        $this->execute("behat_general::assert_element_contains_text",
+            [$needle, $this->get_dropdown_selector($haystack, $needle, false), "css_element"]);
+    }
+
+    /**
+     * Confirm if a value is not within the search widget within the gradebook.
+     *
+     * Examples:
+     * - I confirm "User" in "user" search within the gradebook widget does not exist
+     * - I confirm "Group" in "group" search within the gradebook widget does not exist
+     * - I confirm "Grade item" in "grade" search within the gradebook widget does not exist
+     *
+     * @Given /^I confirm "(?P<needle>(?:[^"]|\\")*)" in "(?P<haystack>(?:[^"]|\\")*)" search within the gradebook widget does not exist$/
+     * @param string $needle The value to search for.
+     * @param string $haystack The type of the search widget.
+     */
+    public function i_confirm_in_search_within_the_gradebook_widget_does_not_exist($needle, $haystack) {
+        $this->execute("behat_general::assert_element_not_contains_text",
+            [$needle, $this->get_dropdown_selector($haystack, $needle, false), "css_element"]);
+    }
+
+    /**
+     * Clicks on an option from the specified search widget in the current gradebook page.
+     *
+     * Examples:
+     * - I click on "Student" in the "user" search widget
+     * - I click on "Group" in the "group" search widget
+     * - I click on "Grade item" in the "grade" search widget
+     *
+     * @Given /^I click on "(?P<needle>(?:[^"]|\\")*)" in the "(?P<haystack>(?:[^"]|\\")*)" search widget$/
+     * @param string $needle The value to search for.
+     * @param string $haystack The type of the search widget.
+     */
+    public function i_click_on_in_search_widget(string $needle, string $haystack) {
+        $selector = $this->get_dropdown_selector($haystack, $needle);
+        $this->execute('behat_general::i_click_on_in_the', [
+            $needle, "list_item",
+            $selector, "css_element"
+        ]);
+        $this->execute("behat_general::i_wait_to_be_redirected");
     }
 }

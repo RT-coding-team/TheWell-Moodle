@@ -23,8 +23,6 @@
  */
 namespace core\plugininfo;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Class for document converter plugins
  *
@@ -33,6 +31,10 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class fileconverter extends base {
+
+    public static function plugintype_supports_disabling(): bool {
+        return true;
+    }
 
     /**
      * Should there be a way to uninstall the plugin via the administration UI.
@@ -63,6 +65,7 @@ class fileconverter extends base {
      */
     public function load_settings(\part_of_admin_tree $adminroot, $parentnodename, $hassiteconfig) {
         global $CFG, $USER, $DB, $OUTPUT, $PAGE; // In case settings.php wants to refer to them.
+        /** @var \admin_root $ADMIN */
         $ADMIN = $adminroot; // May be used in settings.php.
         $plugininfo = $this; // Also can be used inside settings.php.
 
@@ -111,31 +114,38 @@ class fileconverter extends base {
         return array_combine($order, $order);
     }
 
+    public static function enable_plugin(string $pluginname, int $enabled): bool {
+        global $CFG;
+
+        $haschanged = false;
+        $plugins = [];
+        if (!empty($CFG->converter_plugins_sortorder)) {
+            $plugins = array_flip(explode(',', $CFG->converter_plugins_sortorder));
+        }
+        // Only set visibility if it's different from the current value.
+        if ($enabled && !array_key_exists($pluginname, $plugins)) {
+            $plugins[$pluginname] = $pluginname;
+            $haschanged = true;
+        } else if (!$enabled && array_key_exists($pluginname, $plugins)) {
+            unset($plugins[$pluginname]);
+            $haschanged = true;
+        }
+
+        if ($haschanged) {
+            add_to_config_log('converter_plugins_sortorder', !$enabled, $enabled, $pluginname);
+            self::set_enabled_plugins(array_flip($plugins));
+        }
+
+        return $haschanged;
+    }
+
     /**
      * Sets the current plugin as enabled or disabled
      * When enabling tries to guess the sortorder based on default rank returned by the plugin.
      * @param bool $newstate
      */
     public function set_enabled($newstate = true) {
-        $enabled = self::get_enabled_plugins();
-        if (array_key_exists($this->name, $enabled) == $newstate) {
-            // Nothing to do.
-            return;
-        }
-        if ($newstate) {
-            // Enable converter plugin.
-            $plugins = \core_plugin_manager::instance()->get_plugins_of_type('fileconverter');
-            if (!array_key_exists($this->name, $plugins)) {
-                // Can not be enabled.
-                return;
-            }
-            $enabled[$this->name] = $this->name;
-            self::set_enabled_plugins($enabled);
-        } else {
-            // Disable converter plugin.
-            unset($enabled[$this->name]);
-            self::set_enabled_plugins($enabled);
-        }
+        self::enable_plugin($this->name, $newstate);
     }
 
     /**

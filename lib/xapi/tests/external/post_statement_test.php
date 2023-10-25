@@ -33,7 +33,7 @@ use core_xapi\local\statement\item_verb;
 use core_xapi\local\statement\item_activity;
 use externallib_advanced_testcase;
 use stdClass;
-use external_api;
+use core_external\external_api;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -48,7 +48,7 @@ require_once($CFG->dirroot . '/webservice/tests/helpers.php');
  * @copyright  2020 Ferran Recio
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class post_statement_testcase extends externallib_advanced_testcase {
+class post_statement_test extends externallib_advanced_testcase {
 
     /** @var test_helper for generating valid xapi statements. */
     private $testhelper;

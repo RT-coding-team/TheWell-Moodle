@@ -567,6 +567,7 @@ abstract class backup_controller_dbops extends backup_dbops {
                         'backup_general_groups'             => 'groups',
                         'backup_general_competencies'       => 'competencies',
                         'backup_general_contentbankcontent' => 'contentbankcontent',
+                        'backup_general_xapistate'          => 'xapistate',
                         'backup_general_legacyfiles'        => 'legacyfiles'
                 );
                 self::apply_admin_config_defaults($controller, $settings, true);
@@ -578,6 +579,7 @@ abstract class backup_controller_dbops extends backup_dbops {
                         'backup_import_blocks'             => 'blocks',
                         'backup_import_filters'            => 'filters',
                         'backup_import_calendarevents'     => 'calendarevents',
+                        'backup_import_permissions'        => 'permissions',
                         'backup_import_questionbank'       => 'questionbank',
                         'backup_import_groups'             => 'groups',
                         'backup_import_competencies'       => 'competencies',
@@ -615,6 +617,7 @@ abstract class backup_controller_dbops extends backup_dbops {
                         'backup_auto_groups'             => 'groups',
                         'backup_auto_competencies'       => 'competencies',
                         'backup_auto_contentbankcontent' => 'contentbankcontent',
+                        'backup_auto_xapistate'          => 'xapistate',
                         'backup_auto_legacyfiles'        => 'legacyfiles'
                 );
                 self::apply_admin_config_defaults($controller, $settings, false);

@@ -14,21 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
+use core_external\external_single_structure;
+use core_external\external_value;
+
 /**
  * External interface library for customfields component
  *
  * @package   core_customfield
- * @copyright 2018 David Matamoros <davidmc@moodle.com>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die;
-
-require_once($CFG->libdir . "/externallib.php");
-
-/**
- * Class core_customfield_external
- *
  * @copyright 2018 David Matamoros <davidmc@moodle.com>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -131,7 +126,6 @@ class core_customfield_external extends external_api {
                                         'name' => new external_value(PARAM_NOTAGS, 'name'),
                                         'shortname' => new external_value(PARAM_NOTAGS, 'shortname'),
                                         'type' => new external_value(PARAM_NOTAGS, 'type'),
-                                        'editfieldurl' => new external_value(PARAM_URL, 'edit field url'),
                                         'id' => new external_value(PARAM_INT, 'id'),
                                     )
                                 )

@@ -17,16 +17,16 @@
  * Our versioning file
  */
 /**
- * Required version of Moodle 3.7
+ * Required version of Moodle 4.0
  *
  */
-$plugin->requires = 2019052000;
+$plugin->requires = 2022041911;
 /**
  * Our version number
  *
  */
-$plugin->version = 10100;
+$plugin->version = 10202;
 $plugin->component = 'local_module_icons';
 $plugin->cron = 0;
-$plugin->release = '1.1.0 (Build: 10100)';
+$plugin->release = '1.2.2 (Build: 10202)';
 $plugin->maturity = MATURITY_STABLE;

@@ -19,7 +19,6 @@
  *
  * portfolio_plugin_pull_base and portfolio_plugin_push_base
  * which both in turn inherit from portfolio_plugin_base.
- * {@link http://docs.moodle.org/dev/Writing_a_Portfolio_Plugin}
  *
  * @package    core_portfolio
  * @copyright  2008 Penny Leach <penny@catalyst.net.nz>,
@@ -59,7 +58,7 @@ abstract class portfolio_plugin_base {
     /** @var bool whether this instance is visible or not */
     protected $visible;
 
-    /** @var array admin configured config use {@link set_config} and {@get_config} to access */
+    /** @var stdClass admin configured config use {@see set_config} and {@see get_config} to access */
     protected $config;
 
     /** @var array user config cache. keyed on userid and then on config field => value use {@link get_user_config} and {@link set_user_config} to access. */
@@ -208,7 +207,7 @@ abstract class portfolio_plugin_base {
      * Eg: things that your subclasses want to keep in state
      * across the export.
      * Keys must be in get_allowed_export_config
-     * This is deliberately not final (see boxnet plugin)
+     * This is deliberately not final (see googledocs plugin)
      * @see get_allowed_export_config
      *
      * @param array $config named array of config items to set.
@@ -402,7 +401,7 @@ abstract class portfolio_plugin_base {
      * and the request (get and post but not cookie) parameters.
      * This is useful for external systems that need to redirect the user back
      * with some extra data in the url (like auth tokens etc)
-     * for an example implementation, see boxnet portfolio plugin.
+     * for an example implementation, see googledocs portfolio plugin.
      *
      * @param int $stage the stage before control was stolen
      * @param array $params a merge of $_GET and $_POST
@@ -634,7 +633,7 @@ abstract class portfolio_plugin_base {
      * like name, visible etc.
      *
      * @param string $field property name
-     * @return array|string|int|boolean value of the field
+     * @return mixed value of the field
      */
     public final function get($field) {
         // This is a legacy change to the way files are get/set.

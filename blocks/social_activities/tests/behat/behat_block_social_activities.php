@@ -122,7 +122,7 @@ class behat_block_social_activities extends behat_base {
     protected function get_social_block_activity_element($element, $selectortype, $activityname) {
         $activitynode = $this->get_social_block_activity_node($activityname);
 
-        $exception = new ElementNotFoundException($this->getSession(), "'{$element}' '{$selectortype}' in '${activityname}'");
+        $exception = new ElementNotFoundException($this->getSession(), "'{$element}' '{$selectortype}' in '{$activityname}'");
         return $this->find($selectortype, $element, $exception, $activitynode);
     }
 
@@ -133,7 +133,9 @@ class behat_block_social_activities extends behat_base {
      * @param string $activityname
      */
     public function activity_in_social_activities_block_should_be_hidden($activityname) {
-        $this->get_social_block_activity_element("a.dimmed", "css_element", $activityname);
+        $activitynode = $this->get_social_block_activity_node($activityname);
+        $exception = new ExpectationException('"' . $activityname . '" is not hidden', $this->getSession());
+        $this->find('named_partial', array('badge', get_string('hiddenfromstudents')), $exception, $activitynode);
     }
 
     /**
@@ -143,7 +145,9 @@ class behat_block_social_activities extends behat_base {
      * @param string $activityname
      */
     public function activity_in_social_activities_block_should_be_available_but_hidden_from_course_page($activityname) {
-        $this->get_social_block_activity_element("a.stealth", "css_element", $activityname);
+        $activitynode = $this->get_social_block_activity_node($activityname);
+        $exception = new ExpectationException('"' . $activityname . '" is not hidden but available', $this->getSession());
+        $this->find('named_partial', array('badge', get_string('hiddenoncoursepage')), $exception, $activitynode);
     }
 
     /**

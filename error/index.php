@@ -27,9 +27,13 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// @codingStandardsIgnoreStart
-require('../config.php');
-// @codingStandardsIgnoreEnd
+require('../config.php'); // phpcs:ignore
+
+// Until we have a more robust routing api in place this is a very simple
+// and clean way to handle arbitrary urls without a php extension.
+if ($ME === '/.well-known/change-password') {
+    redirect(new moodle_url('/login/change_password.php'));
+}
 
 $context = context_system::instance();
 $title = get_string('pagenotexisttitle', 'error');
@@ -38,6 +42,14 @@ $PAGE->set_context($context);
 $PAGE->set_title($title);
 $PAGE->set_heading($title);
 $PAGE->navbar->add($title);
+
+// This allows the webserver to dictate wether the http status should remain
+// what it would have been, or force it to be a 404. Under other conditions
+// it could most often be a 403, 405 or a 50x error.
+$code = optional_param('code', 0, PARAM_INT);
+if ($code == 404) {
+    header("HTTP/1.0 404 Not Found");
+}
 
 $canmessage = has_capability('moodle/site:senderrormessage', $context);
 
@@ -78,17 +90,7 @@ if ($data = $mform->get_data()) {
 
 echo $OUTPUT->header();
 echo $OUTPUT->notification(get_string('pagenotexist', 'error', s($ME)), 'error');
-
-if (!empty($CFG->supportpage)) {
-    echo \html_writer::tag('h4', get_string('supportpage', 'admin'));
-    $link = \html_writer::link($CFG->supportpage, $CFG->supportpage);
-    echo \html_writer::tag('p', $link);
-}
-if (!empty($CFG->supportemail)) {
-    echo \html_writer::tag('h4', get_string('supportemail', 'admin'));
-    $link = \html_writer::link('mailto:' . $CFG->supportemail, $CFG->supportemail);
-    echo \html_writer::tag('p', $link);
-}
+echo $OUTPUT->supportemail(['class' => 'text-center d-block mb-3 font-weight-bold']);
 
 if ($canmessage) {
     echo \html_writer::tag('h4', get_string('sendmessage', 'error'));
@@ -98,4 +100,3 @@ if ($canmessage) {
 }
 
 echo $OUTPUT->footer();
-

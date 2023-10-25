@@ -62,6 +62,8 @@ global $CHOICE_DISPLAY;
 $CHOICE_DISPLAY = array (CHOICE_DISPLAY_HORIZONTAL   => get_string('displayhorizontal', 'choice'),
                          CHOICE_DISPLAY_VERTICAL     => get_string('displayvertical','choice'));
 
+require_once(__DIR__ . '/deprecatedlib.php');
+
 /// Standard functions /////////////////////////////////////////////////////////
 
 /**
@@ -328,12 +330,12 @@ function choice_user_submit_response($formanswer, $choice, $userid, $course, $cm
     $continueurl = new moodle_url('/mod/choice/view.php', array('id' => $cm->id));
 
     if (empty($formanswer)) {
-        print_error('atleastoneoption', 'choice', $continueurl);
+        throw new \moodle_exception('atleastoneoption', 'choice', $continueurl);
     }
 
     if (is_array($formanswer)) {
         if (!$choice->allowmultiple) {
-            print_error('multiplenotallowederror', 'choice', $continueurl);
+            throw new \moodle_exception('multiplenotallowederror', 'choice', $continueurl);
         }
         $formanswers = $formanswer;
     } else {
@@ -343,7 +345,7 @@ function choice_user_submit_response($formanswer, $choice, $userid, $course, $cm
     $options = $DB->get_records('choice_options', array('choiceid' => $choice->id), '', 'id');
     foreach ($formanswers as $key => $val) {
         if (!isset($options[$val])) {
-            print_error('cannotsubmit', 'choice', $continueurl);
+            throw new \moodle_exception('cannotsubmit', 'choice', $continueurl);
         }
     }
     // Start lock to prevent synchronous access to the same data
@@ -358,7 +360,7 @@ function choice_user_submit_response($formanswer, $choice, $userid, $course, $cm
         // Opening the lock.
         $choicelock = $lockfactory->get_lock($resouce, $timeout, MINSECS);
         if (!$choicelock) {
-            print_error('cannotsubmit', 'choice', $continueurl);
+            throw new \moodle_exception('cannotsubmit', 'choice', $continueurl);
         }
     }
 
@@ -474,7 +476,7 @@ function choice_user_submit_response($formanswer, $choice, $userid, $course, $cm
     } else {
         // This is a choice with limited options, and one of the options selected has just run over its limit.
         $choicelock->release();
-        print_error('choicefull', 'choice', $continueurl);
+        throw new \moodle_exception('choicefull', 'choice', $continueurl);
     }
 
     // Release lock.
@@ -719,7 +721,7 @@ function choice_get_post_actions() {
  * Implementation of the function for printing the form elements that control
  * whether the course reset functionality affects the choice.
  *
- * @param object $mform form passed by reference
+ * @param MoodleQuickForm $mform form passed by reference
  */
 function choice_reset_course_form_definition(&$mform) {
     $mform->addElement('header', 'choiceheader', get_string('modulenameplural', 'choice'));
@@ -798,9 +800,11 @@ function choice_get_response_data($choice, $cm, $groupmode, $onlyactive) {
 
 /// First get all the users who have access here
 /// To start with we assume they are all "unanswered" then move them later
-    $extrafields = get_extra_user_fields($context);
+    // TODO Does not support custom user profile fields (MDL-70456).
+    $userfieldsapi = \core_user\fields::for_identity($context, false)->with_userpic();
+    $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
     $allresponses[0] = get_enrolled_users($context, 'mod/choice:choose', $currentgroup,
-            user_picture::fields('u', $extrafields), null, 0, 0, $onlyactive);
+            $userfields, null, 0, 0, $onlyactive);
 
 /// Get all the recorded responses for this choice
     $rawresponses = $DB->get_records('choice_answers', array('choiceid' => $choice->id));
@@ -832,7 +836,7 @@ function choice_get_response_data($choice, $cm, $groupmode, $onlyactive) {
  * @uses FEATURE_GRADE_HAS_GRADE
  * @uses FEATURE_GRADE_OUTCOMES
  * @param string $feature FEATURE_xx constant for requested feature
- * @return mixed True if module supports feature, null if doesn't know
+ * @return mixed True if module supports feature, false if not, null if doesn't know or string for the module purpose.
  */
 function choice_supports($feature) {
     switch($feature) {
@@ -845,6 +849,7 @@ function choice_supports($feature) {
         case FEATURE_GRADE_OUTCOMES:          return false;
         case FEATURE_BACKUP_MOODLE2:          return true;
         case FEATURE_SHOW_DESCRIPTION:        return true;
+        case FEATURE_MOD_PURPOSE:             return MOD_PURPOSE_COMMUNICATION;
 
         default: return null;
     }
@@ -857,58 +862,9 @@ function choice_supports($feature) {
  * @param navigation_node $choicenode The node to add module settings to
  */
 function choice_extend_settings_navigation(settings_navigation $settings, navigation_node $choicenode) {
-    global $PAGE;
-
-    if (has_capability('mod/choice:readresponses', $PAGE->cm->context)) {
-
-        $groupmode = groups_get_activity_groupmode($PAGE->cm);
-        if ($groupmode) {
-            groups_get_activity_group($PAGE->cm, true);
-        }
-
-        $choice = choice_get_choice($PAGE->cm->instance);
-
-        // Check if we want to include responses from inactive users.
-        $onlyactive = $choice->includeinactive ? false : true;
-
-        // Big function, approx 6 SQL calls per user.
-        $allresponses = choice_get_response_data($choice, $PAGE->cm, $groupmode, $onlyactive);
-
-        $allusers = [];
-        foreach($allresponses as $optionid => $userlist) {
-            if ($optionid) {
-                $allusers = array_merge($allusers, array_keys($userlist));
-            }
-        }
-        $responsecount = count(array_unique($allusers));
-        $choicenode->add(get_string("viewallresponses", "choice", $responsecount), new moodle_url('/mod/choice/report.php', array('id'=>$PAGE->cm->id)));
-    }
-}
-
-/**
- * Obtains the automatic completion state for this choice based on any conditions
- * in forum settings.
- *
- * @param object $course Course
- * @param object $cm Course-module
- * @param int $userid User ID
- * @param bool $type Type of comparison (or/and; can be used as return value if no conditions)
- * @return bool True if completed, false if not, $type if conditions not set.
- */
-function choice_get_completion_state($course, $cm, $userid, $type) {
-    global $CFG,$DB;
-
-    // Get choice details
-    $choice = $DB->get_record('choice', array('id'=>$cm->instance), '*',
-            MUST_EXIST);
-
-    // If completion option is enabled, evaluate it and return true/false
-    if($choice->completionsubmit) {
-        return $DB->record_exists('choice_answers', array(
-                'choiceid'=>$choice->id, 'userid'=>$userid));
-    } else {
-        // Completion option is not enabled so just return $type
-        return $type;
+    if (has_capability('mod/choice:readresponses', $settings->get_page()->cm->context)) {
+        $choicenode->add(get_string('responses', 'choice'),
+            new moodle_url('/mod/choice/report.php', array('id' => $settings->get_page()->cm->id)));
     }
 }
 
@@ -1390,4 +1346,27 @@ function mod_choice_get_completion_active_rule_descriptions($cm) {
         }
     }
     return $descriptions;
+}
+
+/**
+ * Callback to fetch the activity event type lang string.
+ *
+ * @param string $eventtype The event type.
+ * @return lang_string The event type lang string.
+ */
+function mod_choice_core_calendar_get_event_action_string(string $eventtype): string {
+    $modulename = get_string('modulename', 'choice');
+
+    switch ($eventtype) {
+        case CHOICE_EVENT_TYPE_OPEN:
+            $identifier = 'calendarstart';
+            break;
+        case CHOICE_EVENT_TYPE_CLOSE:
+            $identifier = 'calendarend';
+            break;
+        default:
+            return get_string('requiresaction', 'calendar', $modulename);
+    }
+
+    return get_string($identifier, 'choice', $modulename);
 }

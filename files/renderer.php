@@ -70,10 +70,10 @@ class core_files_renderer extends plugin_renderer_base {
                 if ($file['filesize']) {
                     $filesize = display_size($file['filesize']);
                 }
-                $fileicon = file_file_icon($file, 24);
+                $fileicon = file_file_icon($file);
                 $filetype = get_mimetype_description($file);
             } else {
-                $fileicon = file_folder_icon(24);
+                $fileicon = file_folder_icon();
             }
             $table->data[] = array(
                 html_writer::link($file['url'], $this->output->pix_icon($fileicon, get_string('icon')) . ' ' . $file['filename']),
@@ -289,9 +289,9 @@ class core_files_renderer extends plugin_renderer_base {
      * @return string
      */
     protected function fm_print_restrictions($fm) {
-        $maxbytes = display_size($fm->options->maxbytes);
+        $maxbytes = display_size($fm->options->maxbytes, 0);
         $strparam = (object) array('size' => $maxbytes, 'attachments' => $fm->options->maxfiles,
-            'areasize' => display_size($fm->options->areamaxbytes));
+            'areasize' => display_size($fm->options->areamaxbytes, 0));
         $hasmaxfiles = !empty($fm->options->maxfiles) && $fm->options->maxfiles > 0;
         $hasarealimit = !empty($fm->options->areamaxbytes) && $fm->options->areamaxbytes != -1;
         if ($hasmaxfiles && $hasarealimit) {
@@ -303,7 +303,7 @@ class core_files_renderer extends plugin_renderer_base {
         } else {
             $maxsize = get_string('maxfilesize', 'moodle', $maxbytes);
         }
-        // TODO MDL-32020 also should say about 'File types accepted'
+
         return '<span>'. $maxsize . '</span>';
     }
 
@@ -567,6 +567,9 @@ class files_tree_viewer implements renderable {
     public $tree;
     public $path;
     public $context;
+
+    /** @var array file tree viewer options. */
+    protected array $options = [];
 
     /**
      * Constructor of moodle_file_tree_viewer class

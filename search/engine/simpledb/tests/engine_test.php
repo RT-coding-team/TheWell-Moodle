@@ -14,14 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Simple db search engine tests.
- *
- * @package     search_simpledb
- * @category    test
- * @copyright   2016 David Monllao {@link http://www.davidmonllao.com}
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace search_simpledb;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -37,7 +30,7 @@ require_once($CFG->dirroot . '/search/tests/fixtures/mock_search_area.php');
  * @copyright   2016 David Monllao {@link http://www.davidmonllao.com}
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class search_simpledb_engine_testcase extends advanced_testcase {
+class engine_test extends \advanced_testcase {
 
     /**
      * @var \core_search::manager
@@ -50,7 +43,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
     protected $engine = null;
 
     /**
-     * @var core_search_generator
+     * @var \core_search_generator
      */
     protected $generator = null;
 
@@ -73,7 +66,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
         // search component to it.
 
         $this->engine = new \search_simpledb\engine();
-        $this->search = testable_core_search::instance($this->engine);
+        $this->search = \testable_core_search::instance($this->engine);
 
         $this->generator = self::getDataGenerator()->get_plugin_generator('core_search');
         $this->generator->setup();
@@ -140,7 +133,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
         $this->search->index();
         $this->update_index();
 
-        $querydata = new stdClass();
+        $querydata = new \stdClass();
         $querydata->q = 'message';
         $results = $this->search->search($querydata);
         $this->assertCount(2, $results);
@@ -223,7 +216,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
         $this->search->index();
         $this->update_index();
 
-        $querydata = new stdClass();
+        $querydata = new \stdClass();
         $querydata->q = 'message';
 
         $this->assertCount(2, $this->search->search($querydata));
@@ -243,7 +236,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
 
         $this->add_mock_search_area();
 
-        $area = new core_mocksearch\search\mock_search_area();
+        $area = new \core_mocksearch\search\mock_search_area();
 
         $record = $this->generator->create_record();
 
@@ -270,7 +263,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
 
         $this->engine->area_index_complete($area->get_area_id());
 
-        $querydata = new stdClass();
+        $querydata = new \stdClass();
         $querydata->q = 'message';
         $querydata->title = $doc->get('title');
 
@@ -322,7 +315,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
         $this->search->index();
         $this->update_index();
 
-        $querydata = new stdClass();
+        $querydata = new \stdClass();
 
         // Then search to make sure they are there.
         $querydata->q = 'message';
@@ -344,8 +337,6 @@ class search_simpledb_engine_testcase extends advanced_testcase {
 
     /**
      * Tries out deleting data for a context or a course.
-     *
-     * @throws moodle_exception
      */
     public function test_deleted_contexts_and_courses() {
         // Create some courses and activities.
@@ -382,7 +373,6 @@ class search_simpledb_engine_testcase extends advanced_testcase {
      *
      * @param string $searchword Word to match within the content field
      * @param string[] $expected Array of expected result titles, in alphabetical order
-     * @throws dml_exception
      */
     protected function assert_raw_index_contents(string $searchword, array $expected) {
         global $DB;
@@ -400,7 +390,7 @@ class search_simpledb_engine_testcase extends advanced_testcase {
      */
     protected function add_mock_search_area() {
         $areaid = \core_search\manager::generate_areaid('core_mocksearch', 'mock_search_area');
-        $this->search->add_search_area($areaid, new core_mocksearch\search\mock_search_area());
+        $this->search->add_search_area($areaid, new \core_mocksearch\search\mock_search_area());
     }
 
     /**

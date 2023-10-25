@@ -102,9 +102,8 @@ class core_shutdown_manager {
                 array_unshift($params, $signo);
                 $shouldexit = call_user_func_array($callback, $params) && $shouldexit;
             } catch (Throwable $e) {
-                // @codingStandardsIgnoreStart
+                // phpcs:ignore
                 error_log('Exception ignored in signal function ' . get_callable_name($callback) . ': ' . $e->getMessage());
-                // @codingStandardsIgnoreEnd
             }
         }
 
@@ -124,9 +123,7 @@ class core_shutdown_manager {
      */
     public static function register_signal_handler($callback, array $params = null): void {
         if (!is_callable($callback)) {
-            // @codingStandardsIgnoreStart
-            error_log('Invalid custom signal function detected ' . var_export($callback, true));
-            // @codingStandardsIgnoreEnd
+            error_log('Invalid custom signal function detected ' . var_export($callback, true)); // phpcs:ignore
         }
         self::$signalcallbacks[] = [$callback, $params ?? []];
     }
@@ -140,11 +137,9 @@ class core_shutdown_manager {
      */
     public static function register_function($callback, array $params = null): void {
         if (!is_callable($callback)) {
-            // @codingStandardsIgnoreStart
-            error_log('Invalid custom shutdown function detected '.var_export($callback, true));
-            // @codingStandardsIgnoreEnd
+            error_log('Invalid custom shutdown function detected '.var_export($callback, true)); // phpcs:ignore
         }
-        self::$callbacks[] = [$callback, $params ?? []];
+        self::$callbacks[] = [$callback, $params ? array_values($params) : []];
     }
 
     /**
@@ -153,15 +148,18 @@ class core_shutdown_manager {
     public static function shutdown_handler() {
         global $DB;
 
+        // Always ensure we know who the user is in access logs even if they
+        // were logged in a weird way midway through the request.
+        set_access_log_user();
+
         // Custom stuff first.
         foreach (self::$callbacks as $data) {
             list($callback, $params) = $data;
             try {
                 call_user_func_array($callback, $params);
             } catch (Throwable $e) {
-                // @codingStandardsIgnoreStart
+                // phpcs:ignore
                 error_log('Exception ignored in shutdown function '.get_callable_name($callback).': '.$e->getMessage());
-                // @codingStandardsIgnoreEnd
             }
         }
 
@@ -197,7 +195,7 @@ class core_shutdown_manager {
      * Standard shutdown sequence.
      */
     protected static function request_shutdown() {
-        global $CFG;
+        global $CFG, $OUTPUT, $PERF;
 
         // Help apache server if possible.
         $apachereleasemem = false;
@@ -210,15 +208,19 @@ class core_shutdown_manager {
         }
 
         // Deal with perf logging.
-        if (defined('MDL_PERF') || (!empty($CFG->perfdebug) and $CFG->perfdebug > 7)) {
+        if (MDL_PERF || (!empty($CFG->perfdebug) && $CFG->perfdebug > 7)) {
             if ($apachereleasemem) {
                 error_log('Mem usage over '.$apachereleasemem.': marking Apache child for reaping.');
             }
-            if (defined('MDL_PERFTOLOG')) {
+            if (MDL_PERFTOLOG) {
                 $perf = get_performance_info();
                 error_log("PERF: " . $perf['txt']);
             }
-            if (defined('MDL_PERFINC')) {
+            if (!empty($PERF->perfdebugdeferred)) {
+                $perf = get_performance_info();
+                echo $OUTPUT->select_element_for_replace('#perfdebugfooter', $perf['html']);
+            }
+            if (MDL_PERFINC) {
                 $inc = get_included_files();
                 $ts  = 0;
                 foreach ($inc as $f) {
@@ -226,9 +228,9 @@ class core_shutdown_manager {
                         $fs = filesize($f);
                         $ts += $fs;
                         $hfs = display_size($fs);
-                        error_log(substr($f, strlen($CFG->dirroot)) . " size: $fs ($hfs)", null, null, 0);
+                        error_log(substr($f, strlen($CFG->dirroot)) . " size: $fs ($hfs)");
                     } else {
-                        error_log($f , null, null, 0);
+                        error_log($f);
                     }
                 }
                 if ($ts > 0 ) {
@@ -236,6 +238,16 @@ class core_shutdown_manager {
                     error_log("Total size of files included: $ts ($hts)");
                 }
             }
+        }
+
+        // Close the current streaming element if any.
+        if ($OUTPUT->has_started()) {
+            echo $OUTPUT->close_element_for_append();
+        }
+
+        // Print any closing buffered tags.
+        if (!empty($CFG->closingtags)) {
+            echo $CFG->closingtags;
         }
     }
 }

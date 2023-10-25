@@ -152,6 +152,12 @@ abstract class completion_criteria extends data_object {
     /* @var int Role ID that has the ability to mark a user as complete (for role completion) */
     public $role;
 
+    /** @var string course instance. */
+    public $courseinstance;
+
+    /** @var mixed time end. */
+    public $timeend;
+
     /**
      * Finds and returns all data_object instances based on params.
      *
@@ -170,7 +176,7 @@ abstract class completion_criteria extends data_object {
         global $CFG, $COMPLETION_CRITERIA_TYPES;
 
         if (!isset($params['criteriatype']) || !isset($COMPLETION_CRITERIA_TYPES[$params['criteriatype']])) {
-            print_error('invalidcriteriatype', 'completion');
+            throw new \moodle_exception('invalidcriteriatype', 'completion');
         }
 
         $class = 'completion_criteria_'.$COMPLETION_CRITERIA_TYPES[$params['criteriatype']];

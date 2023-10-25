@@ -35,11 +35,11 @@ list($formaction) = explode('?', $formaction, 2);
 $actions = array('bulkchange.php');
 
 if (array_search($formaction, $actions) === false) {
-    print_error('unknownuseraction');
+    throw new \moodle_exception('unknownuseraction');
 }
 
 if (!confirm_sesskey()) {
-    print_error('confirmsesskeybad');
+    throw new \moodle_exception('confirmsesskeybad');
 }
 
 if ($formaction == 'bulkchange.php') {
@@ -61,7 +61,7 @@ if ($formaction == 'bulkchange.php') {
 
     $userids = optional_param_array('userid', array(), PARAM_INT);
     $default = new moodle_url('/user/index.php', ['id' => $course->id]);
-    $returnurl = new moodle_url(optional_param('returnto', $default, PARAM_URL));
+    $returnurl = new moodle_url(optional_param('returnto', $default, PARAM_LOCALURL));
 
     if (empty($userids)) {
         $userids = optional_param_array('bulkuser', array(), PARAM_INT);
@@ -93,19 +93,27 @@ if ($formaction == 'bulkchange.php') {
                         'lastname' => get_string('lastname'),
                     );
 
-                    $identityfields = get_extra_user_fields($context);
-                    $identityfieldsselect = '';
+                    // Get the list of fields we have to hide.
+                    $hiddenfields = [];
+                    if (!has_capability('moodle/course:viewhiddenuserfields', $context)) {
+                        $hiddenfields = array_flip(explode(',', $CFG->hiddenuserfields));
+                    }
 
+                    // Retrieve all identity fields required for users.
+                    $userfieldsapi = \core_user\fields::for_identity($context);
+                    $userfields = $userfieldsapi->get_sql('u', true);
+
+                    $identityfields = array_keys($userfields->mappings);
                     foreach ($identityfields as $field) {
-                        $columnnames[$field] = get_string($field);
-                        $identityfieldsselect .= ', u.' . $field . ' ';
+                        $columnnames[$field] = \core_user\fields::get_display_name($field);
                     }
 
                     // Ensure users are enrolled in this course context, further limiting them by selected userids.
                     [$enrolledsql, $enrolledparams] = get_enrolled_sql($context);
                     [$useridsql, $useridparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'userid');
+                    [$userordersql, $userorderparams] = users_order_by_sql('u', null, $context);
 
-                    $params = array_merge($enrolledparams, $useridparams);
+                    $params = array_merge($userfields->params, $enrolledparams, $useridparams, $userorderparams);
 
                     // If user can only view their own groups then they can only export users from those groups too.
                     $groupmode = groups_get_course_groupmode($course);
@@ -121,11 +129,26 @@ if ($formaction == 'bulkchange.php') {
                         $groupmemberjoin = '';
                     }
 
-                    $sql = "SELECT u.firstname, u.lastname" . $identityfieldsselect . "
+                    // Add column for groups if the user can view them.
+                    if (!isset($hiddenfields['groups'])) {
+                        $columnnames['groupnames'] = get_string('groups');
+                        $userfields->selects .= ', gcn.groupnames';
+
+                        [$groupconcatnamesql, $groupconcatnameparams] = groups_get_names_concat_sql($course->id);
+                        $groupconcatjoin = "LEFT JOIN ({$groupconcatnamesql}) gcn ON gcn.userid = u.id";
+                        $params = array_merge($params, $groupconcatnameparams);
+                    } else {
+                        $groupconcatjoin = '';
+                    }
+
+                    $sql = "SELECT u.firstname, u.lastname {$userfields->selects}
                               FROM {user} u
+                                   {$userfields->joins}
                               JOIN ({$enrolledsql}) je ON je.id = u.id
                                    {$groupmemberjoin}
-                             WHERE u.id {$useridsql}";
+                                   {$groupconcatjoin}
+                             WHERE u.id {$useridsql}
+                          ORDER BY {$userordersql}";
 
                     $rs = $DB->get_recordset_sql($sql, $params);
 
@@ -159,14 +182,14 @@ if ($formaction == 'bulkchange.php') {
             }
         }
         if (!$instance) {
-            print_error('errorwithbulkoperation', 'enrol');
+            throw new \moodle_exception('errorwithbulkoperation', 'enrol');
         }
 
         $manager = new course_enrolment_manager($PAGE, $course, $instance->id);
         $plugins = $manager->get_enrolment_plugins();
 
         if (!isset($plugins[$plugin])) {
-            print_error('errorwithbulkoperation', 'enrol');
+            throw new \moodle_exception('errorwithbulkoperation', 'enrol');
         }
 
         $plugin = $plugins[$plugin];
@@ -174,7 +197,7 @@ if ($formaction == 'bulkchange.php') {
         $operations = $plugin->get_bulk_operations($manager);
 
         if (!isset($operations[$operationname])) {
-            print_error('errorwithbulkoperation', 'enrol');
+            throw new \moodle_exception('errorwithbulkoperation', 'enrol');
         }
         $operation = $operations[$operationname];
 
@@ -207,6 +230,12 @@ if ($formaction == 'bulkchange.php') {
         };
         $filteredusers = array_filter($users, $matchesplugin);
 
+        // If the bulk operation is deleting enrolments, we exclude in any case the current user as it was probably a mistake.
+        if ($operationname === 'deleteselectedusers' && (!in_array($USER->id, $removed))) {
+            \core\notification::warning(get_string('userremovedfromselectiona', 'enrol', fullname($USER)));
+            unset($filteredusers[$USER->id]);
+        }
+
         if (empty($filteredusers)) {
             redirect($returnurl, get_string('noselectedusers', 'bulkusers'));
         }
@@ -221,7 +250,7 @@ if ($formaction == 'bulkchange.php') {
             if ($operation->process($manager, $users, new stdClass)) {
                 redirect($returnurl);
             } else {
-                print_error('errorwithbulkoperation', 'enrol');
+                throw new \moodle_exception('errorwithbulkoperation', 'enrol');
             }
         }
         // Check if the bulk operation has been cancelled.

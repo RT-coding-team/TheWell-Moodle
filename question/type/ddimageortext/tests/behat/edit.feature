@@ -28,3 +28,20 @@ Feature: Test editing a drag and drop onto image questions
       | Question name | Edited question name |
     And I press "id_submitbutton"
     Then I should see "Edited question name"
+
+  Scenario: Edit a drag and drop onto image question and verify penalty works as expected
+    When I am on the "Drag onto image" "core_question > edit" page logged in as teacher
+    Then the following fields match these values:
+      | Question name                       | Drag onto image |
+      | Penalty for each incorrect try      | 33.33333%       |
+      | Penalty for each incorrect try      | 0.3333333       |
+
+  Scenario: Edit a drag and drop onto image question and verify penalty works as expected with custom decimal separator
+    Given the following "language customisations" exist:
+      | component       | stringid | value |
+      | core_langconfig | decsep   | #     |
+    When I am on the "Drag onto image" "core_question > edit" page logged in as teacher
+    Then the following fields match these values:
+      | Question name                       | Drag onto image |
+      | Penalty for each incorrect try      | 33#33333%       |
+      | Penalty for each incorrect try      | 0.3333333       |

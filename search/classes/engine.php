@@ -150,7 +150,8 @@ abstract class engine {
         global $DB;
 
         if (empty(self::$cachedusers[$userid])) {
-            $fields = get_all_user_name_fields(true);
+            $userfieldsapi = \core_user\fields::for_name();
+            $fields = $userfieldsapi->get_sql('', false, '', '', false)->selects;
             self::$cachedusers[$userid] = $DB->get_record('user', array('id' => $userid), 'id, ' . $fields);
         }
         return self::$cachedusers[$userid];
@@ -305,8 +306,8 @@ abstract class engine {
                 $now = manager::get_current_time();
                 if ($now - $lastprogress >= manager::DISPLAY_INDEXING_PROGRESS_EVERY) {
                     $lastprogress = $now;
-                    // The first date format is the same used in cron_trace_time_and_memory().
-                    $options['progress']->output(date('H:i:s', $now) . ': Done to ' . userdate(
+                    // The first date format is the same used in \core\cron::trace_time_and_memory().
+                    $options['progress']->output(date('H:i:s', (int)$now) . ': Done to ' . userdate(
                             $lastindexeddoc, get_string('strftimedatetimeshort', 'langconfig')), 1);
                 }
             }

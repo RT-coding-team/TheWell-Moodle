@@ -37,7 +37,7 @@ function filter_tex_get_executable($debug=false) {
         if (is_executable($pathmimetex)) {
             return $pathmimetex;
         } else {
-            print_error('mimetexnotexecutable', 'error');
+            throw new \moodle_exception('mimetexnotexecutable', 'error');
         }
     }
 
@@ -46,17 +46,22 @@ function filter_tex_get_executable($debug=false) {
         if (is_executable($custom_commandpath)) {
             return $custom_commandpath;
         } else {
-            print_error('mimetexnotexecutable', 'error');
+            throw new \moodle_exception('mimetexnotexecutable', 'error');
         }
     }
 
     switch (PHP_OS) {
-        case "Linux":   return "$CFG->dirroot/filter/tex/mimetex.linux";
         case "Darwin":  return "$CFG->dirroot/filter/tex/mimetex.darwin";
         case "FreeBSD": return "$CFG->dirroot/filter/tex/mimetex.freebsd";
+        case "Linux":
+            if (php_uname('m') == 'aarch64') {
+                return "$CFG->dirroot/filter/tex/mimetex.linux.aarch64";
+            }
+
+            return "$CFG->dirroot/filter/tex/mimetex.linux";
     }
 
-    print_error('mimetexisnotexist', 'error');
+    throw new \moodle_exception('mimetexisnotexist', 'error');
 }
 
 /**
@@ -79,6 +84,7 @@ function filter_tex_sanitize_formula(string $texexp): string {
         '\afterassignment', '\expandafter', '\noexpand', '\special',
         '\let', '\futurelet', '\else', '\fi', '\chardef', '\makeatletter', '\afterground',
         '\noexpand', '\line', '\mathcode', '\item', '\section', '\mbox', '\declarerobustcommand',
+        '\ExplSyntaxOn',
     ];
 
     $allowlist = ['inputenc'];

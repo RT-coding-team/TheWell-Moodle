@@ -43,7 +43,7 @@ abstract class scanner {
     /** Scanning result indicating the error. */
     const SCAN_RESULT_ERROR = 2;
 
-    /** @var stdClass the config for antivirus */
+    /** @var \stdClass the config for antivirus */
     protected $config;
     /** @var string scanning notice */
     protected $scanningnotice = '';
@@ -237,5 +237,15 @@ abstract class scanner {
      */
     public function get_messages() : array {
         return $this->messages;
+    }
+
+    /**
+     * Getter method for the antivirus message displayed in the exception.
+     *
+     * @return array array of string and component to pass to exception constructor.
+     */
+    public function get_virus_found_message() {
+        // Base antivirus found string.
+        return ['string' => 'virusfound', 'component' => 'antivirus', 'placeholders' => []];
     }
 }

@@ -23,10 +23,10 @@
  */
 namespace core\plugininfo;
 
-use core_component, core_plugin_manager, moodle_url, coding_exception;
-
-defined('MOODLE_INTERNAL') || die();
-
+use coding_exception;
+use core_component;
+use core_plugin_manager;
+use moodle_url;
 
 /**
  * Base class providing access to the information about a plugin
@@ -71,12 +71,62 @@ abstract class base {
     /** @var array|null array of {@link \core\update\info} for this plugin */
     protected $availableupdates;
 
+    /** @var int Move a plugin up in the plugin order */
+    public const MOVE_UP = -1;
+
+    /** @var int Move a plugin down in the plugin order */
+    public const MOVE_DOWN = 1;
+
+    /** @var array hold $plugin->supported in version.php */
+    public $supported;
+
+    /** @var int hold $plugin->incompatible in version.php  */
+    public $incompatible;
+
+    /** @var string Name of the plugin */
+    public $component = '';
+
+    /**
+     * Whether this plugintype supports its plugins being disabled.
+     *
+     * @return bool
+     */
+    public static function plugintype_supports_disabling(): bool {
+        return false;
+    }
+
     /**
      * Finds all enabled plugins, the result may include missing plugins.
      * @return array|null of enabled plugins $pluginname=>$pluginname, null means unknown
      */
     public static function get_enabled_plugins() {
         return null;
+    }
+
+    /**
+     * Enable or disable a plugin.
+     * When possible, the change will be stored into the config_log table, to let admins check when/who has modified it.
+     *
+     * @param string $pluginname The plugin name to enable/disable.
+     * @param int $enabled Whether the pluginname should be enabled (1) or not (0). This is an integer because some plugins, such
+     * as filters or repositories, might support more statuses than just enabled/disabled.
+     *
+     * @return bool Whether $pluginname has been updated or not.
+     */
+    public static function enable_plugin(string $pluginname, int $enabled): bool {
+        return false;
+    }
+
+    /**
+     * Returns current status for a pluginname.
+     *
+     * @param string $pluginname The plugin name to check.
+     * @return int The current status (enabled, disabled...) of $pluginname.
+     */
+    public static function get_enabled_plugin(string $pluginname): int {
+        $enabledplugins = static::get_enabled_plugins();
+        $value = $enabledplugins && array_key_exists($pluginname, $enabledplugins);
+        return (int) $value;
     }
 
     /**
@@ -112,6 +162,7 @@ abstract class base {
             $plugin->type        = $type;
             $plugin->typerootdir = $typerootdir;
             $plugin->name        = $name;
+            $plugin->component   = $plugin->type.'_'.$plugin->name;
             $plugin->rootdir     = null;
             $plugin->displayname = $name;
             $plugin->versiondb   = $version;
@@ -142,6 +193,7 @@ abstract class base {
         $plugin->name        = $name;
         $plugin->rootdir     = $namerootdir;
         $plugin->pluginman   = $pluginman;
+        $plugin->component   = $plugin->type.'_'.$plugin->name;
 
         $plugin->init_display_name();
         $plugin->load_disk_version();
@@ -259,7 +311,8 @@ abstract class base {
         }
 
         if (isset($plugin->incompatible) && $plugin->incompatible !== null) {
-            if ((ctype_digit($plugin->incompatible) || is_int($plugin->incompatible)) && (int) $plugin->incompatible > 0) {
+            if (((is_string($plugin->incompatible) && ctype_digit($plugin->incompatible)) || is_int($plugin->incompatible))
+                    && (int) $plugin->incompatible > 0) {
                 $this->pluginincompatible = intval($plugin->incompatible);
             } else {
                 throw new coding_exception('Incorrect syntax in plugin incompatible declaration in '."$this->name");
@@ -503,27 +556,17 @@ abstract class base {
      *
      * @return null|moodle_url
      */
-    public function get_settings_url() {
+    public function get_settings_url(): ?moodle_url {
         $section = $this->get_settings_section_name();
         if ($section === null) {
             return null;
         }
+
         $settings = admin_get_root()->locate($section);
-        if ($settings) {
-            if ($settings instanceof \admin_settingpage) {
-                return new moodle_url('/admin/settings.php', [
-                    'section' => $section,
-                ]);
-            }
-
-            if ($settings instanceof \admin_externalpage) {
-                return new moodle_url($settings->url);
-            }
-
-            if ($settings instanceof \admin_category) {
-                return $settings->get_settings_page_url();
-            }
+        if ($settings && $settings instanceof \core_admin\local\settings\linkable_settings_page) {
+            return $settings->get_settings_page_url();
         }
+
         return null;
     }
 
@@ -581,6 +624,10 @@ abstract class base {
     public function get_dir() {
         global $CFG;
 
+        if (!isset($this->rootdir)) {
+            return '';
+        }
+
         return substr($this->rootdir, strlen($CFG->dirroot));
     }
 
@@ -634,5 +681,40 @@ abstract class base {
             'confirm' => 0,
             'return' => $return,
         ));
+    }
+
+    /**
+     * Whether this plugintype supports ordering of plugins using native functionality.
+     *
+     * Please note that plugintypes which pre-date this native functionality may still support ordering
+     * but will not use the built-in functionality.
+     *
+     * @return bool
+     */
+    public static function plugintype_supports_ordering(): bool {
+        return false;
+    }
+
+    /**
+     * Finds all enabled plugins, the result may include missing plugins.
+     *
+     * @param bool $enabledonly Show all plugins, or only those which are enabled
+     * @return array|null of sorted plugins $pluginname => $pluginname, null means unknown
+     */
+    public static function get_sorted_plugins(bool $enabledonly = false): ?array {
+        return null;
+    }
+
+    /**
+     * Change the order of the plugin relative to other plugins in the plugintype.
+     *
+     * When possible, the change will be stored into the config_log table, to let admins check when/who has modified it.
+     *
+     * @param string $pluginname The plugin name to enable/disable.
+     * @param int $direction The direction to move the plugin. Negative numbers mean up, Positive mean down.
+     * @return bool Whether $pluginname has been updated or not.
+     */
+    public static function change_plugin_order(string $pluginname, int $direction): bool {
+        return false;
     }
 }

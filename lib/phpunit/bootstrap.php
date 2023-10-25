@@ -39,8 +39,6 @@ ini_set('log_errors', '1');
 if (ini_get('opcache.enable') and strtolower(ini_get('opcache.enable')) !== 'off') {
     if (!ini_get('opcache.save_comments') or strtolower(ini_get('opcache.save_comments')) === 'off') {
         ini_set('opcache.enable', 0);
-    } else {
-        ini_set('opcache.load_comments', 1);
     }
 }
 
@@ -50,7 +48,6 @@ if (!defined('IGNORE_COMPONENT_CACHE')) {
 
 require_once(__DIR__.'/bootstraplib.php');
 require_once(__DIR__.'/../testing/lib.php');
-require_once(__DIR__.'/classes/autoloader.php');
 
 if (isset($_SERVER['REMOTE_ADDR'])) {
     phpunit_bootstrap_error(1, 'Unit tests can be executed only from command line!');
@@ -185,7 +182,7 @@ $allowed = array('wwwroot', 'dataroot', 'dirroot', 'admin', 'directorypermission
 $productioncfg = (array)$CFG;
 $CFG = new stdClass();
 foreach ($productioncfg as $key=>$value) {
-    if (!in_array($key, $allowed) and strpos($key, 'phpunit_') !== 0) {
+    if (!in_array($key, $allowed) and strpos($key, 'phpunit_') !== 0 and strpos($key, 'behat_') !== 0) {
         // ignore
         continue;
     }
@@ -225,6 +222,10 @@ if (PHPUNIT_UTIL) {
     // we are not going to do testing, this is 'true' in utility scripts that only init database
     return;
 }
+
+// Make sure the hook manager gets initialised before anybody tries to override callbacks,
+// this is not using caches intentionally to help with development.
+\core\hook\manager::get_instance();
 
 // is database and dataroot ready for testing?
 list($errorcode, $message) = phpunit_util::testing_ready_problem();

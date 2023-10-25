@@ -66,6 +66,12 @@ class backup_filename_setting extends backup_generic_setting {
 class backup_users_setting extends backup_generic_setting {}
 
 /**
+ * root setting to control if backup will include permission information by roles
+ */
+class backup_permissions_setting extends backup_generic_setting {
+}
+
+/**
  * root setting to control if backup will include group information depends on @backup_users_setting
  *
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -204,4 +210,10 @@ class backup_activity_userinfo_setting extends activity_backup_setting {}
  * Root setting to control if backup will include content bank content or no
  */
 class backup_contentbankcontent_setting extends backup_generic_setting {
+}
+
+/**
+ * Root setting to control if backup will include xAPI state or not.
+ */
+class backup_xapistate_setting extends backup_generic_setting {
 }

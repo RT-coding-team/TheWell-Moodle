@@ -23,15 +23,12 @@
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
-global $CFG;
-require_once($CFG->dirroot . '/filter/glossary/filter.php'); // Include the code to test.
+namespace filter_glossary;
 
 /**
  * Test case for glossary.
  */
-class filter_glossary_filter_testcase extends advanced_testcase {
+class filter_test extends \advanced_testcase {
 
     public function test_link_to_entry_with_alias() {
         global $CFG;
@@ -43,7 +40,7 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
@@ -84,7 +81,7 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
@@ -121,14 +118,14 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
                 array('course' => $course->id, 'mainglossary' => 1));
 
         // Create two entries with ampersands and one normal entry.
-        /** @var mod_glossary_generator $generator */
+        /** @var \mod_glossary_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('mod_glossary');
         $category = $generator->create_category($glossary, array('name' => 'My category', 'usedynalink' => 1));
 
@@ -159,14 +156,14 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
                 array('course' => $course->id, 'mainglossary' => 1));
 
         // Create two entries with ampersands and one normal entry.
-        /** @var mod_glossary_generator $generator */
+        /** @var \mod_glossary_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('mod_glossary');
         $normal = $generator->create_content($glossary, array('concept' => 'normal'));
         $amp1 = $generator->create_content($glossary, array('concept' => 'A&B'));
@@ -205,14 +202,14 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
                 array('course' => $course->id, 'mainglossary' => 1));
 
         // Create two entries with ampersands and one normal entry.
-        /** @var mod_glossary_generator $generator */
+        /** @var \mod_glossary_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('mod_glossary');
         $simple = $generator->create_content($glossary, array('concept' => 'simple'));
         $withbrackets = $generator->create_content($glossary, array('concept' => 'more complex (perhaps)'));
@@ -249,7 +246,7 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
@@ -288,14 +285,14 @@ class filter_glossary_filter_testcase extends advanced_testcase {
 
         // Create a test course.
         $course = $this->getDataGenerator()->create_course();
-        $context = context_course::instance($course->id);
+        $context = \context_course::instance($course->id);
 
         // Create a glossary.
         $glossary = $this->getDataGenerator()->create_module('glossary',
                 array('course' => $course->id, 'mainglossary' => 1));
 
         // Create two entries with ampersands and one normal entry.
-        /** @var mod_glossary_generator $generator */
+        /** @var \mod_glossary_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('mod_glossary');
         $category = $generator->create_category($glossary, array('name' => 'My category', 'usedynalink' => 1));
 

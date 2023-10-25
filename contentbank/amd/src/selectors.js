@@ -45,6 +45,7 @@ export default {
         viewgrid: getDataSelector('action', 'viewgrid'),
         viewlist: getDataSelector('action', 'viewlist'),
         sortname: getDataSelector('action', 'sortname'),
+        sortuses: getDataSelector('action', 'sortuses'),
         sortdate: getDataSelector('action', 'sortdate'),
         sortsize: getDataSelector('action', 'sortsize'),
         sorttype: getDataSelector('action', 'sorttype'),
@@ -56,7 +57,7 @@ export default {
         cell: '.cb-column',
         cbnavbarbreadcrumb: '.cb-navbar-breadbrumb',
         cbnavbartotalsearch: '.cb-navbar-totalsearch',
-        searchinput: '#searchinput',
+        searchinput: '[data-action="search"]',
         sortbutton: '.cb-btnsort'
     },
 };

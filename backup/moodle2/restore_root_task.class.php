@@ -146,6 +146,19 @@ class restore_root_task extends restore_task {
         $this->add_setting($roleassignments);
         $users->add_dependency($roleassignments);
 
+        // Define permissions.
+        $defaultvalue = false;                      // Safer default.
+        $changeable = false;
+        // Enable when available, or key doesn't exist (backward compatibility).
+        if (!array_key_exists('permissions', $rootsettings) || !empty($rootsettings['permissions'])) {
+            $defaultvalue = true;
+            $changeable = true;
+        }
+        $permissions = new restore_permissions_setting('permissions', base_setting::IS_BOOLEAN, $defaultvalue);
+        $permissions->set_ui(new backup_setting_ui_checkbox($permissions, get_string('rootsettingpermissions', 'backup')));
+        $permissions->get_ui()->set_changeable($changeable);
+        $this->add_setting($permissions);
+
         // Define activitites
         $defaultvalue = false;                      // Safer default
         $changeable = false;
@@ -302,6 +315,18 @@ class restore_root_task extends restore_task {
         $contents->set_ui(new backup_setting_ui_checkbox($contents, get_string('rootsettingcontentbankcontent', 'backup')));
         $contents->get_ui()->set_changeable($changeable);
         $this->add_setting($contents);
+
+        // Define xAPI states.
+        $defaultvalue = false;
+        $changeable = false;
+        if (isset($rootsettings['xapistate']) && $rootsettings['xapistate']) { // Only enabled when available.
+            $defaultvalue = true;
+            $changeable = true;
+        }
+        $xapistate = new restore_xapistate_setting('xapistate', base_setting::IS_BOOLEAN, $defaultvalue);
+        $xapistate->set_ui(new backup_setting_ui_checkbox($xapistate, get_string('rootsettingxapistate', 'backup')));
+        $xapistate->get_ui()->set_changeable($changeable);
+        $this->add_setting($xapistate);
 
         // Include legacy files.
         $defaultvalue = true;

@@ -61,6 +61,10 @@ class qformat_aiken extends qformat_default {
         return true;
     }
 
+    public function validate_file(stored_file $file): string {
+        return $this->validate_is_utf8_file($file);
+    }
+
     public function readquestions($lines) {
         $questions = array();
         $question = null;
@@ -86,8 +90,7 @@ class qformat_aiken extends qformat_default {
                     }
 
                     // A choice. Trim off the label and space, then save.
-                    $question->answer[] = $this->text_field(
-                            htmlspecialchars(trim(substr($nowline, 2)), ENT_NOQUOTES));
+                    $question->answer[] = $this->text_field(substr($nowline, 2));
                     $question->fraction[] = 0;
                     $question->feedback[] = $this->text_field('');
                 } else if (preg_match('/^ANSWER:/', $nowline)) {

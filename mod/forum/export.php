@@ -181,12 +181,20 @@ $PAGE->set_context($context);
 $PAGE->set_url($url);
 $PAGE->set_title($pagetitle);
 $PAGE->set_pagelayout('admin');
+$PAGE->add_body_class('limitedwidth');
 $PAGE->set_heading($pagetitle);
+$PAGE->activityheader->disable();
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading($pagetitle);
+if (!$PAGE->has_secondary_navigation()) {
+    echo $OUTPUT->heading($pagetitle);
+}
 
 // It is possible that the following fields have been provided in the URL.
+$userids = array_filter($userids, static function(int $userid) use ($course, $cm): bool {
+    $user = core_user::get_user($userid, '*', MUST_EXIST);
+    return $cm->effectivegroupmode != SEPARATEGROUPS || user_can_view_profile($user, $course);
+});
 $form->set_data(['useridsselected' => $userids, 'discussionids' => $discussionids, 'from' => $from, 'to' => $to]);
 
 $form->display();

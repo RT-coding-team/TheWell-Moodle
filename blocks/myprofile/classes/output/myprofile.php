@@ -56,7 +56,7 @@ class myprofile implements renderable, templatable {
      * Export this data so it can be used as the context for a mustache template.
      *
      * @param \renderer_base $output
-     * @return stdClass
+     * @return \stdClass
      */
     public function export_for_template(renderer_base $output) {
         global $USER, $OUTPUT;
@@ -84,26 +84,6 @@ class myprofile implements renderable, templatable {
             $data->useremail = obfuscate_mailto($USER->email, '');
         }
 
-        if (!empty($this->config->display_icq) && !empty($USER->icq)) {
-            $data->usericq = s($USER->icq);
-        }
-
-        if (!empty($this->config->display_skype) && !empty($USER->skype)) {
-            $data->userskype = s($USER->skype);
-        }
-
-        if (!empty($this->config->display_yahoo) && !empty($USER->yahoo)) {
-            $data->useryahoo = s($USER->yahoo);
-        }
-
-        if (!empty($this->config->display_aim) && !empty($USER->aim)) {
-            $data->useraim = s($USER->aim);
-        }
-
-        if (!empty($this->config->display_msn) && !empty($USER->msn)) {
-            $data->usermsn = s($USER->msn);
-        }
-
         if (!empty($this->config->display_phone1) && !empty($USER->phone1)) {
             $data->userphone1 = s($USER->phone1);
         }
@@ -120,6 +100,10 @@ class myprofile implements renderable, templatable {
             $data->useraddress = format_string($USER->address);
         }
 
+        if (!empty($this->config->display_idnumber) && !empty($USER->idnumber)) {
+            $data->useridnumber = s($USER->idnumber);
+        }
+
         if (!empty($this->config->display_firstaccess) && !empty($USER->firstaccess)) {
             $data->userfirstaccess = userdate($USER->firstaccess);
         }
@@ -134,6 +118,10 @@ class myprofile implements renderable, templatable {
 
         if (!empty($this->config->display_lastip) && !empty($USER->lastip)) {
             $data->userlastip = $USER->lastip;
+        }
+
+        if (!empty($this->config->display_lastlogin) && !empty($USER->lastlogin)) {
+            $data->userlastlogin = userdate($USER->lastlogin);
         }
 
         return $data;

@@ -16,14 +16,13 @@ Feature: In a lesson activity, students can see questions in random order
       | user | course | role |
       | teacher1 | C1 | editingteacher |
       | student1 | C1 | student |
+    And the following "activities" exist:
+      | activity | name                 | course | idnumber |
+      | lesson   | Lesson with clusters | C1     | lesson1  |
     And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
 
   Scenario: Lesson with two clusters
-    Given I add a "Lesson" to section "1" and I fill the form with:
-      | Name | Lesson with clusters |
-      | Description | Test lesson description |
-    And I follow "Lesson with clusters"
+    Given I am on the "Lesson with clusters" "lesson activity" page
     And I follow "Add a content page"
     And I set the following fields to these values:
       | Page title | First page name |
@@ -40,7 +39,7 @@ Feature: In a lesson activity, students can see questions in random order
       | id_answer_editor_1 | Next page |
       | id_jumpto_1 | Next page |
     And I press "Save page"
-    And I follow "Expanded"
+    And I select edit type "Expanded"
     And I click on "Add a cluster" "link" in the "//div[contains(concat(' ', normalize-space(@class), ' '), ' addlinks ')][3]" "xpath_element"
     And I click on "Add a question page here" "link" in the "//div[contains(concat(' ', normalize-space(@class), ' '), ' addlinks ')][4]" "xpath_element"
     And I set the field "Select a question type" to "Multichoice"
@@ -119,10 +118,7 @@ Feature: In a lesson activity, students can see questions in random order
       | id_answer_editor_0 | Next page |
       | id_jumpto_0 | Next page |
     And I press "Save page"
-    And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
-    When I follow "Lesson with clusters"
+    When I am on the "Lesson with clusters" "lesson activity" page logged in as student1
     Then I should see "First page contents"
     And I press "Next page"
     And I should see "Second page contents"

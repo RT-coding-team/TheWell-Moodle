@@ -36,7 +36,7 @@ require_once($CFG->dirroot.'/lib/dml/pgsql_native_moodle_database.php');
  * @copyright 2017 The Open University
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class pgsql_native_recordset_testcase extends basic_testcase {
+class pgsql_native_recordset_test extends basic_testcase {
 
     /** @var pgsql_native_moodle_database Special database connection */
     protected $specialdb;
@@ -423,7 +423,7 @@ class pgsql_native_recordset_testcase extends basic_testcase {
             if (!array_key_exists($index, $expected)) {
                 $this->fail('More queries than expected');
             }
-            $this->assertRegExp($expected[$index++], $line);
+            $this->assertMatchesRegularExpression($expected[$index++], $line);
         }
         if (array_key_exists($index, $expected)) {
             $this->fail('Fewer queries than expected');

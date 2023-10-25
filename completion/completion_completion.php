@@ -66,6 +66,8 @@ class completion_completion extends data_object {
     /* @var int Flag to trigger cron aggregation (timestamp) */
     public $reaggregate;
 
+    /** @var float user's course grade. */
+    public $gradefinal;
 
     /**
      * Finds and returns a data_object instance based on params.
@@ -101,6 +103,7 @@ class completion_completion extends data_object {
      * If the user is already marked as started, no change will occur
      *
      * @param integer $timeenrolled Time enrolled (optional)
+     * @return  int|null id of completion record on successful update.
      */
     public function mark_enrolled($timeenrolled = null) {
 
@@ -122,6 +125,7 @@ class completion_completion extends data_object {
      * If the user is already marked as inprogress, the time will not be changed
      *
      * @param integer $timestarted Time started (optional)
+     * @return  int|null id of completion record on successful update.
      */
     public function mark_inprogress($timestarted = null) {
 
@@ -149,14 +153,14 @@ class completion_completion extends data_object {
      * in the course are complete.
      *
      * @param integer $timecomplete Time completed (optional)
-     * @return void
+     * @return  int|null id of completion record on successful update.
      */
     public function mark_complete($timecomplete = null) {
         global $USER;
 
         // Never change a completion time.
         if ($this->timecompleted) {
-            return;
+            return null;
         }
 
         // Use current time if nothing supplied.
@@ -166,7 +170,6 @@ class completion_completion extends data_object {
 
         // Set time complete.
         $this->timecompleted = $timecomplete;
-
         // Save record.
         if ($result = $this->_save()) {
             $data = $this->get_record_data();
@@ -211,17 +214,16 @@ class completion_completion extends data_object {
      *
      * This method creates a course_completions record if none exists
      * @access  private
-     * @return  bool
+     * @return  int|null id of completion record on successful update.
      */
     private function _save() {
         if ($this->timeenrolled === null) {
             $this->timeenrolled = 0;
         }
 
-        $result = false;
         // Save record
-        if ($this->id) {
-            $result = $this->update();
+        if (isset($this->id)) {
+            $success = $this->update();
         } else {
             // Make sure reaggregate field is not null
             if (!$this->reaggregate) {
@@ -233,17 +235,18 @@ class completion_completion extends data_object {
                 $this->timestarted = 0;
             }
 
-            $result = $this->insert();
+            $success = $this->insert();
         }
 
-        if ($result) {
+        if ($success) {
             // Update the cached record.
             $cache = cache::make('core', 'coursecompletion');
             $data = $this->get_record_data();
             $key = $data->userid . '_' . $data->course;
             $cache->set($key, ['value' => $data]);
+            return $this->id;
         }
 
-        return $result;
+        return null;
     }
 }

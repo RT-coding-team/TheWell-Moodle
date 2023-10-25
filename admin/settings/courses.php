@@ -22,6 +22,10 @@
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->libdir . '/pdflib.php');
+
 use core_admin\local\settings\filesize;
 
 $capabilities = array(
@@ -37,12 +41,6 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
         new admin_externalpage('coursemgmt', new lang_string('coursemgmt', 'admin'),
             $CFG->wwwroot . '/course/management.php',
             array('moodle/category:manage', 'moodle/course:create')
-        )
-    );
-    $ADMIN->add('courses',
-        new admin_externalpage('course_customfield', new lang_string('course_customfield', 'admin'),
-            $CFG->wwwroot . '/course/customfield.php',
-            array('moodle/course:configurecustomfields')
         )
     );
     $ADMIN->add('courses',
@@ -64,6 +62,49 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
         )
     );
 
+    // Download course content.
+    $downloadcoursedefaulturl = new moodle_url('/admin/settings.php', ['section' => 'coursesettings']);
+    $temp = new admin_settingpage('downloadcoursecontent', new lang_string('downloadcoursecontent', 'course'));
+    $temp->add(new admin_setting_configcheckbox('downloadcoursecontentallowed',
+            new lang_string('downloadcoursecontentallowed', 'admin'),
+            new lang_string('downloadcoursecontentallowed_desc', 'admin', $downloadcoursedefaulturl->out()), 0));
+
+    // 50MB default maximum size per file when downloading course content.
+    $defaultmaxdownloadsize = 50 * filesize::UNIT_MB;
+    $temp->add(new filesize('maxsizeperdownloadcoursefile', new lang_string('maxsizeperdownloadcoursefile', 'admin'),
+            new lang_string('maxsizeperdownloadcoursefile_desc', 'admin'), $defaultmaxdownloadsize, filesize::UNIT_MB));
+    $temp->hide_if('maxsizeperdownloadcoursefile', 'downloadcoursecontentallowed');
+
+    $ADMIN->add('courses', $temp);
+
+    // "courserequests" settingpage.
+    $temp = new admin_settingpage('courserequest', new lang_string('courserequest'));
+    $temp->add(new admin_setting_configcheckbox('enablecourserequests',
+        new lang_string('enablecourserequests', 'admin'),
+        new lang_string('configenablecourserequests', 'admin'), 1));
+    $temp->add(new admin_settings_coursecat_select('defaultrequestcategory',
+        new lang_string('defaultrequestcategory', 'admin'),
+        new lang_string('configdefaultrequestcategory', 'admin'), 1));
+    $temp->add(new admin_setting_configcheckbox('lockrequestcategory',
+        new lang_string('lockrequestcategory', 'admin'),
+        new lang_string('configlockrequestcategory', 'admin'), 0));
+    $temp->add(new admin_setting_users_with_capability(
+        'courserequestnotify',
+        new lang_string('courserequestnotify', 'admin'),
+        new lang_string('configcourserequestnotify2', 'admin'),
+        [],
+        'moodle/site:approvecourse'
+    ));
+    $ADMIN->add('courses', $temp);
+
+    // Pending course requests.
+    if (!empty($CFG->enablecourserequests)) {
+        $ADMIN->add('courses', new admin_externalpage('coursespending', new lang_string('pendingrequests'),
+                $CFG->wwwroot . '/course/pending.php', array('moodle/site:approvecourse')));
+    }
+
+    // Add a category for the course Default settings.
+    $ADMIN->add('courses', new admin_category('coursedefaultsettings', new lang_string('defaultsettingscategory', 'course')));
     // Course Default Settings Page.
     // NOTE: these settings must be applied after all other settings because they depend on them.
 
@@ -88,6 +129,15 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $downloadcontentsitedefault->add_dependent_on('downloadcoursecontentallowed');
     $temp->add($downloadcontentsitedefault);
 
+    $temp->add(
+            new admin_setting_configtext(
+                'moodlecourse/participantsperpage',
+                new lang_string('participants:perpage', 'course'),
+                new lang_string('participants:perpage_help', 'course'),
+                20
+            )
+        );
+
     // Course format.
     $temp->add(new admin_setting_heading('courseformathdr', new lang_string('type_format', 'plugin'), ''));
 
@@ -109,7 +159,7 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $choices['0'] = new lang_string('hiddensectionscollapsed');
     $choices['1'] = new lang_string('hiddensectionsinvisible');
     $temp->add(new admin_setting_configselect('moodlecourse/hiddensections', new lang_string('hiddensections'),
-        new lang_string('coursehelphiddensections'), 0, $choices));
+        new lang_string('coursehelphiddensections'), 1, $choices));
 
     $choices = array();
     $choices[COURSE_DISPLAY_SINGLEPAGE] = new lang_string('coursedisplay_single');
@@ -139,6 +189,13 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
         new lang_string('coursehelpshowgrades'), 1, array(0 => new lang_string('no'), 1 => new lang_string('yes'))));
     $temp->add(new admin_setting_configselect('moodlecourse/showreports', new lang_string('showreports'), '', 0,
         array(0 => new lang_string('no'), 1 => new lang_string('yes'))));
+    $temp->add(new admin_setting_configselect('moodlecourse/showactivitydates',
+        new lang_string('showactivitydates'),
+        new lang_string('showactivitydates_help'), 1, [
+            0 => new lang_string('no'),
+            1 => new lang_string('yes')
+        ]
+    ));
 
     // Files and uploads.
     $temp->add(new admin_setting_heading('filesanduploadshdr', new lang_string('filesanduploads'), ''));
@@ -158,10 +215,32 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $temp->add(new admin_setting_configselect('moodlecourse/maxbytes', new lang_string('maximumupload'),
         new lang_string('coursehelpmaximumupload'), key($choices), $choices));
 
+    if (!empty($CFG->enablepdfexportfont)) {
+        $pdf = new \pdf;
+        $fontlist = $pdf->get_export_fontlist();
+        // Show the option if the font is defined more than one.
+        if (count($fontlist) > 1) {
+            $temp->add(new admin_setting_configselect('moodlecourse/pdfexportfont',
+                new lang_string('pdfexportfont', 'course'),
+                new lang_string('pdfexportfont_help', 'course'),
+                'freesans', $fontlist
+            ));
+        }
+    }
+
     // Completion tracking.
     $temp->add(new admin_setting_heading('progress', new lang_string('completion','completion'), ''));
     $temp->add(new admin_setting_configselect('moodlecourse/enablecompletion', new lang_string('completion', 'completion'),
         new lang_string('enablecompletion_help', 'completion'), 1, array(0 => new lang_string('no'), 1 => new lang_string('yes'))));
+
+    // Display completion conditions.
+    $temp->add(new admin_setting_configselect('moodlecourse/showcompletionconditions',
+        new lang_string('showcompletionconditions', 'completion'),
+        new lang_string('showcompletionconditions_help', 'completion'), 1, [
+            0 => new lang_string('no'),
+            1 => new lang_string('yes')
+        ]
+    ));
 
     // Groups.
     $temp->add(new admin_setting_heading('groups', new lang_string('groups', 'group'), ''));
@@ -172,42 +251,73 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $temp->add(new admin_setting_configselect('moodlecourse/groupmode', new lang_string('groupmode'), '', key($choices),$choices));
     $temp->add(new admin_setting_configselect('moodlecourse/groupmodeforce', new lang_string('force'), new lang_string('coursehelpforce'), 0,array(0 => new lang_string('no'), 1 => new lang_string('yes'))));
 
-    $ADMIN->add('courses', $temp);
+    // Communication.
+    $temp->add(new admin_setting_heading('communication',
+        new lang_string('communication', 'core_communication'), ''));
 
-    // Download course content.
-    $downloadcoursedefaulturl = new moodle_url('/admin/settings.php', ['section' => 'coursesettings']);
-    $temp = new admin_settingpage('downloadcoursecontent', new lang_string('downloadcoursecontent', 'course'));
-    $temp->add(new admin_setting_configcheckbox('downloadcoursecontentallowed',
-            new lang_string('downloadcoursecontentallowed', 'admin'),
-            new lang_string('downloadcoursecontentallowed_desc', 'admin', $downloadcoursedefaulturl->out()), 0));
+    list($communicationproviders, $defaulprovider) = \core_communication\api::
+        get_enabled_providers_and_default();
 
-    // 50MB default maximum size per file when downloading course content.
-    $defaultmaxdownloadsize = 50 * filesize::UNIT_MB;
-    $temp->add(new filesize('maxsizeperdownloadcoursefile', new lang_string('maxsizeperdownloadcoursefile', 'admin'),
-            new lang_string('maxsizeperdownloadcoursefile_desc', 'admin'), $defaultmaxdownloadsize, filesize::UNIT_MB));
-    $temp->hide_if('maxsizeperdownloadcoursefile', 'downloadcoursecontentallowed');
+    $temp->add(new admin_setting_configselect('moodlecourse/coursecommunicationprovider',
+        new lang_string('selectcommunicationprovider', 'communication'),
+        new lang_string('coursecommunication_desc', 'course'),
+        $defaulprovider, $communicationproviders));
 
-    $ADMIN->add('courses', $temp);
-
-    // "courserequests" settingpage.
-    $temp = new admin_settingpage('courserequest', new lang_string('courserequest'));
-    $temp->add(new admin_setting_configcheckbox('enablecourserequests',
-        new lang_string('enablecourserequests', 'admin'),
-        new lang_string('configenablecourserequests', 'admin'), 1));
-    $temp->add(new admin_settings_coursecat_select('defaultrequestcategory',
-        new lang_string('defaultrequestcategory', 'admin'),
-        new lang_string('configdefaultrequestcategory', 'admin'), 1));
-    $temp->add(new admin_setting_configcheckbox('lockrequestcategory',
-        new lang_string('lockrequestcategory', 'admin'),
-        new lang_string('configlockrequestcategory', 'admin'), 0));
-    $temp->add(new admin_setting_users_with_capability('courserequestnotify', new lang_string('courserequestnotify', 'admin'), new lang_string('configcourserequestnotify2', 'admin'), array(), 'moodle/site:approvecourse'));
-    $ADMIN->add('courses', $temp);
-
-    // Pending course requests.
-    if (!empty($CFG->enablecourserequests)) {
-        $ADMIN->add('courses', new admin_externalpage('coursespending', new lang_string('pendingrequests'),
-                $CFG->wwwroot . '/course/pending.php', array('moodle/site:approvecourse')));
+    $ADMIN->add('coursedefaultsettings', $temp);
+    if (!empty($CFG->enablecompletion)) {
+        $ADMIN->add('coursedefaultsettings', new admin_externalpage(
+                'sitedefaultcompletion',
+                new lang_string('defaultcompletion', 'completion'),
+                new moodle_url('/course/defaultcompletion.php', ['id' => $SITE->id]),
+                ['moodle/course:manageactivities'])
+        );
     }
+    $ADMIN->add('coursedefaultsettings', new admin_externalpage(
+        'course_customfield',
+        new lang_string('course_customfield', 'admin'),
+        $CFG->wwwroot . '/course/customfield.php',
+        ['moodle/course:configurecustomfields'])
+    );
+
+    $temp = new admin_settingpage('activitychoosersettings', new lang_string('activitychoosersettings', 'course'));
+    // Tab mode for the activity chooser.
+    $temp->add(
+        new admin_setting_configselect(
+            'activitychoosertabmode',
+            new lang_string('activitychoosertabmode', 'course'),
+            new lang_string('activitychoosertabmode_desc', 'course'),
+            3,
+            [
+                3 => new lang_string('activitychoosertabmodefour', 'course'),
+                4 => new lang_string('activitychoosertabmodefive', 'course'),
+                5 => new lang_string('activitychoosertabmodesix', 'course'),
+                0 => new lang_string('activitychoosertabmodeone', 'course'),
+                1 => new lang_string('activitychoosertabmodetwo', 'course'),
+                2 => new lang_string('activitychoosertabmodethree', 'course'),
+            ]
+        )
+    );
+
+    // Add a category for the Groups.
+    $ADMIN->add('courses', new admin_category('groups', new lang_string('groups')));
+    $ADMIN->add(
+        'groups',
+        new admin_externalpage(
+            'group_customfield',
+            new lang_string('group_customfield', 'admin'),
+            $CFG->wwwroot . '/group/customfield.php',
+            ['moodle/group:configurecustomfields']
+        )
+    );
+    $ADMIN->add(
+        'groups',
+        new admin_externalpage(
+            'grouping_customfield',
+            new lang_string('grouping_customfield', 'admin'),
+            $CFG->wwwroot . '/group/grouping_customfield.php',
+            ['moodle/group:configurecustomfields']
+        )
+    );
 
     // Add a category for the Activity Chooser.
     $ADMIN->add('courses', new admin_category('activitychooser', new lang_string('activitychoosercategory', 'course')));
@@ -218,8 +328,11 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
             'activitychoosertabmode',
             new lang_string('activitychoosertabmode', 'course'),
             new lang_string('activitychoosertabmode_desc', 'course'),
-            0,
+            3,
             [
+                3 => new lang_string('activitychoosertabmodefour', 'course'),
+                4 => new lang_string('activitychoosertabmodefive', 'course'),
+                5 => new lang_string('activitychoosertabmodesix', 'course'),
                 0 => new lang_string('activitychoosertabmodeone', 'course'),
                 1 => new lang_string('activitychoosertabmodetwo', 'course'),
                 2 => new lang_string('activitychoosertabmodethree', 'course'),
@@ -312,6 +425,12 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
         new lang_string('configgeneralcontentbankcontent', 'backup'),
         ['value' => 1, 'locked' => 0])
     );
+    $temp->add(new admin_setting_configcheckbox_with_lock('backup/backup_general_xapistate',
+        new lang_string('generalxapistate', 'backup'),
+        new lang_string('configgeneralxapistate', 'backup'),
+        ['value' => 1, 'locked' => 0])
+    );
+
 
     $temp->add(new admin_setting_configcheckbox_with_lock('backup/backup_general_legacyfiles',
         new lang_string('generallegacyfiles', 'backup'),
@@ -327,6 +446,11 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
 
     // Import defaults section.
     $temp->add(new admin_setting_heading('importsettings', new lang_string('importsettings', 'backup'), ''));
+    $temp->add(new admin_setting_configcheckbox_with_lock(
+            'backup/backup_import_permissions',
+            new lang_string('generalpermissions', 'backup'),
+            new lang_string('configgeneralpermissions', 'backup'),
+            array('value' => 0, 'locked' => 0)));
     $temp->add(new admin_setting_configcheckbox_with_lock('backup/backup_import_activities', new lang_string('generalactivities','backup'), new lang_string('configgeneralactivities','backup'), array('value'=>1, 'locked'=>0)));
     $temp->add(new admin_setting_configcheckbox_with_lock('backup/backup_import_blocks', new lang_string('generalblocks','backup'), new lang_string('configgeneralblocks','backup'), array('value'=>1, 'locked'=>0)));
     $temp->add(new admin_setting_configcheckbox_with_lock('backup/backup_import_filters', new lang_string('generalfilters','backup'), new lang_string('configgeneralfilters','backup'), array('value'=>1, 'locked'=>0)));
@@ -447,7 +571,8 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $temp->add(new admin_setting_heading('automatedsettings', new lang_string('automatedsettings','backup'), new lang_string('recyclebin_desc', 'backup')));
     $temp->add(new admin_setting_configcheckbox('backup/backup_auto_users', new lang_string('generalusers', 'backup'), new lang_string('configgeneralusers', 'backup'), 1));
     $temp->add(new admin_setting_configcheckbox('backup/backup_auto_role_assignments', new lang_string('generalroleassignments','backup'), new lang_string('configgeneralroleassignments','backup'), 1));
-    $temp->add(new admin_setting_configcheckbox('backup/backup_auto_activities', new lang_string('generalactivities','backup'), new lang_string('configgeneralactivities','backup'), 1));
+    $temp->add(new admin_setting_configcheckbox('backup/backup_auto_activities', new lang_string('generalactivities', 'backup'),
+        new lang_string('backupautoactivitiesdescription', 'backup'), 1));
     $temp->add(new admin_setting_configcheckbox('backup/backup_auto_blocks', new lang_string('generalblocks','backup'), new lang_string('configgeneralblocks','backup'), 1));
     $temp->add(new admin_setting_configcheckbox(
             'backup/backup_auto_files',
@@ -468,6 +593,12 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
         'backup/backup_auto_contentbankcontent',
         new lang_string('generalcontentbankcontent', 'backup'),
         new lang_string('configgeneralcontentbankcontent', 'backup'),
+        1)
+    );
+    $temp->add(new admin_setting_configcheckbox(
+        'backup/backup_auto_xapistate',
+        new lang_string('generalxapistate', 'backup'),
+        new lang_string('configgeneralxapistate', 'backup'),
         1)
     );
 
@@ -501,6 +632,9 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_role_assignments',
         new lang_string('generalroleassignments', 'backup'),
         new lang_string('configrestoreroleassignments', 'backup'), array('value' => 1, 'locked' => 0)));
+    $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_permissions',
+        new lang_string('generalpermissions', 'backup'),
+        new lang_string('configrestorepermissions', 'backup'), array('value' => 1, 'locked' => 0)));
     $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_activities',
         new lang_string('generalactivities', 'backup'),
         new lang_string('configrestoreactivities', 'backup'), array('value' => 1, 'locked' => 0)));
@@ -537,6 +671,9 @@ if ($hassiteconfig or has_any_capability($capabilities, $systemcontext)) {
     $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_contentbankcontent',
         new lang_string('generalcontentbankcontent', 'backup'),
         new lang_string('configrestorecontentbankcontent', 'backup'), array('value' => 1, 'locked' => 0)));
+    $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_xapistate',
+        new lang_string('generalxapistate', 'backup'),
+        new lang_string('configrestorexapistate', 'backup'), array('value' => 1, 'locked' => 0)));
     $temp->add(new admin_setting_configcheckbox_with_lock('restore/restore_general_legacyfiles',
         new lang_string('generallegacyfiles', 'backup'),
         new lang_string('configlegacyfiles', 'backup'), array('value' => 1, 'locked' => 0)));

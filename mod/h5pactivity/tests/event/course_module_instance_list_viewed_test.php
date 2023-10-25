@@ -35,7 +35,7 @@ use context_module;
  * @copyright  2020 Ferran Recio <ferran@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class course_module_instance_list_viewed_testcase extends advanced_testcase {
+class course_module_instance_list_viewed_test extends advanced_testcase {
 
     /**
      * Test course_module_instance_list_viewed event.
@@ -64,8 +64,6 @@ class course_module_instance_list_viewed_testcase extends advanced_testcase {
         // Checking that the event contains the expected values.
         $this->assertInstanceOf('\mod_h5pactivity\event\course_module_instance_list_viewed', $event);
         $this->assertEquals(context_course::instance($course->id), $event->get_context());
-        $expected = [$course->id, 'h5pactivity', 'view all', 'index.php?id='.$course->id, ''];
-        $this->assertEventLegacyLogData($expected, $event);
         $this->assertEventContextNotUsed($event);
     }
 }

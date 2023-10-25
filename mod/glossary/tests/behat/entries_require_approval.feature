@@ -18,13 +18,14 @@ Feature: A teacher can choose whether glossary entries require approval
       | teacher1 | C1 | editingteacher |
       | student1 | C1 | student |
       | student2 | C1 | student |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
-    Given I add a "Glossary" to section "1" and I fill the form with:
-      | Name | Test glossary name |
-      | Description | Test glossary entries require approval |
-      | Approved by default | No |
-    And I log out
+    And the following "activity" exists:
+      | activity                      | glossary                               |
+      | course                        | C1                                     |
+      | idnumber                      | 0001                                   |
+      | name                          | Test glossary name                     |
+      | intro                         | Test glossary entries require approval |
+      | section                       | 1                                      |
+      | defaultapproval               | 0                                      |
 
   Scenario: Approve and undo approve glossary entries
     Given I am on the "Test glossary name" "glossary activity" page logged in as student1
@@ -39,10 +40,10 @@ Feature: A teacher can choose whether glossary entries require approval
     And I log out
     # Approve the entry.
     And I am on the "Test glossary name" "glossary activity" page logged in as teacher1
-    And I follow "Waiting approval"
+    And I follow "Pending approval (1)"
     Then I should see "(this entry is currently hidden)"
     And I follow "Approve"
-    And I click on "Test glossary name" "link" in the "page-header" "region"
+    And I am on the "Test glossary name" "glossary activity" page
     Then I should see "Concept definition"
     And I log out
     # Check that the entry can now be viewed by students.
@@ -67,7 +68,9 @@ Feature: A teacher can choose whether glossary entries require approval
       | Tags       | Test  |
     And I log out
     And I log in as "teacher1"
-    And I press "Customise this page"
+    And I turn editing mode on
+    And the following config values are set as admin:
+      | unaddableblocks | | theme_boost|
     And I add the "Navigation" block if not present
     And I expand "Site pages" node
     And I click on "Tags" "link" in the "Navigation" "block"

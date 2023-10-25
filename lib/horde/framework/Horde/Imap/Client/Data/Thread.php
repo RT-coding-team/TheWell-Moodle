@@ -120,10 +120,58 @@ class Horde_Imap_Client_Data_Thread implements Countable, Serializable
         return array();
     }
 
+    /**
+     * Returns array of all threads.
+     *
+     * @return array  Keys of thread arrays are indices, values are objects with the following
+     *                properties:
+     *   - base: (integer) Base ID of the thread. If null, thread is a single
+     *           message.
+     *   - last: (boolean) If true, this is the last index in the sublevel.
+     *   - level: (integer) The sublevel of the index.
+     */
+    public function getThreads()
+    {
+        $data = array();
+        foreach ($this->_thread as $v) {
+            reset($v);
+
+            $ob = new stdClass;
+            $ob->base = (count($v) > 1) ? key($v) : null;
+            $ob->last = false;
+
+            $levels = $out = array();
+            $last = 0;
+
+            while (($v2 = current($v)) !== false) {
+                $k2 = key($v);
+                $ob2 = clone $ob;
+                $ob2->level = $v2;
+                $out[$k2] = $ob2;
+
+                if (($last < $v2) && isset($levels[$v2])) {
+                    $out[$levels[$v2]]->last = true;
+                }
+                $levels[$v2] = $k2;
+                $last = $v2;
+                next($v);
+            }
+
+            foreach ($levels as $v) {
+                $out[$v]->last = true;
+            }
+
+            $data[] = $out;
+        }
+
+        return $data;
+    }
+
     /* Countable methods. */
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function count()
     {
         return count($this->_getAllIndices());
@@ -135,17 +183,31 @@ class Horde_Imap_Client_Data_Thread implements Countable, Serializable
      */
     public function serialize()
     {
-        return json_encode(array(
-            $this->_thread,
-            $this->_type
-        ));
+        return serialize($this->__serialize());
     }
 
     /**
      */
     public function unserialize($data)
     {
-        list($this->_thread, $this->_type) = json_decode($data, true);
+        $data = @unserialize($data);
+        if (!is_array($data)) {
+            throw new Exception('Cache version changed.');
+        }
+        $this->__unserialize($data);
+    }
+
+    /**
+     * @return array
+     */
+    public function __serialize()
+    {
+        return [$this->_thread, $this->_type];
+    }
+
+    public function __unserialize(array $data)
+    {
+        list($this->_thread, $this->_type) = $data;
     }
 
     /* Protected methods. */

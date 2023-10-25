@@ -56,12 +56,11 @@ class qtype_calculated_test_helper extends question_test_helper {
         $q->questiontext = 'What is {a} + {b}?';
         $q->generalfeedback = 'Generalfeedback: {={a} + {b}} is the right answer.';
 
-        $q->answers = array(
-            13 => new qtype_numerical_answer(13, '{a} + {b}', 1.0, 'Very good.', FORMAT_HTML, 0),
-            14 => new qtype_numerical_answer(14, '{a} - {b}', 0.0, 'Add. not subtract!.',
-                    FORMAT_HTML, 0),
-            17 => new qtype_numerical_answer(17, '*', 0.0, 'Completely wrong.', FORMAT_HTML, 0),
-        );
+        $q->answers = [
+            13 => new \qtype_calculated\qtype_calculated_answer(13, '{a} + {b}', 1.0, 'Very good.', FORMAT_HTML, 0),
+            14 => new \qtype_calculated\qtype_calculated_answer(14, '{a} - {b}', 0.0, 'Add. not subtract!.', FORMAT_HTML, 0),
+            17 => new \qtype_calculated\qtype_calculated_answer(17, '*', 0.0, 'Completely wrong.', FORMAT_HTML, 0),
+        ];
         foreach ($q->answers as $answer) {
             $answer->correctanswerlength = 2;
             $answer->correctanswerformat = 1;
@@ -97,6 +96,7 @@ class qtype_calculated_test_helper extends question_test_helper {
         $qdata->name = 'Simple sum';
         $qdata->questiontext = 'What is {a} + {b}?';
         $qdata->generalfeedback = 'Generalfeedback: {={a} + {b}} is the right answer.';
+        $qdata->status = \core_question\local\bank\question_version_status::QUESTION_STATUS_READY;
 
         $qdata->options = new stdClass();
         $qdata->options->unitgradingtype = 0;
@@ -105,12 +105,11 @@ class qtype_calculated_test_helper extends question_test_helper {
         $qdata->options->unitsleft = 0;
         $qdata->options->synchronize = 0;
 
-        $qdata->options->answers = array(
-            13 => new qtype_numerical_answer(13, '{a} + {b}', 1.0, 'Very good.', FORMAT_HTML, 0.001),
-            14 => new qtype_numerical_answer(14, '{a} - {b}', 0.0, 'Add. not subtract!.',
-                    FORMAT_HTML, 0.001),
-            17 => new qtype_numerical_answer(17, '*', 0.0, 'Completely wrong.', FORMAT_HTML, 0),
-        );
+        $qdata->options->answers = [
+            13 => new \qtype_calculated\qtype_calculated_answer(13, '{a} + {b}', 1.0, 'Very good.', FORMAT_HTML, 0.001),
+            14 => new \qtype_calculated\qtype_calculated_answer(14, '{a} - {b}', 0.0, 'Add. not subtract!.', FORMAT_HTML, 0.001),
+            17 => new \qtype_calculated\qtype_calculated_answer(17, '*', 0.0, 'Completely wrong.', FORMAT_HTML, 0),
+        ];
         foreach ($qdata->options->answers as $answer) {
             $answer->correctanswerlength = 2;
             $answer->correctanswerformat = 1;
@@ -185,6 +184,8 @@ class qtype_calculated_test_helper extends question_test_helper {
         $fromform->feedback[2] = array();
         $fromform->feedback[2]['format'] = FORMAT_HTML;
         $fromform->feedback[2]['text'] = 'Completely wrong.';
+
+        $fromform->status = \core_question\local\bank\question_version_status::QUESTION_STATUS_READY;
 
         return $fromform;
     }

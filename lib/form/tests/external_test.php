@@ -26,7 +26,7 @@
 namespace core_form;
 
 use advanced_testcase;
-use external_api;
+use core_external\external_api;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -38,7 +38,7 @@ global $CFG;
  * @copyright 2017 David Mudrak <david@moodle.com>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class external_testcase extends advanced_testcase {
+class external_test extends advanced_testcase {
 
     /**
      * Test the core_form_get_filetypes_browser_data external function

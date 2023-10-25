@@ -32,7 +32,7 @@ global $CFG;
 
 require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 
-use external_api;
+use core_external\external_api;
 use externallib_advanced_testcase;
 use stdClass;
 use context_module;
@@ -45,7 +45,7 @@ use course_modinfo;
  * @copyright  2020 Carlos Escobedo <carlos@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class view_h5pactivity_testcase extends externallib_advanced_testcase {
+class view_h5pactivity_test extends externallib_advanced_testcase {
 
     /**
      * Test test_view_h5pactivity invalid id.

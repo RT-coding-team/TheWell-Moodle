@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace core;
+
+use lang_string;
+
 /**
  * Unit tests for (some of) ../moodlelib.php.
  *
@@ -23,12 +27,7 @@
  * @author     T.J.Hunt@open.ac.uk
  * @author     nicolas@moodle.com
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-class core_moodlelib_testcase extends advanced_testcase {
-
-    public static $includecoverage = array('lib/moodlelib.php');
+class moodlelib_test extends \advanced_testcase {
 
     /**
      * Define a local decimal separator.
@@ -170,7 +169,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('abc', fix_utf8('abc'));
         $array = array('do', 're', 'mi');
         $this->assertSame($array, fix_utf8($array));
-        $object = new stdClass();
+        $object = new \stdClass();
         $object->a = 'aa';
         $object->b = 'bb';
         $this->assertEquals($object, fix_utf8($object));
@@ -180,6 +179,7 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // Invalid utf8 string.
         $this->assertSame('aš', fix_utf8('a'.chr(130).'š'), 'This fails with buggy iconv() when mbstring extenstion is not available as fallback.');
+        $this->assertSame('Hello ', fix_utf8('Hello ￿'));
     }
 
     public function test_optional_param() {
@@ -200,31 +200,31 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             optional_param('username', 'default_user', null);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             @optional_param('username', 'default_user');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             @optional_param('username');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             optional_param('', 'default_user', PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -252,31 +252,31 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             optional_param_array('username', array('a'=>'default_user'), null);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             @optional_param_array('username', array('a'=>'default_user'));
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             @optional_param_array('username');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             optional_param_array('', array('a'=>'default_user'), PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -285,7 +285,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             $_POST['username'] = array('a'=>array('b'=>'post_user'));
             optional_param_array('username', array('a'=>'default_user'), PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (coding_exception $ex) {
+        } catch (\coding_exception $ex) {
             $this->assertTrue(true);
         }
 
@@ -312,7 +312,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             $this->assertSame('default_user', required_param('username', PARAM_RAW));
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
         }
 
@@ -321,22 +321,22 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             @required_param('username');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             required_param('username', '');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             required_param('', PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -361,22 +361,22 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             required_param_array('username', null);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             @required_param_array('username');
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
         try {
             required_param_array('', PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -385,7 +385,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             $_POST['username'] = array('a'=>array('b'=>'post_user'));
             required_param_array('username', PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -394,7 +394,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             $_POST['username'] = 'post_user';
             required_param_array('username', PARAM_RAW);
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
         }
 
@@ -409,15 +409,15 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             clean_param(array('x', 'y'), PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
-            $param = new stdClass();
+            $param = new \stdClass();
             $param->id = 1;
             clean_param($param, PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -425,17 +425,17 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             clean_param('x', 'xxxxxx');
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
         }
         try {
             @clean_param('x');
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
     }
 
@@ -448,23 +448,23 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             clean_param_array(array('x'), 'xxxxxx');
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
         }
         try {
             @clean_param_array(array('x'));
             $this->fail('moodle_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('moodle_exception', $ex);
-        } catch (Error $error) {
-            // PHP 7.1 throws Error even earlier.
-            $this->assertRegExp('/Too few arguments to function/', $error->getMessage());
+        } catch (\Error $error) {
+            // PHP 7.1 throws \Error even earlier.
+            $this->assertMatchesRegularExpression('/Too few arguments to function/', $error->getMessage());
         }
 
         try {
             clean_param_array(array('x', array('y')), PARAM_RAW);
             $this->fail('coding_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -475,32 +475,40 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame(
             '#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)',
             clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_RAW));
+        $this->assertSame(null, clean_param(null, PARAM_RAW));
     }
 
     public function test_clean_param_trim() {
         $this->assertSame('Frog toad', clean_param("   Frog toad   \r\n  ", PARAM_RAW_TRIMMED));
+        $this->assertSame('', clean_param(null, PARAM_RAW_TRIMMED));
     }
 
     public function test_clean_param_clean() {
         // PARAM_CLEAN is an ugly hack, do not use in new code (skodak),
         // instead use more specific type, or submit sothing that can be verified properly.
         $this->assertSame('xx', clean_param('xx<script>', PARAM_CLEAN));
+        $this->assertSame('', clean_param(null, PARAM_CLEAN));
+        $this->assertSame('', clean_param(null, PARAM_CLEANHTML));
     }
 
     public function test_clean_param_alpha() {
         $this->assertSame('DSFMOSDJ', clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_ALPHA));
+        $this->assertSame('', clean_param(null, PARAM_ALPHA));
     }
 
     public function test_clean_param_alphanum() {
         $this->assertSame('978942897DSFMOSDJ', clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_ALPHANUM));
+        $this->assertSame('', clean_param(null, PARAM_ALPHANUM));
     }
 
     public function test_clean_param_alphaext() {
         $this->assertSame('DSFMOSDJ', clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_ALPHAEXT));
+        $this->assertSame('', clean_param(null, PARAM_ALPHAEXT));
     }
 
     public function test_clean_param_sequence() {
         $this->assertSame(',9789,42897', clean_param('#()*#,9789\'".,<42897></?$(*DSFMO#$*)(SDJ)($*)', PARAM_SEQUENCE));
+        $this->assertSame('', clean_param(null, PARAM_SEQUENCE));
     }
 
     public function test_clean_param_component() {
@@ -529,6 +537,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('_user', PARAM_COMPONENT));
         $this->assertSame('', clean_param('2rating', PARAM_COMPONENT));
         $this->assertSame('', clean_param('user_', PARAM_COMPONENT));
+        $this->assertSame('', clean_param(null, PARAM_COMPONENT));
     }
 
     public function test_clean_param_localisedfloat() {
@@ -545,6 +554,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame(false, clean_param('1X000X5', PARAM_LOCALISEDFLOAT));
         $this->assertSame(false, clean_param('nan', PARAM_LOCALISEDFLOAT));
         $this->assertSame(false, clean_param('10.6blah', PARAM_LOCALISEDFLOAT));
+        $this->assertSame(null, clean_param(null, PARAM_LOCALISEDFLOAT));
 
         // Tests with a localised decimal separator.
         $this->define_local_decimal_separator();
@@ -594,6 +604,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('Xx', PARAM_PLUGIN));
         $this->assertSame('', clean_param('_xx', PARAM_PLUGIN));
         $this->assertSame('', clean_param('xx_', PARAM_PLUGIN));
+        $this->assertSame('', clean_param(null, PARAM_PLUGIN));
     }
 
     public function test_clean_param_area() {
@@ -610,6 +621,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('some-thing', PARAM_AREA));
         $this->assertSame('', clean_param('somethííng', PARAM_AREA));
         $this->assertSame('', clean_param('something.x', PARAM_AREA));
+        $this->assertSame('', clean_param(null, PARAM_AREA));
     }
 
     public function test_clean_param_text() {
@@ -631,6 +643,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('<lang lang="en">a>a</lang>', clean_param('<lang lang="en">a>a</lang>', PARAM_TEXT)); // Standard strip_tags() behaviour.
         $this->assertSame('a', clean_param('<lang lang="en">a<a</lang>', PARAM_TEXT));
         $this->assertSame('<lang lang="en">aa</lang>', clean_param('<lang lang="en">a<br>a</lang>', PARAM_TEXT));
+        $this->assertSame('', clean_param(null, PARAM_TEXT));
     }
 
     public function test_clean_param_url() {
@@ -656,6 +669,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('mailto:support@moodle.org', PARAM_URL));
         $this->assertSame('', clean_param('mailto:support@moodle.org?subject=Hello%20Moodle', PARAM_URL));
         $this->assertSame('', clean_param('mailto:support@moodle.org?subject=Hello%20Moodle&cc=feedback@moodle.org', PARAM_URL));
+        $this->assertSame('', clean_param(null, PARAM_URL));
     }
 
     public function test_clean_param_localurl() {
@@ -696,6 +710,9 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('http://www.example.com.evil.net/hack.php', PARAM_LOCALURL));
         $CFG->wwwroot = 'https://www.example.com';
         $this->assertSame('', clean_param('https://www.example.com.evil.net/hack.php', PARAM_LOCALURL));
+
+        $this->assertSame('', clean_param('', PARAM_LOCALURL));
+        $this->assertSame('', clean_param(null, PARAM_LOCALURL));
     }
 
     public function test_clean_param_file() {
@@ -720,6 +737,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame(' . .dontltrim.me', clean_param(' . .dontltrim.me', PARAM_FILE));
         $this->assertSame('here is a tab.txt', clean_param("here is a tab\t.txt", PARAM_FILE));
         $this->assertSame('here is a linebreak.txt', clean_param("here is a line\r\nbreak.txt", PARAM_FILE));
+        $this->assertSame('', clean_param(null, PARAM_FILE));
 
         // The following behaviours have been maintained although they seem a little odd.
         $this->assertSame('funnything', clean_param('funny:thing', PARAM_FILE));
@@ -747,6 +765,13 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('/..b../.../myfile.txt', clean_param('/..b../.../myfile.txt', PARAM_PATH));
         $this->assertSame('..b../.../myfile.txt', clean_param('..b../.../myfile.txt', PARAM_PATH));
         $this->assertSame('/super/slashes/', clean_param('/super//slashes///', PARAM_PATH));
+        $this->assertSame('', clean_param(null, PARAM_PATH));
+    }
+
+    public function test_clean_param_safepath() {
+        $this->assertSame('folder/file', clean_param('folder/file', PARAM_SAFEPATH));
+        $this->assertSame('folder//file', clean_param('folder/../file', PARAM_SAFEPATH));
+        $this->assertSame('', clean_param(null, PARAM_SAFEPATH));
     }
 
     public function test_clean_param_username() {
@@ -768,6 +793,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame(clean_param('john#$%&() ', PARAM_USERNAME), 'john');
         $this->assertSame('johnd', clean_param('JOHNdóé ', PARAM_USERNAME));
         $this->assertSame(clean_param('john.,:;-_/|\ñÑ[]A_X-,D {} ~!@#$%^&*()_+ ?><[] ščřžžý ?ýá?ý??doe ', PARAM_USERNAME), 'john.-_a_x-d@_doe');
+        $this->assertSame('', clean_param(null, PARAM_USERNAME));
 
         // Test success condition, if extendedusernamechars == ENABLE;.
         $CFG->extendedusernamechars = true;
@@ -797,6 +823,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('', clean_param('0numeric', PARAM_STRINGID));
         $this->assertSame('', clean_param('*', PARAM_STRINGID));
         $this->assertSame('', clean_param(' ', PARAM_STRINGID));
+        $this->assertSame('', clean_param(null, PARAM_STRINGID));
     }
 
     public function test_clean_param_timezone() {
@@ -831,7 +858,10 @@ class core_moodlelib_testcase extends advanced_testcase {
             '13.5'                           => '',
             '+13.5'                          => '',
             '-13.5'                          => '',
-            '0.2'                            => '');
+            '0.2'                            => '',
+            ''                               => '',
+            null                             => '',
+        );
 
         foreach ($testvalues as $testvalue => $expectedvalue) {
             $actualvalue = clean_param($testvalue, PARAM_TIMEZONE);
@@ -839,11 +869,31 @@ class core_moodlelib_testcase extends advanced_testcase {
         }
     }
 
+    public function test_clean_param_null_argument() {
+        $this->assertEquals(0, clean_param(null, PARAM_INT));
+        $this->assertEquals(0, clean_param(null, PARAM_FLOAT));
+        $this->assertEquals(0, clean_param(null, PARAM_LOCALISEDFLOAT));
+        $this->assertEquals(false, clean_param(null, PARAM_BOOL));
+        $this->assertEquals('', clean_param(null, PARAM_NOTAGS));
+        $this->assertEquals('', clean_param(null, PARAM_SAFEDIR));
+        $this->assertEquals('', clean_param(null, PARAM_HOST));
+        $this->assertEquals('', clean_param(null, PARAM_PEM));
+        $this->assertEquals('', clean_param(null, PARAM_BASE64));
+        $this->assertEquals('', clean_param(null, PARAM_TAG));
+        $this->assertEquals('', clean_param(null, PARAM_TAGLIST));
+        $this->assertEquals('', clean_param(null, PARAM_CAPABILITY));
+        $this->assertEquals(0, clean_param(null, PARAM_PERMISSION));
+        $this->assertEquals('', clean_param(null, PARAM_AUTH));
+        $this->assertEquals('', clean_param(null, PARAM_LANG));
+        $this->assertEquals('', clean_param(null, PARAM_THEME));
+        $this->assertEquals('', clean_param(null, PARAM_EMAIL));
+    }
+
     public function test_validate_param() {
         try {
             $param = validate_param('11a', PARAM_INT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
 
@@ -853,7 +903,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             $param = validate_param(null, PARAM_INT, false);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
 
@@ -863,13 +913,13 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             $param = validate_param(array(), PARAM_INT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
         try {
-            $param = validate_param(new stdClass, PARAM_INT);
+            $param = validate_param(new \stdClass, PARAM_INT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
 
@@ -892,31 +942,31 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             $param = validate_param('1,2', PARAM_FLOAT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
         try {
             $param = validate_param('', PARAM_FLOAT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
         try {
             $param = validate_param('.', PARAM_FLOAT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
         try {
             $param = validate_param('e10', PARAM_FLOAT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
         try {
             $param = validate_param('abc', PARAM_FLOAT);
             $this->fail('invalid_parameter_exception expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('invalid_parameter_exception', $ex);
         }
     }
@@ -1266,7 +1316,7 @@ class core_moodlelib_testcase extends advanced_testcase {
      *
      * @dataProvider shorten_filenames_provider
      *
-     * @param string $filenames
+     * @param array $filenames
      * @param int $length
      * @param string $expected
      * @param boolean $includehash
@@ -1317,6 +1367,12 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame(356, $yday);
         $this->assertSame('Wednesday', $weekday);
         $this->assertSame('December', $month);
+
+        // Edge cases - 0 and null - they all mean 1st Jan 1970. Null shows debugging message.
+        $this->assertSame(1970, usergetdate(0)['year']);
+        $this->assertDebuggingNotCalled();
+        $this->assertSame(1970, usergetdate(null)['year']);
+        $this->assertDebuggingCalled(null, DEBUG_DEVELOPER);
     }
 
     public function test_mark_user_preferences_changed() {
@@ -1341,7 +1397,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $DB->delete_records('user_preferences', array('userid'=>$otheruserid));
         set_cache_flag('userpreferenceschanged', $otheruserid, null);
 
-        $user = new stdClass();
+        $user = new \stdClass();
         $user->id = $otheruserid;
 
         // Load.
@@ -1390,7 +1446,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $DB->delete_records('user_preferences', array('userid'=>$otheruserid));
         set_cache_flag('userpreferenceschanged', $otheruserid, null);
 
-        $user = new stdClass();
+        $user = new \stdClass();
         $user->id = $otheruserid;
 
         set_user_preference('aaa', 'bbb', $otheruserid);
@@ -1440,7 +1496,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             set_user_preference('_test_long_user_preference', $longvalue);
             $this->fail('Exception expected - longer than 1333 chars not allowed as preference value');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
@@ -1448,37 +1504,37 @@ class core_moodlelib_testcase extends advanced_testcase {
         try {
             set_user_preference('_test_user_preferences_pref', array());
             $this->fail('Exception expected - array not valid preference value');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
-            set_user_preference('_test_user_preferences_pref', new stdClass);
+            set_user_preference('_test_user_preferences_pref', new \stdClass);
             $this->fail('Exception expected - class not valid preference value');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             set_user_preference('_test_user_preferences_pref', 1, array('xx' => 1));
             $this->fail('Exception expected - user instance expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             set_user_preference('_test_user_preferences_pref', 1, 'abc');
             $this->fail('Exception expected - user instance expected');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             set_user_preference('', 1);
             $this->fail('Exception expected - invalid name accepted');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         try {
             set_user_preference('1', 1);
             $this->fail('Exception expected - invalid name accepted');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
     }
@@ -1504,191 +1560,6 @@ class core_moodlelib_testcase extends advanced_testcase {
     }
 
     /**
-     * Test essential features implementation of {@link get_extra_user_fields()} as the admin user with all capabilities.
-     */
-    public function test_get_extra_user_fields_essentials() {
-        global $CFG, $USER, $DB;
-        $this->resetAfterTest();
-
-        $this->setAdminUser();
-        $context = context_system::instance();
-
-        // No fields.
-        $CFG->showuseridentity = '';
-        $this->assertEquals(array(), get_extra_user_fields($context));
-
-        // One field.
-        $CFG->showuseridentity = 'frog';
-        $this->assertEquals(array('frog'), get_extra_user_fields($context));
-
-        // Two fields.
-        $CFG->showuseridentity = 'frog,zombie';
-        $this->assertEquals(array('frog', 'zombie'), get_extra_user_fields($context));
-
-        // No fields, except.
-        $CFG->showuseridentity = '';
-        $this->assertEquals(array(), get_extra_user_fields($context, array('frog')));
-
-        // One field.
-        $CFG->showuseridentity = 'frog';
-        $this->assertEquals(array(), get_extra_user_fields($context, array('frog')));
-
-        // Two fields.
-        $CFG->showuseridentity = 'frog,zombie';
-        $this->assertEquals(array('zombie'), get_extra_user_fields($context, array('frog')));
-    }
-
-    /**
-     * Prepare environment for couple of tests related to permission checks in {@link get_extra_user_fields()}.
-     *
-     * @return stdClass
-     */
-    protected function environment_for_get_extra_user_fields_tests() {
-        global $CFG, $DB;
-
-        $CFG->showuseridentity = 'idnumber,country,city';
-        $CFG->hiddenuserfields = 'country,city';
-
-        $env = new stdClass();
-
-        $env->course = $this->getDataGenerator()->create_course();
-        $env->coursecontext = context_course::instance($env->course->id);
-
-        $env->teacherrole = $DB->get_record('role', array('shortname' => 'teacher'));
-        $env->studentrole = $DB->get_record('role', array('shortname' => 'student'));
-        $env->managerrole = $DB->get_record('role', array('shortname' => 'manager'));
-
-        $env->student = $this->getDataGenerator()->create_user();
-        $env->teacher = $this->getDataGenerator()->create_user();
-        $env->manager = $this->getDataGenerator()->create_user();
-
-        role_assign($env->studentrole->id, $env->student->id, $env->coursecontext->id);
-        role_assign($env->teacherrole->id, $env->teacher->id, $env->coursecontext->id);
-        role_assign($env->managerrole->id, $env->manager->id, SYSCONTEXTID);
-
-        return $env;
-    }
-
-    /**
-     * No identity fields shown to student user (no permission to view identity fields).
-     */
-    public function test_get_extra_user_fields_no_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->student);
-
-        $this->assertEquals(array(), get_extra_user_fields($env->coursecontext));
-        $this->assertEquals(array(), get_extra_user_fields(context_system::instance()));
-    }
-
-    /**
-     * Teacher can see students' identity fields only within the course.
-     */
-    public function test_get_extra_user_fields_course_only_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->teacher);
-
-        $this->assertEquals(array('idnumber', 'country', 'city'), get_extra_user_fields($env->coursecontext));
-        $this->assertEquals(array(), get_extra_user_fields(context_system::instance()));
-    }
-
-    /**
-     * Teacher can be prevented from seeing students' identity fields even within the course.
-     */
-    public function test_get_extra_user_fields_course_prevented_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->teacher);
-
-        assign_capability('moodle/course:viewhiddenuserfields', CAP_PREVENT, $env->teacherrole->id, $env->coursecontext->id);
-        $this->assertEquals(array('idnumber'), get_extra_user_fields($env->coursecontext));
-    }
-
-    /**
-     * Manager can see students' identity fields anywhere.
-     */
-    public function test_get_extra_user_fields_anywhere_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->manager);
-
-        $this->assertEquals(array('idnumber', 'country', 'city'), get_extra_user_fields($env->coursecontext));
-        $this->assertEquals(array('idnumber', 'country', 'city'), get_extra_user_fields(context_system::instance()));
-    }
-
-    /**
-     * Manager can be prevented from seeing hidden fields outside the course.
-     */
-    public function test_get_extra_user_fields_schismatic_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->manager);
-
-        assign_capability('moodle/user:viewhiddendetails', CAP_PREVENT, $env->managerrole->id, SYSCONTEXTID, true);
-        $this->assertEquals(array('idnumber'), get_extra_user_fields(context_system::instance()));
-        // Note that inside the course, the manager can still see the hidden identifiers as this is currently
-        // controlled by a separate capability for legacy reasons.
-        $this->assertEquals(array('idnumber', 'country', 'city'), get_extra_user_fields($env->coursecontext));
-    }
-
-    /**
-     * Two capabilities must be currently set to prevent manager from seeing hidden fields.
-     */
-    public function test_get_extra_user_fields_hard_to_prevent_access() {
-
-        $this->resetAfterTest();
-        $env = $this->environment_for_get_extra_user_fields_tests();
-        $this->setUser($env->manager);
-
-        assign_capability('moodle/user:viewhiddendetails', CAP_PREVENT, $env->managerrole->id, SYSCONTEXTID, true);
-        assign_capability('moodle/course:viewhiddenuserfields', CAP_PREVENT, $env->managerrole->id, SYSCONTEXTID, true);
-
-        $this->assertEquals(array('idnumber'), get_extra_user_fields(context_system::instance()));
-        $this->assertEquals(array('idnumber'), get_extra_user_fields($env->coursecontext));
-    }
-
-    public function test_get_extra_user_fields_sql() {
-        global $CFG, $USER, $DB;
-        $this->resetAfterTest();
-
-        $this->setAdminUser();
-
-        $context = context_system::instance();
-
-        // No fields.
-        $CFG->showuseridentity = '';
-        $this->assertSame('', get_extra_user_fields_sql($context));
-
-        // One field.
-        $CFG->showuseridentity = 'frog';
-        $this->assertSame(', frog', get_extra_user_fields_sql($context));
-
-        // Two fields with table prefix.
-        $CFG->showuseridentity = 'frog,zombie';
-        $this->assertSame(', u1.frog, u1.zombie', get_extra_user_fields_sql($context, 'u1'));
-
-        // Two fields with field prefix.
-        $CFG->showuseridentity = 'frog,zombie';
-        $this->assertSame(', frog AS u_frog, zombie AS u_zombie',
-            get_extra_user_fields_sql($context, '', 'u_'));
-
-        // One field excluded.
-        $CFG->showuseridentity = 'frog';
-        $this->assertSame('', get_extra_user_fields_sql($context, '', '', array('frog')));
-
-        // Two fields, one excluded, table+field prefix.
-        $CFG->showuseridentity = 'frog,zombie';
-        $this->assertEquals(', u1.zombie AS u_zombie',
-            get_extra_user_fields_sql($context, 'u1', 'u_', array('frog')));
-    }
-
-    /**
      * Test some critical TZ/DST.
      *
      * This method tests some special TZ/DST combinations that were fixed
@@ -1704,8 +1575,8 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // In Europe/Tallinn it was 2013/04/08 05:00:00.
         $expectation = '2013/04/08 05:00:00';
-        $phpdt = DateTime::createFromFormat('U', $stamp, new DateTimeZone('UTC'));
-        $phpdt->setTimezone(new DateTimeZone('Europe/Tallinn'));
+        $phpdt = \DateTime::createFromFormat('U', $stamp, new \DateTimeZone('UTC'));
+        $phpdt->setTimezone(new \DateTimeZone('Europe/Tallinn'));
         $phpres = $phpdt->format('Y/m/d H:i:s'); // PHP result.
         $moodleres = userdate($stamp, '%Y/%m/%d %H:%M:%S', 'Europe/Tallinn', false); // Moodle result.
         $this->assertSame($expectation, $phpres);
@@ -1713,8 +1584,8 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // In St. Johns it was 2013/04/07 23:30:00.
         $expectation = '2013/04/07 23:30:00';
-        $phpdt = DateTime::createFromFormat('U', $stamp, new DateTimeZone('UTC'));
-        $phpdt->setTimezone(new DateTimeZone('America/St_Johns'));
+        $phpdt = \DateTime::createFromFormat('U', $stamp, new \DateTimeZone('UTC'));
+        $phpdt->setTimezone(new \DateTimeZone('America/St_Johns'));
         $phpres = $phpdt->format('Y/m/d H:i:s'); // PHP result.
         $moodleres = userdate($stamp, '%Y/%m/%d %H:%M:%S', 'America/St_Johns', false); // Moodle result.
         $this->assertSame($expectation, $phpres);
@@ -1724,8 +1595,8 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // In Europe/Tallinn it was 2013/11/08 04:00:00.
         $expectation = '2013/11/08 04:00:00';
-        $phpdt = DateTime::createFromFormat('U', $stamp, new DateTimeZone('UTC'));
-        $phpdt->setTimezone(new DateTimeZone('Europe/Tallinn'));
+        $phpdt = \DateTime::createFromFormat('U', $stamp, new \DateTimeZone('UTC'));
+        $phpdt->setTimezone(new \DateTimeZone('Europe/Tallinn'));
         $phpres = $phpdt->format('Y/m/d H:i:s'); // PHP result.
         $moodleres = userdate($stamp, '%Y/%m/%d %H:%M:%S', 'Europe/Tallinn', false); // Moodle result.
         $this->assertSame($expectation, $phpres);
@@ -1733,8 +1604,8 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // In St. Johns it was 2013/11/07 22:30:00.
         $expectation = '2013/11/07 22:30:00';
-        $phpdt = DateTime::createFromFormat('U', $stamp, new DateTimeZone('UTC'));
-        $phpdt->setTimezone(new DateTimeZone('America/St_Johns'));
+        $phpdt = \DateTime::createFromFormat('U', $stamp, new \DateTimeZone('UTC'));
+        $phpdt->setTimezone(new \DateTimeZone('America/St_Johns'));
         $phpres = $phpdt->format('Y/m/d H:i:s'); // PHP result.
         $moodleres = userdate($stamp, '%Y/%m/%d %H:%M:%S', 'America/St_Johns', false); // Moodle result.
         $this->assertSame($expectation, $phpres);
@@ -1844,10 +1715,10 @@ class core_moodlelib_testcase extends advanced_testcase {
             $actualoutputhtml = userdate_htmltime($vals['time'], '%A, %d %B %Y, %I:%M %p', $vals['timezone']);
 
             // On different systems case of AM PM changes so compare case insensitive.
-            $vals['expectedoutput'] = core_text::strtolower($vals['expectedoutput']);
-            $vals['expectedoutputhtml'] = core_text::strtolower($vals['expectedoutputhtml']);
-            $actualoutput = core_text::strtolower($actualoutput);
-            $actualoutputhtml = core_text::strtolower($actualoutputhtml);
+            $vals['expectedoutput'] = \core_text::strtolower($vals['expectedoutput']);
+            $vals['expectedoutputhtml'] = \core_text::strtolower($vals['expectedoutputhtml']);
+            $actualoutput = \core_text::strtolower($actualoutput);
+            $actualoutputhtml = \core_text::strtolower($actualoutputhtml);
 
             $this->assertSame($vals['expectedoutput'], $actualoutput,
                 "Expected: {$vals['expectedoutput']} => Actual: {$actualoutput} \ndata: " . var_export($vals, true));
@@ -1862,70 +1733,70 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function test_dst_changes() {
         // DST switching in Prague.
         // From 2AM to 3AM in 1989.
-        $date = new DateTime('1989-03-26T01:59:00+01:00');
+        $date = new \DateTime('1989-03-26T01:59:00+01:00');
         $this->assertSame('Sunday, 26 March 1989, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('1989-03-26T02:01:00+01:00');
+        $date = new \DateTime('1989-03-26T02:01:00+01:00');
         $this->assertSame('Sunday, 26 March 1989, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
         // From 3AM to 2AM in 1989 - not the same as the west Europe.
-        $date = new DateTime('1989-09-24T01:59:00+01:00');
+        $date = new \DateTime('1989-09-24T01:59:00+01:00');
         $this->assertSame('Sunday, 24 September 1989, 02:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('1989-09-24T02:01:00+01:00');
+        $date = new \DateTime('1989-09-24T02:01:00+01:00');
         $this->assertSame('Sunday, 24 September 1989, 02:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
         // From 2AM to 3AM in 2014.
-        $date = new DateTime('2014-03-30T01:59:00+01:00');
+        $date = new \DateTime('2014-03-30T01:59:00+01:00');
         $this->assertSame('Sunday, 30 March 2014, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('2014-03-30T02:01:00+01:00');
+        $date = new \DateTime('2014-03-30T02:01:00+01:00');
         $this->assertSame('Sunday, 30 March 2014, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
         // From 3AM to 2AM in 2014.
-        $date = new DateTime('2014-10-26T01:59:00+01:00');
+        $date = new \DateTime('2014-10-26T01:59:00+01:00');
         $this->assertSame('Sunday, 26 October 2014, 02:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('2014-10-26T02:01:00+01:00');
+        $date = new \DateTime('2014-10-26T02:01:00+01:00');
         $this->assertSame('Sunday, 26 October 2014, 02:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
         // From 2AM to 3AM in 2020.
-        $date = new DateTime('2020-03-29T01:59:00+01:00');
+        $date = new \DateTime('2020-03-29T01:59:00+01:00');
         $this->assertSame('Sunday, 29 March 2020, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('2020-03-29T02:01:00+01:00');
+        $date = new \DateTime('2020-03-29T02:01:00+01:00');
         $this->assertSame('Sunday, 29 March 2020, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
         // From 3AM to 2AM in 2020.
-        $date = new DateTime('2020-10-25T01:59:00+01:00');
+        $date = new \DateTime('2020-10-25T01:59:00+01:00');
         $this->assertSame('Sunday, 25 October 2020, 02:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
-        $date = new DateTime('2020-10-25T02:01:00+01:00');
+        $date = new \DateTime('2020-10-25T02:01:00+01:00');
         $this->assertSame('Sunday, 25 October 2020, 02:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Europe/Prague'));
 
         // DST switching in NZ.
         // From 3AM to 2AM in 2015.
-        $date = new DateTime('2015-04-05T02:59:00+13:00');
+        $date = new \DateTime('2015-04-05T02:59:00+13:00');
         $this->assertSame('Sunday, 5 April 2015, 02:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Pacific/Auckland'));
-        $date = new DateTime('2015-04-05T03:01:00+13:00');
+        $date = new \DateTime('2015-04-05T03:01:00+13:00');
         $this->assertSame('Sunday, 5 April 2015, 02:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Pacific/Auckland'));
         // From 2AM to 3AM in 2009.
-        $date = new DateTime('2015-09-27T01:59:00+12:00');
+        $date = new \DateTime('2015-09-27T01:59:00+12:00');
         $this->assertSame('Sunday, 27 September 2015, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Pacific/Auckland'));
-        $date = new DateTime('2015-09-27T02:01:00+12:00');
+        $date = new \DateTime('2015-09-27T02:01:00+12:00');
         $this->assertSame('Sunday, 27 September 2015, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Pacific/Auckland'));
 
         // DST switching in Perth.
         // From 3AM to 2AM in 2009.
-        $date = new DateTime('2008-03-30T01:59:00+08:00');
+        $date = new \DateTime('2008-03-30T01:59:00+08:00');
         $this->assertSame('Sunday, 30 March 2008, 02:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Australia/Perth'));
-        $date = new DateTime('2008-03-30T02:01:00+08:00');
+        $date = new \DateTime('2008-03-30T02:01:00+08:00');
         $this->assertSame('Sunday, 30 March 2008, 02:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Australia/Perth'));
         // From 2AM to 3AM in 2009.
-        $date = new DateTime('2008-10-26T01:59:00+08:00');
+        $date = new \DateTime('2008-10-26T01:59:00+08:00');
         $this->assertSame('Sunday, 26 October 2008, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Australia/Perth'));
-        $date = new DateTime('2008-10-26T02:01:00+08:00');
+        $date = new \DateTime('2008-10-26T02:01:00+08:00');
         $this->assertSame('Sunday, 26 October 2008, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'Australia/Perth'));
 
         // DST switching in US.
         // From 2AM to 3AM in 2014.
-        $date = new DateTime('2014-03-09T01:59:00-05:00');
+        $date = new \DateTime('2014-03-09T01:59:00-05:00');
         $this->assertSame('Sunday, 9 March 2014, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'America/New_York'));
-        $date = new DateTime('2014-03-09T02:01:00-05:00');
+        $date = new \DateTime('2014-03-09T02:01:00-05:00');
         $this->assertSame('Sunday, 9 March 2014, 03:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'America/New_York'));
         // From 3AM to 2AM in 2014.
-        $date = new DateTime('2014-11-02T01:59:00-04:00');
+        $date = new \DateTime('2014-11-02T01:59:00-04:00');
         $this->assertSame('Sunday, 2 November 2014, 01:59', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'America/New_York'));
-        $date = new DateTime('2014-11-02T02:01:00-04:00');
+        $date = new \DateTime('2014-11-02T02:01:00-04:00');
         $this->assertSame('Sunday, 2 November 2014, 01:01', userdate($date->getTimestamp(), '%A, %d %B %Y, %H:%M', 'America/New_York'));
     }
 
@@ -2077,8 +1948,8 @@ class core_moodlelib_testcase extends advanced_testcase {
             );
 
             // On different systems case of AM PM changes so compare case insensitive.
-            $vals['expectedoutput'] = core_text::strtolower($vals['expectedoutput']);
-            $actualoutput = core_text::strtolower($actualoutput);
+            $vals['expectedoutput'] = \core_text::strtolower($vals['expectedoutput']);
+            $actualoutput = \core_text::strtolower($actualoutput);
 
             $this->assertSame($vals['expectedoutput'], $actualoutput,
                 "Expected: {$vals['expectedoutput']} => Actual: {$actualoutput},
@@ -2156,7 +2027,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Make sure that object properties that can't be converted don't cause
         // errors.
         // Level one: This is as deep as current language processing goes.
-        $test = new stdClass;
+        $test = new \stdClass;
         $test->one = 'here';
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2165,8 +2036,8 @@ class core_moodlelib_testcase extends advanced_testcase {
         // errors.
         // Level two: Language processing doesn't currently reach this deep.
         // only immediate scalar properties are worked with.
-        $test = new stdClass;
-        $test->one = new stdClass;
+        $test = new \stdClass;
+        $test->one = new \stdClass;
         $test->one->two = 'here';
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2175,9 +2046,9 @@ class core_moodlelib_testcase extends advanced_testcase {
         // errors.
         // Level three: It should never ever go this deep, but we're making sure
         // it doesn't cause any probs anyway.
-        $test = new stdClass;
-        $test->one = new stdClass;
-        $test->one->two = new stdClass;
+        $test = new \stdClass;
+        $test->one = new \stdClass;
+        $test->one->two = new \stdClass;
         $test->one->two->three = 'here';
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2185,7 +2056,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Make sure that object properties that can't be converted don't cause
         // errors and check lang_string properties.
         // Level one: This is as deep as current language processing goes.
-        $test = new stdClass;
+        $test = new \stdClass;
         $test->one = new lang_string('yes');
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2194,8 +2065,8 @@ class core_moodlelib_testcase extends advanced_testcase {
         // errors and check lang_string properties.
         // Level two: Language processing doesn't currently reach this deep.
         // only immediate scalar properties are worked with.
-        $test = new stdClass;
-        $test->one = new stdClass;
+        $test = new \stdClass;
+        $test->one = new \stdClass;
         $test->one->two = new lang_string('yes');
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2204,9 +2075,9 @@ class core_moodlelib_testcase extends advanced_testcase {
         // errors and check lang_string properties.
         // Level three: It should never ever go this deep, but we're making sure
         // it doesn't cause any probs anyway.
-        $test = new stdClass;
-        $test->one = new stdClass;
-        $test->one->two = new stdClass;
+        $test = new \stdClass;
+        $test->one = new \stdClass;
+        $test->one->two = new \stdClass;
         $test->one->two->three = new lang_string('yes');
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
@@ -2214,14 +2085,14 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Make sure that array properties that can't be converted don't cause
         // errors.
         $test = array();
-        $test['one'] = new stdClass;
+        $test['one'] = new \stdClass;
         $test['one']->two = 'here';
         $string = get_string('yes', null, $test, true);
         $this->assertEquals($yesexpected, $string);
 
         // Same thing but as above except using an object... this is allowed :P.
         $string = get_string('yes', null, null, true);
-        $object = new stdClass;
+        $object = new \stdClass;
         $object->$string = 'Yes';
         $this->assertEquals($yesexpected, $string);
         $this->assertEquals($yesexpected, $object->$string);
@@ -2230,10 +2101,51 @@ class core_moodlelib_testcase extends advanced_testcase {
         $COURSE->lang = $originallang;
     }
 
+    public function test_lang_string_var_export() {
+
+        // Call var_export() on a newly generated lang_string.
+        $str = new lang_string('no');
+
+        // In PHP 8.2 exported class names are now fully qualified;
+        // previously, the leading backslash was omitted.
+        $leadingbackslash = (version_compare(PHP_VERSION, '8.2.0', '>=')) ? '\\' : '';
+
+        $expected1 = <<<EOF
+{$leadingbackslash}lang_string::__set_state(array(
+   'identifier' => 'no',
+   'component' => 'moodle',
+   'a' => NULL,
+   'lang' => NULL,
+   'string' => NULL,
+   'forcedstring' => false,
+))
+EOF;
+
+        $v = var_export($str, true);
+        $this->assertEquals($expected1, $v);
+
+        // Now execute the code that was returned - it should produce a correct string.
+        $str = lang_string::__set_state(array(
+            'identifier' => 'no',
+            'component' => 'moodle',
+            'a' => NULL,
+            'lang' => NULL,
+            'string' => NULL,
+            'forcedstring' => false,
+        ));
+
+        $this->assertInstanceOf(lang_string::class, $str);
+        $this->assertEquals('No', $str);
+    }
+
     public function test_get_string_limitation() {
         // This is one of the limitations to the lang_string class. It can't be
         // used as a key.
-        $this->expectException(\PHPUnit\Framework\Error\Warning::class);
+        if (PHP_VERSION_ID >= 80000) {
+            $this->expectException(\TypeError::class);
+        } else {
+            $this->expectWarning();
+        }
         $array = array(get_string('yes', null, null, true) => 'yes');
     }
 
@@ -2263,6 +2175,8 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Option to strip ending zeros after rounding.
         $this->assertEquals('5.43', format_float(5.43, 5, true, true));
         $this->assertEquals('5', format_float(5.0001, 3, true, true));
+        $this->assertEquals('100', format_float(100, 2, true, true));
+        $this->assertEquals('100', format_float(100, 0, true, true));
 
         // Tests with a localised decimal separator.
         $this->define_local_decimal_separator();
@@ -2391,17 +2305,13 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertEquals(0, $deluser->picture);
         $this->assertSame('', $deluser->idnumber);
         $this->assertSame(md5($user->username), $deluser->email);
-        $this->assertRegExp('/^'.preg_quote($user->email, '/').'\.\d*$/', $deluser->username);
+        $this->assertMatchesRegularExpression('/^'.preg_quote($user->email, '/').'\.\d*$/', $deluser->username);
 
         $this->assertEquals(1, $DB->count_records('user', array('deleted'=>1)));
 
         // Test Event.
         $this->assertInstanceOf('\core\event\user_deleted', $event);
         $this->assertSame($user->id, $event->objectid);
-        $this->assertSame('user_deleted', $event->get_legacy_eventname());
-        $this->assertEventLegacyData($user, $event);
-        $expectedlogdata = array(SITEID, 'user', 'delete', "view.php?id=$user->id", $user->firstname.' '.$user->lastname);
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $eventdata = $event->get_data();
         $this->assertSame($eventdata['other']['username'], $user->username);
         $this->assertSame($eventdata['other']['email'], $user->email);
@@ -2412,23 +2322,23 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertEventContextNotUsed($event);
 
         // Try invalid params.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->grrr = 1;
         try {
             delete_user($record);
             $this->fail('Expecting exception for invalid delete_user() $user parameter');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
         $record->id = 1;
         try {
             delete_user($record);
             $this->fail('Expecting exception for invalid delete_user() $user parameter');
-        } catch (moodle_exception $ex) {
+        } catch (\moodle_exception $ex) {
             $this->assertInstanceOf('coding_exception', $ex);
         }
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->id = 666;
         $record->username = 'xx';
         $this->assertFalse($DB->record_exists('user', array('id'=>666))); // Any non-existent id is ok.
@@ -2486,13 +2396,13 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // The username for the deleted user shouldn't exceed 100 characters.
         $usernamedeleted = $DB->get_field('user', 'username', ['id' => $user->id]);
-        $this->assertEquals(100, core_text::strlen($usernamedeleted));
+        $this->assertEquals(100, \core_text::strlen($usernamedeleted));
 
-        $timestrlength = core_text::strlen((string) time());
+        $timestrlength = \core_text::strlen((string) time());
 
         // It should start with the user name, and end with the current time.
         $this->assertStringStartsWith("{$user->username}.{$user->id}@", $usernamedeleted);
-        $this->assertRegExp('/\.\d{' . $timestrlength . '}$/', $usernamedeleted);
+        $this->assertMatchesRegularExpression('/\.\d{' . $timestrlength . '}$/', $usernamedeleted);
     }
 
     /**
@@ -2512,13 +2422,14 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // The username for the deleted user shouldn't exceed 100 characters.
         $usernamedeleted = $DB->get_field('user', 'username', ['id' => $user->id]);
-        $this->assertEquals(100, core_text::strlen($usernamedeleted));
+        $this->assertEquals(100, \core_text::strlen($usernamedeleted));
 
-        $timestrlength = core_text::strlen((string) time());
+        $timestrlength = \core_text::strlen((string) time());
 
         // Max username length is 100 chars. Select up to limit - (length of current time + 1 [period character]) from users email.
-        $expectedemail = core_text::substr($user->email, 0, 100 - ($timestrlength + 1));
-        $this->assertRegExp('/^' . preg_quote($expectedemail) . '\.\d{' . $timestrlength . '}$/', $usernamedeleted);
+        $expectedemail = \core_text::substr($user->email, 0, 100 - ($timestrlength + 1));
+        $this->assertMatchesRegularExpression('/^' . preg_quote($expectedemail) . '\.\d{' . $timestrlength . '}$/',
+            $usernamedeleted);
     }
 
     /**
@@ -2526,14 +2437,14 @@ class core_moodlelib_testcase extends advanced_testcase {
      */
     public function test_convert_to_array() {
         // Check that normal classes are converted to arrays the same way as (array) would do.
-        $obj = new stdClass();
+        $obj = new \stdClass();
         $obj->prop1 = 'hello';
         $obj->prop2 = array('first', 'second', 13);
         $obj->prop3 = 15;
         $this->assertEquals(convert_to_array($obj), (array)$obj);
 
         // Check that context object (with iterator) is converted to array properly.
-        $obj = context_system::instance();
+        $obj = \context_system::instance();
         $ar = array(
             'id'           => $obj->id,
             'contextlevel' => $obj->contextlevel,
@@ -2599,7 +2510,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         // On different systems case of AM PM changes so compare case insensitive.
         foreach ($tests as $test) {
             $str = date_format_string(1293876000, $test['str'], $test['tz']);
-            $this->assertSame(core_text::strtolower($test['expected']), core_text::strtolower($str));
+            $this->assertSame(\core_text::strtolower($test['expected']), \core_text::strtolower($str));
         }
     }
 
@@ -2646,7 +2557,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertSame('test a', get_config('core', 'phpunit_test_get_config_1'));
 
         // Test cache invalidation.
-        $cache = cache::make('core', 'config');
+        $cache = \cache::make('core', 'config');
         $this->assertIsArray($cache->get('core'));
         $this->assertIsArray($cache->get('mod_forum'));
         set_config('phpunit_test_get_config_1', 'test b');
@@ -2663,7 +2574,8 @@ class core_moodlelib_testcase extends advanced_testcase {
         $modulebytes = 10240;
         $result = get_max_upload_sizes($sitebytes, $coursebytes, $modulebytes);
 
-        $this->assertSame('Activity upload limit (10KB)', $result['0']);
+        $nbsp = "\xc2\xa0";
+        $this->assertSame("Activity upload limit (10{$nbsp}KB)", $result['0']);
         $this->assertCount(2, $result);
 
         // Test course limit smallest.
@@ -2672,7 +2584,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $modulebytes = 51200;
         $result = get_max_upload_sizes($sitebytes, $coursebytes, $modulebytes);
 
-        $this->assertSame('Course upload limit (10KB)', $result['0']);
+        $this->assertSame("Course upload limit (10{$nbsp}KB)", $result['0']);
         $this->assertCount(2, $result);
 
         // Test site limit smallest.
@@ -2681,7 +2593,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $modulebytes = 51200;
         $result = get_max_upload_sizes($sitebytes, $coursebytes, $modulebytes);
 
-        $this->assertSame('Site upload limit (10KB)', $result['0']);
+        $this->assertSame("Site upload limit (10{$nbsp}KB)", $result['0']);
         $this->assertCount(2, $result);
 
         // Test site limit not set.
@@ -2690,7 +2602,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $modulebytes = 51200;
         $result = get_max_upload_sizes($sitebytes, $coursebytes, $modulebytes);
 
-        $this->assertSame('Activity upload limit (50KB)', $result['0']);
+        $this->assertSame("Activity upload limit (50{$nbsp}KB)", $result['0']);
         $this->assertCount(3, $result);
 
         $sitebytes = 0;
@@ -2698,7 +2610,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $modulebytes = 102400;
         $result = get_max_upload_sizes($sitebytes, $coursebytes, $modulebytes);
 
-        $this->assertSame('Course upload limit (50KB)', $result['0']);
+        $this->assertSame("Course upload limit (50{$nbsp}KB)", $result['0']);
         $this->assertCount(3, $result);
 
         // Test custom bytes in range.
@@ -2741,9 +2653,9 @@ class core_moodlelib_testcase extends advanced_testcase {
         $sitebytes = 51200;
         $result = get_max_upload_sizes($sitebytes);
 
-        $this->assertSame('Site upload limit (50KB)', $result['0']);
-        $this->assertSame('50KB', $result['51200']);
-        $this->assertSame('10KB', $result['10240']);
+        $this->assertSame("Site upload limit (50{$nbsp}KB)", $result['0']);
+        $this->assertSame("50{$nbsp}KB", $result['51200']);
+        $this->assertSame("10{$nbsp}KB", $result['10240']);
         $this->assertCount(3, $result);
 
         // Test no limit.
@@ -2753,35 +2665,125 @@ class core_moodlelib_testcase extends advanced_testcase {
     }
 
     /**
-     * Test function password_is_legacy_hash().
+     * Test function password_is_legacy_hash.
+     * @covers ::password_is_legacy_hash
      */
     public function test_password_is_legacy_hash() {
-        // Well formed md5s should be matched.
-        foreach (array('some', 'strings', 'to_check!') as $string) {
-            $md5 = md5($string);
-            $this->assertTrue(password_is_legacy_hash($md5));
+        // Well formed bcrypt hashes should be matched.
+        foreach (array('some', 'strings', 'to_check!') as $password) {
+            $bcrypt = password_hash($password, '2y');
+            $this->assertTrue(password_is_legacy_hash($bcrypt));
         }
-        // Strings that are not md5s should not be matched.
-        foreach (array('', AUTH_PASSWORD_NOT_CACHED, 'IPW8WTcsWNgAWcUS1FBVHegzJnw5M2jOmYkmfc8z.xdBOyC4Caeum') as $notmd5) {
-            $this->assertFalse(password_is_legacy_hash($notmd5));
+        // Strings that are not bcrypt should not be matched.
+        $sha512 = '$6$rounds=5000$somesalt$9nEA35u5h4oDrUdcVFUwXDSwIBiZtuKDHiaI/kxnBSslH4wVXeAhVsDn1UFxBxrnRJva/8dZ8IouaijJdd4cF';
+        foreach (array('', AUTH_PASSWORD_NOT_CACHED, $sha512) as $notbcrypt) {
+            $this->assertFalse(password_is_legacy_hash($notbcrypt));
         }
     }
 
     /**
-     * Test function validate_internal_user_password().
+     * Test function that calculates password pepper entropy.
+     * @covers ::calculate_entropy
+     */
+    public function test_calculate_entropy() {
+        // Test that the function returns 0 with an empty string.
+        $this->assertEquals(0, calculate_entropy(''));
+
+        // Test that the function returns the correct entropy.
+        $this->assertEquals(132.8814, number_format(calculate_entropy('#GV]NLie|x$H9[$rW%94bXZvJHa%z'), 4));
+    }
+
+    /**
+     * Test function to get password peppers.
+     * @covers ::get_password_peppers
+     */
+    public function test_get_password_peppers() {
+        global $CFG;
+        $this->resetAfterTest();
+
+        // First assert that the function returns an empty array,
+        // when no peppers are set.
+        $this->assertEquals([], get_password_peppers());
+
+        // Now set some peppers and check that they are returned.
+        $CFG->passwordpeppers = [
+                1 => '#GV]NLie|x$H9[$rW%94bXZvJHa%z',
+                2 => '#GV]NLie|x$H9[$rW%94bXZvJHa%$'
+        ];
+        $peppers = get_password_peppers();
+        $this->assertCount(2, $peppers);
+        $this->assertEquals($CFG->passwordpeppers, $peppers);
+
+        // Check that the peppers are returned in the correct order.
+        // Highest numerical key first.
+        $this->assertEquals('#GV]NLie|x$H9[$rW%94bXZvJHa%$', $peppers[2]);
+        $this->assertEquals('#GV]NLie|x$H9[$rW%94bXZvJHa%z', $peppers[1]);
+
+        // Update the latest pepper to be an empty string,
+        // to test phasing out peppers.
+        $CFG->passwordpeppers = [
+                1 => '#GV]NLie|x$H9[$rW%94bXZvJHa%z',
+                2 => '#GV]NLie|x$H9[$rW%94bXZvJHa%$',
+                3 => ''
+        ];
+        $peppers = get_password_peppers();
+        $this->assertCount(3, $peppers);
+        $this->assertEquals($CFG->passwordpeppers, $peppers);
+
+        // Finally, check that low entropy peppers throw an exception.
+        $CFG->passwordpeppers = [
+                1 => 'foo',
+                2 => 'bar'
+        ];
+        $this->expectException(\coding_exception::class);
+        get_password_peppers();
+    }
+
+    /**
+     * Test function to validate password length.
+     *
+     * @covers ::exceeds_password_length
+     * @return void
+     */
+    public function test_exceeds_password_length() {
+        $this->resetAfterTest(true);
+
+        // With password less than equals to MAX_PASSWORD_CHARACTERS.
+        $this->assertFalse(exceeds_password_length('test'));
+
+        // With password more than MAX_PASSWORD_CHARACTERS.
+        $password = 'thisisapasswordthatcontainscharactersthatcan';
+        $password .= 'exeedthepasswordlengthof128thisispasswordthatcont';
+        $password .= 'ainscharactersthatcanexeedthelength-----';
+        $this->assertTrue(exceeds_password_length($password));
+    }
+
+    /**
+     * Test function validate_internal_user_password.
+     * @covers ::validate_internal_user_password
      */
     public function test_validate_internal_user_password() {
-        // Test bcrypt hashes.
-        $validhashes = array(
+        $this->resetAfterTest(true);
+        // Test bcrypt hashes (these will be updated but will still count as valid).
+        $bcrypthashes = [
             'pw' => '$2y$10$LOSDi5eaQJhutSRun.OVJ.ZSxQZabCMay7TO1KmzMkDMPvU40zGXK',
             'abc' => '$2y$10$VWTOhVdsBbWwtdWNDRHSpewjd3aXBQlBQf5rBY/hVhw8hciarFhXa',
             'C0mP1eX_&}<?@*&%` |\"' => '$2y$10$3PJf.q.9ywNJlsInPbqc8.IFeSsvXrGvQLKRFBIhVu1h1I3vpIry6',
-            'ĩńťėŕňăţĩōŋāĹ' => '$2y$10$3A2Y8WpfRAnP3czJiSv6N.6Xp0T8hW3QZz2hUCYhzyWr1kGP1yUve'
-        );
+            'ĩńťėŕňăţĩōŋāĹ' => '$2y$10$3A2Y8WpfRAnP3czJiSv6N.6Xp0T8hW3QZz2hUCYhzyWr1kGP1yUve',
+        ];
+
+        // Test sha512 hashes.
+        $sha512hashes = [
+            'pw2' => '$6$rounds=10000$0rDIzh/4.MMf9Dm8$Zrj6Ulc1JFj0RFXwMJFsngRSNGlqkPlV1wwRVv7wBLrMeQeMZrwsBO62zy63D//6R5sNGVYQwPB0K8jPCScxB/',
+            'abc2' => '$6$rounds=10000$t0L6PklgpijV4tMB$1vpCRKCImsVqTPMiZTi6zLGbs.hpAU8I2BhD/IFliBnHJkFZCWEBfTCq6pEzo0Q8nXsryrgeZ.qngcW.eifuW.',
+            'C0mP1eX_&}<?@*&%` |\"2' => '$6$rounds=10000$3TAyVAXN0zmFZ4il$KF8YzduX6Gu0C2xHsY83zoqQ/rLVsb9mLe417wDObo9tO00qeUC68/y2tMq4FL2ixnMPH3OMwzGYo8VJrm8Eq1',
+            'ĩńťėŕňăţĩōŋāĹ2' => '$6$rounds=10000$SHR/6ctTkfXOy5NP$YPv42hjDjohVWD3B0boyEYTnLcBXBKO933ijHmkPXNL7BpqAcbYMLfTl9rjsPmCt.1GZvEJZ8ikkCPYBC5Sdp.',
+        ];
+
+        $validhashes = array_merge($bcrypthashes, $sha512hashes);
 
         foreach ($validhashes as $password => $hash) {
-            $user = new stdClass();
-            $user->auth = 'manual';
+            $user = $this->getDataGenerator()->create_user(array('auth' => 'manual', 'password' => $password));
             $user->password = $hash;
             // The correct password should be validated.
             $this->assertTrue(validate_internal_user_password($user, $password));
@@ -2791,28 +2793,83 @@ class core_moodlelib_testcase extends advanced_testcase {
     }
 
     /**
-     * Test function hash_internal_user_password().
+     * Test function validate_internal_user_password() with a peppered password,
+     * when the pepper no longer exists.
+     *
+     * @covers ::validate_internal_user_password
      */
-    public function test_hash_internal_user_password() {
-        $passwords = array('pw', 'abc123', 'C0mP1eX_&}<?@*&%` |\"', 'ĩńťėŕňăţĩōŋāĹ');
+    public function test_validate_internal_user_password_bad_pepper() {
+        global $CFG;
+        $this->resetAfterTest();
 
-        // Check that some passwords that we convert to hashes can
-        // be validated.
+        // Set a pepper.
+        $CFG->passwordpeppers = [
+                1 => '#GV]NLie|x$H9[$rW%94bXZvJHa%z',
+                2 => '#GV]NLie|x$H9[$rW%94bXZvJHa%$'
+        ];
+        $password = 'test';
+
+        $user = $this->getDataGenerator()->create_user(['auth' => 'manual', 'password' => $password]);
+        $this->assertTrue(validate_internal_user_password($user, $password));
+        $this->assertFalse(validate_internal_user_password($user, 'badpw'));
+
+        // Now remove the peppers.
+        // Things should not work.
+        unset($CFG->passwordpeppers);
+        $this->assertFalse(validate_internal_user_password($user, $password));
+    }
+
+    /**
+     * Helper method to test hashing passwords.
+     *
+     * @param array $passwords
+     * @return void
+     * @covers ::hash_internal_user_password
+     */
+    public function validate_hashed_passwords(array $passwords): void {
         foreach ($passwords as $password) {
             $hash = hash_internal_user_password($password);
             $fasthash = hash_internal_user_password($password, true);
-            $user = new stdClass();
-            $user->auth = 'manual';
+            $user = $this->getDataGenerator()->create_user(['auth' => 'manual']);
             $user->password = $hash;
             $this->assertTrue(validate_internal_user_password($user, $password));
 
-            // They should not be in md5 format.
+            // They should not be in bycrypt format.
             $this->assertFalse(password_is_legacy_hash($hash));
 
             // Check that cost factor in hash is correctly set.
-            $this->assertRegExp('/\$10\$/', $hash);
-            $this->assertRegExp('/\$04\$/', $fasthash);
+            $this->assertMatchesRegularExpression('/\$6\$rounds=10000\$.{103}/', $hash);
+            $this->assertMatchesRegularExpression('/\$6\$rounds=5000\$.{103}/', $fasthash);
         }
+    }
+
+    /**
+     * Test function update_internal_user_password.
+     * @covers ::update_internal_user_password
+     */
+    public function test_hash_internal_user_password() {
+        global $CFG;
+        $this->resetAfterTest();
+        $passwords = ['pw', 'abc123', 'C0mP1eX_&}<?@*&%` |\"', 'ĩńťėŕňăţĩōŋāĹ'];
+
+        // Check that some passwords that we convert to hashes can
+        // be validated.
+        $this->validate_hashed_passwords($passwords);
+
+        // Test again with peppers.
+        $CFG->passwordpeppers = [
+                1 => '#GV]NLie|x$H9[$rW%94bXZvJHa%z',
+                2 => '#GV]NLie|x$H9[$rW%94bXZvJHa%$'
+        ];
+        $this->validate_hashed_passwords($passwords);
+
+        // Add a new pepper and check that things still pass.
+        $CFG->passwordpeppers = [
+                1 => '#GV]NLie|x$H9[$rW%94bXZvJHa%z',
+                2 => '#GV]NLie|x$H9[$rW%94bXZvJHa%$',
+                3 => '#GV]NLie|x$H9[$rW%94bXZvJHQ%$'
+        ];
+        $this->validate_hashed_passwords($passwords);
     }
 
     /**
@@ -2833,8 +2890,8 @@ class core_moodlelib_testcase extends advanced_testcase {
         }
 
         $user = $this->getDataGenerator()->create_user(array('auth'=>'manual'));
-        // Manually set the user's password to the md5 of the string 'password'.
-        $DB->set_field('user', 'password', '5f4dcc3b5aa765d61d8327deb882cf99', array('id' => $user->id));
+        // Manually set the user's password to the bcrypt of the string 'password'.
+        $DB->set_field('user', 'password', '$2y$10$HhNAYmQcU1GqU/psOmZjfOWlhPEcxx9aEgSJqBfEtYVyq1jPKqMAi', ['id' => $user->id]);
 
         $sink = $this->redirectEvents();
         // Update the password.
@@ -2843,13 +2900,13 @@ class core_moodlelib_testcase extends advanced_testcase {
         $sink->close();
         $event = array_pop($events);
 
-        // Password should have been updated to a bcrypt hash.
+        // Password should have been updated to a SHA512 hash.
         $this->assertFalse(password_is_legacy_hash($user->password));
 
         // Verify event information.
         $this->assertInstanceOf('\core\event\user_password_updated', $event);
         $this->assertSame($user->id, $event->relateduserid);
-        $this->assertEquals(context_user::instance($user->id), $event->get_context());
+        $this->assertEquals(\context_user::instance($user->id), $event->get_context());
         $this->assertEventContextNotUsed($event);
 
         // Verify recovery of property 'auth'.
@@ -2910,7 +2967,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $user = $this->getDataGenerator()->create_user($record);
 
         // Back up config settings for restore later.
-        $originalcfg = new stdClass();
+        $originalcfg = new \stdClass();
         $originalcfg->fullnamedisplay = $CFG->fullnamedisplay;
         $originalcfg->alternativefullnameformat = $CFG->alternativefullnameformat;
 
@@ -3001,22 +3058,22 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         // Check to make sure that other characters are left in place.
         $configarray = array();
-        $configarray['0'] = new stdClass();
+        $configarray['0'] = new \stdClass();
         $configarray['0']->config = 'lastname firstname, middlename';
         $configarray['0']->expectedname = "$user->lastname $user->firstname,";
-        $configarray['1'] = new stdClass();
+        $configarray['1'] = new \stdClass();
         $configarray['1']->config = 'lastname firstname + alternatename';
         $configarray['1']->expectedname = "$user->lastname $user->firstname + $user->alternatename";
-        $configarray['2'] = new stdClass();
+        $configarray['2'] = new \stdClass();
         $configarray['2']->config = 'firstname aka: alternatename';
         $configarray['2']->expectedname = "$user->firstname aka: $user->alternatename";
-        $configarray['3'] = new stdClass();
+        $configarray['3'] = new \stdClass();
         $configarray['3']->config = 'firstname (alternatename)';
         $configarray['3']->expectedname = "$user->firstname ($user->alternatename)";
-        $configarray['4'] = new stdClass();
+        $configarray['4'] = new \stdClass();
         $configarray['4']->config = 'firstname [alternatename]';
         $configarray['4']->expectedname = "$user->firstname [$user->alternatename]";
-        $configarray['5'] = new stdClass();
+        $configarray['5'] = new \stdClass();
         $configarray['5']->config = 'firstname "lastname"';
         $configarray['5']->expectedname = "$user->firstname \"$user->lastname\"";
 
@@ -3031,7 +3088,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         // fullnamedisplay setting is "normal".
         $CFG->fullnamedisplay = 'firstname lastname';
         unset($user);
-        $user = new stdClass();
+        $user = new \stdClass();
         $user->firstname = 'Stan';
         $user->lastname = 'Lee';
         $namedisplay = fullname($user);
@@ -3040,55 +3097,6 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Tidy up after we finish testing.
         $CFG->fullnamedisplay = $originalcfg->fullnamedisplay;
         $CFG->alternativefullnameformat = $originalcfg->alternativefullnameformat;
-    }
-
-    public function test_get_all_user_name_fields() {
-        $this->resetAfterTest();
-
-        // Additional names in an array.
-        $testarray = array('firstnamephonetic' => 'firstnamephonetic',
-                'lastnamephonetic' => 'lastnamephonetic',
-                'middlename' => 'middlename',
-                'alternatename' => 'alternatename',
-                'firstname' => 'firstname',
-                'lastname' => 'lastname');
-        $this->assertEquals($testarray, get_all_user_name_fields());
-
-        // Additional names as a string.
-        $teststring = 'firstnamephonetic,lastnamephonetic,middlename,alternatename,firstname,lastname';
-        $this->assertEquals($teststring, get_all_user_name_fields(true));
-
-        // Additional names as a string with an alias.
-        $teststring = 't.firstnamephonetic,t.lastnamephonetic,t.middlename,t.alternatename,t.firstname,t.lastname';
-        $this->assertEquals($teststring, get_all_user_name_fields(true, 't'));
-
-        // Additional name fields with a prefix - object.
-        $testarray = array('firstnamephonetic' => 'authorfirstnamephonetic',
-                'lastnamephonetic' => 'authorlastnamephonetic',
-                'middlename' => 'authormiddlename',
-                'alternatename' => 'authoralternatename',
-                'firstname' => 'authorfirstname',
-                'lastname' => 'authorlastname');
-        $this->assertEquals($testarray, get_all_user_name_fields(false, null, 'author'));
-
-        // Additional name fields with an alias and a title - string.
-        $teststring = 'u.firstnamephonetic AS authorfirstnamephonetic,u.lastnamephonetic AS authorlastnamephonetic,u.middlename AS authormiddlename,u.alternatename AS authoralternatename,u.firstname AS authorfirstname,u.lastname AS authorlastname';
-        $this->assertEquals($teststring, get_all_user_name_fields(true, 'u', null, 'author'));
-
-        // Test the order parameter of the function.
-        // Returning an array.
-        $testarray = array('firstname' => 'firstname',
-                'lastname' => 'lastname',
-                'firstnamephonetic' => 'firstnamephonetic',
-                'lastnamephonetic' => 'lastnamephonetic',
-                'middlename' => 'middlename',
-                'alternatename' => 'alternatename'
-        );
-        $this->assertEquals($testarray, get_all_user_name_fields(false, null, null, null, true));
-
-        // Returning a string.
-        $teststring = 'firstname,lastname,firstnamephonetic,lastnamephonetic,middlename,alternatename';
-        $this->assertEquals($teststring, get_all_user_name_fields(true, null, null, null, true));
     }
 
     public function test_order_in_string() {
@@ -3134,7 +3142,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertInstanceOf('\core\event\user_loggedin', $event);
         $this->assertEquals('user', $event->objecttable);
         $this->assertEquals($user->id, $event->objectid);
-        $this->assertEquals(context_system::instance()->id, $event->contextid);
+        $this->assertEquals(\context_system::instance()->id, $event->contextid);
         $this->assertEventContextNotUsed($event);
 
         $user = $DB->get_record('user', array('id'=>$user->id));
@@ -3174,11 +3182,6 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Test Event.
         $this->assertInstanceOf('\core\event\user_loggedout', $event);
         $this->assertSame($user->id, $event->objectid);
-        $this->assertSame('user_logout', $event->get_legacy_eventname());
-        $this->assertEventLegacyData($user, $event);
-        $expectedlogdata = array(SITEID, 'user', 'logout', 'view.php?id='.$event->objectid.'&course='.SITEID, $event->objectid, 0,
-            $event->objectid);
-        $this->assertEventLegacyLogData($expectedlogdata, $event);
         $this->assertEventContextNotUsed($event);
     }
 
@@ -3287,6 +3290,7 @@ class core_moodlelib_testcase extends advanced_testcase {
                     'foo@example.com',
                     'test@real.com',
                     'fred.jones@example.com',
+                    'Fred.Jones@Example.com',
                 ),
                 true,
             ),
@@ -3296,6 +3300,7 @@ class core_moodlelib_testcase extends advanced_testcase {
                 array(
                     'dev1@dev.com',
                     'fred@example.com',
+                    'Fred@Example.com',
                     'fred+verp@example.com',
                 ),
                 false,
@@ -3319,6 +3324,22 @@ class core_moodlelib_testcase extends advanced_testcase {
                     'fred.jones@example.com',
                 ),
                 true,
+            ),
+            'alsodivertsblankline' => array(
+                'divertallemailsto' => 'somewhere@elsewhere.com',
+                'divertallemailsexcept' => "@dev.com\n",
+                [
+                    'lionel@example.com',
+                ],
+                true,
+            ),
+            'divertsexceptionblankline' => array(
+                'divertallemailsto' => 'somewhere@elsewhere.com',
+                'divertallemailsexcept' => "@example.com\n",
+                [
+                    'lionel@example.com',
+                ],
+                false,
             ),
         );
     }
@@ -3473,7 +3494,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $filepath = ($filedir ?: $CFG->dataroot) . '/hello.txt';
         file_put_contents($filepath, 'Hello');
 
-        $user = core_user::get_support_user();
+        $user = \core_user::get_support_user();
         $message = 'Test attachment path';
 
         // Create sink to catch all sent e-mails.
@@ -3502,7 +3523,7 @@ class core_moodlelib_testcase extends advanced_testcase {
      * Test sending an attachment that doesn't exist to email_to_user
      */
     public function test_email_to_user_attachment_missing(): void {
-        $user = core_user::get_support_user();
+        $user = \core_user::get_support_user();
         $message = 'Test attachment path';
 
         // Create sink to catch all sent e-mails.
@@ -3550,7 +3571,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         // Test event.
         $this->assertInstanceOf('\core\event\user_password_updated', $event);
         $this->assertSame($user->id, $event->relateduserid);
-        $this->assertEquals(context_user::instance($user->id), $event->get_context());
+        $this->assertEquals(\context_user::instance($user->id), $event->get_context());
         $this->assertEventContextNotUsed($event);
     }
 
@@ -3722,7 +3743,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->resetAfterTest();
 
         // This object represents the information returned from an sql query.
-        $userinfo = new stdClass();
+        $userinfo = new \stdClass();
         $userinfo->userid = 1;
         $userinfo->username = 'loosebruce';
         $userinfo->firstname = 'Bruce';
@@ -3737,9 +3758,9 @@ class core_moodlelib_testcase extends advanced_testcase {
         $userinfo->idnumber = 3982;
 
         // Just user name fields.
-        $user = new stdClass();
+        $user = new \stdClass();
         $user = username_load_fields_from_object($user, $userinfo);
-        $expectedarray = new stdClass();
+        $expectedarray = new \stdClass();
         $expectedarray->firstname = 'Bruce';
         $expectedarray->lastname = 'Campbell';
         $expectedarray->firstnamephonetic = 'ブルース';
@@ -3749,11 +3770,11 @@ class core_moodlelib_testcase extends advanced_testcase {
         $this->assertEquals($user, $expectedarray);
 
         // User information for showing a picture.
-        $user = new stdClass();
-        $additionalfields = explode(',', user_picture::fields());
+        $user = new \stdClass();
+        $additionalfields = explode(',', implode(',', \core_user\fields::get_picture_fields()));
         $user = username_load_fields_from_object($user, $userinfo, null, $additionalfields);
         $user->id = $userinfo->userid;
-        $expectedarray = new stdClass();
+        $expectedarray = new \stdClass();
         $expectedarray->id = 1;
         $expectedarray->firstname = 'Bruce';
         $expectedarray->lastname = 'Campbell';
@@ -3778,11 +3799,11 @@ class core_moodlelib_testcase extends advanced_testcase {
 
 
         // Return an object with user picture information.
-        $user = new stdClass();
-        $additionalfields = explode(',', user_picture::fields());
+        $user = new \stdClass();
+        $additionalfields = explode(',', implode(',', \core_user\fields::get_picture_fields()));
         $user = username_load_fields_from_object($user, $userinfo, 'author', $additionalfields);
         $user->id = $userinfo->userid;
-        $expectedarray = new stdClass();
+        $expectedarray = new \stdClass();
         $expectedarray->id = 1;
         $expectedarray->firstname = 'Bruce';
         $expectedarray->lastname = 'Campbell';
@@ -3802,9 +3823,11 @@ class core_moodlelib_testcase extends advanced_testcase {
      * @dataProvider count_words_testcases
      * @param int $expectedcount number of words in $string.
      * @param string $string the test string to count the words of.
+     * @param int|null $format
      */
-    public function test_count_words(int $expectedcount, string $string): void {
-        $this->assertEquals($expectedcount, count_words($string));
+    public function test_count_words(int $expectedcount, string $string, $format = null): void {
+        $this->assertEquals($expectedcount, count_words($string, $format),
+            "'$string' with format '$format' does not match count $expectedcount");
     }
 
     /**
@@ -3813,6 +3836,13 @@ class core_moodlelib_testcase extends advanced_testcase {
      * @return array of test cases.
      */
     public function count_words_testcases(): array {
+        // Copy-pasting example from MDL-64240.
+        $copypasted = <<<EOT
+<p onclick="alert('boop');">Snoot is booped</p>
+ <script>alert('Boop the snoot');</script>
+ <img alt="Boop the Snoot." src="https://proxy.duckduckgo.com/iu/?u=http%3A%2F%2Fwww.geekfill.com%2Fwp-content%2Fuploads%2F2015%2F08%2FBoop-the-Snoot.jpg&f=1">
+EOT;
+
         // The counts here should match MS Word and Libre Office.
         return [
             [0, ''],
@@ -3848,6 +3878,17 @@ class core_moodlelib_testcase extends advanced_testcase {
             [2, "one\ftwo"],
             [1, "SO<sub>4</sub><sup>2-</sup>"],
             [6, '4+4=8 i.e. O(1) a,b,c,d I’m black&blue_really'],
+            [1, '<span>a</span><span>b</span>'],
+            [1, '<span>a</span><span>b</span>', FORMAT_PLAIN],
+            [1, '<span>a</span><span>b</span>', FORMAT_HTML],
+            [1, '<span>a</span><span>b</span>', FORMAT_MOODLE],
+            [1, '<span>a</span><span>b</span>', FORMAT_MARKDOWN],
+            [1, 'aa <argh <bleh>pokus</bleh>'],
+            [2, 'aa <argh <bleh>pokus</bleh>', FORMAT_HTML],
+            [6, $copypasted],
+            [6, $copypasted, FORMAT_PLAIN],
+            [3, $copypasted, FORMAT_HTML],
+            [3, $copypasted, FORMAT_MOODLE],
         ];
     }
 
@@ -3857,9 +3898,11 @@ class core_moodlelib_testcase extends advanced_testcase {
      * @dataProvider count_letters_testcases
      * @param int $expectedcount number of characters in $string.
      * @param string $string the test string to count the letters of.
+     * @param int|null $format
      */
-    public function test_count_letters(int $expectedcount, string $string): void {
-        $this->assertEquals($expectedcount, count_letters($string));
+    public function test_count_letters(int $expectedcount, string $string, $format = null): void {
+        $this->assertEquals($expectedcount, count_letters($string, $format),
+            "'$string' with format '$format' does not match count $expectedcount");
     }
 
     /**
@@ -3873,6 +3916,12 @@ class core_moodlelib_testcase extends advanced_testcase {
             [1, 'x'],
             [1, '&amp;'],
             [4, '<p>frog</p>'],
+            [4, '<p>frog</p>', FORMAT_PLAIN],
+            [4, '<p>frog</p>', FORMAT_MOODLE],
+            [4, '<p>frog</p>', FORMAT_HTML],
+            [4, '<p>frog</p>', FORMAT_MARKDOWN],
+            [2, 'aa <argh <bleh>pokus</bleh>'],
+            [7, 'aa <argh <bleh>pokus</bleh>', FORMAT_HTML],
         ];
     }
 
@@ -3969,35 +4018,6 @@ class core_moodlelib_testcase extends advanced_testcase {
 
     }
 
-    /*
-     * Test emulation of random_bytes() function.
-     */
-    public function test_random_bytes_emulate() {
-        $result = random_bytes_emulate(10);
-        $this->assertSame(10, strlen($result));
-        $this->assertnotSame($result, random_bytes_emulate(10));
-
-        $result = random_bytes_emulate(21);
-        $this->assertSame(21, strlen($result));
-        $this->assertnotSame($result, random_bytes_emulate(21));
-
-        $result = random_bytes_emulate(666);
-        $this->assertSame(666, strlen($result));
-
-        $result = random_bytes_emulate(40);
-        $this->assertSame(40, strlen($result));
-
-        $this->assertDebuggingNotCalled();
-
-        $result = random_bytes_emulate(0);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
-
-        $result = random_bytes_emulate(-1);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
-    }
-
     /**
      * Test function for creation of random strings.
      */
@@ -4006,31 +4026,23 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         $result = random_string(10);
         $this->assertSame(10, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
         $this->assertNotSame($result, random_string(10));
 
         $result = random_string(21);
         $this->assertSame(21, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
         $this->assertNotSame($result, random_string(21));
 
         $result = random_string(666);
         $this->assertSame(666, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
 
         $result = random_string();
         $this->assertSame(15, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
 
         $this->assertDebuggingNotCalled();
-
-        $result = random_string(0);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
-
-        $result = random_string(-1);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
     }
 
     /**
@@ -4041,31 +4053,23 @@ class core_moodlelib_testcase extends advanced_testcase {
 
         $result = complex_random_string(10);
         $this->assertSame(10, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
         $this->assertNotSame($result, complex_random_string(10));
 
         $result = complex_random_string(21);
         $this->assertSame(21, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
         $this->assertNotSame($result, complex_random_string(21));
 
         $result = complex_random_string(666);
         $this->assertSame(666, strlen($result));
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
 
         $result = complex_random_string();
         $this->assertEqualsWithDelta(28, strlen($result), 4); // Expected length is 24 - 32.
-        $this->assertRegExp('/^[' . $pool . ']+$/', $result);
+        $this->assertMatchesRegularExpression('/^[' . $pool . ']+$/', $result);
 
         $this->assertDebuggingNotCalled();
-
-        $result = complex_random_string(0);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
-
-        $result = complex_random_string(-1);
-        $this->assertSame('', $result);
-        $this->assertDebuggingCalled();
     }
 
     /**
@@ -4155,7 +4159,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             // Test that from display is set to show no one.
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_HIDE,
+                'display' => \core_user::MAILDISPLAY_HIDE,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
@@ -4163,7 +4167,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             // Test that from display is set to course members only (course member).
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
+                'display' => \core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
                 'samecourse' => true,
                 'config' => "example.com\r\ntest.com",
                 'result' => true
@@ -4171,7 +4175,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             // Test that from display is set to course members only (Non course member).
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
+                'display' => \core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
@@ -4179,7 +4183,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             // Test that from display is set to show everyone.
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => true
@@ -4187,57 +4191,63 @@ class core_moodlelib_testcase extends advanced_testcase {
             // Test a few different config value formats for parsing correctness.
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => "\n test.com\nexample.com \n",
                 'result' => true
             ],
             [
                 'email' => 'fromuser@example.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => "\r\n example.com \r\n test.com \r\n",
                 'result' => true
             ],
-
+            [
+                'email' => 'fromuser@EXAMPLE.com',
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
+                'samecourse' => false,
+                'config' => "example.com\r\ntest.com",
+                'result' => true,
+            ],
             // Test from email is not in allowed domain.
             // Test that from display is set to show no one.
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_HIDE,
+                'display' => \core_user::MAILDISPLAY_HIDE,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
             ],
             // Test that from display is set to course members only (course member).
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
+                'display' => \core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
                 'samecourse' => true,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
             ],
             // Test that from display is set to course members only (Non course member.
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
+                'display' => \core_user::MAILDISPLAY_COURSE_MEMBERS_ONLY,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
             ],
             // Test that from display is set to show everyone.
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => "example.com\r\ntest.com",
                 'result' => false
             ],
             // Test a few erroneous config value and confirm failure.
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => "\r\n   \r\n",
                 'result' => false
             ],
             [   'email' => 'fromuser@moodle.com',
-                'display' => core_user::MAILDISPLAY_EVERYONE,
+                'display' => \core_user::MAILDISPLAY_EVERYONE,
                 'samecourse' => false,
                 'config' => " \n   \n \n ",
                 'result' => false
@@ -4431,38 +4441,30 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function test_unserialize_array() {
         $a = [1, 2, 3];
         $this->assertEquals($a, unserialize_array(serialize($a)));
-        $this->assertEquals($a, unserialize_array(serialize($a)));
         $a = ['a' => 1, 2 => 2, 'b' => 'cde'];
-        $this->assertEquals($a, unserialize_array(serialize($a)));
         $this->assertEquals($a, unserialize_array(serialize($a)));
         $a = ['a' => 1, 2 => 2, 'b' => 'c"d"e'];
         $this->assertEquals($a, unserialize_array(serialize($a)));
         $a = ['a' => 1, 2 => ['c' => 'd', 'e' => 'f'], 'b' => 'cde'];
         $this->assertEquals($a, unserialize_array(serialize($a)));
-
-        // Can not unserialize if any string contains semicolons.
+        $a = ['a' => 1, 2 => ['c' => 'd', 'e' => ['f' => 'g']], 'b' => 'cde'];
+        $this->assertEquals($a, unserialize_array(serialize($a)));
         $a = ['a' => 1, 2 => 2, 'b' => 'c"d";e'];
-        $this->assertEquals(false, unserialize_array(serialize($a)));
+        $this->assertEquals($a, unserialize_array(serialize($a)));
 
         // Can not unserialize if there are any objects.
         $a = (object)['a' => 1, 2 => 2, 'b' => 'cde'];
-        $this->assertEquals(false, unserialize_array(serialize($a)));
+        $this->assertFalse(unserialize_array(serialize($a)));
         $a = ['a' => 1, 2 => 2, 'b' => (object)['a' => 'cde']];
-        $this->assertEquals(false, unserialize_array(serialize($a)));
+        $this->assertFalse(unserialize_array(serialize($a)));
+        $a = ['a' => 1, 2 => 2, 'b' => ['c' => (object)['a' => 'cde']]];
+        $this->assertFalse(unserialize_array(serialize($a)));
+        $a = ['a' => 1, 2 => 2, 'b' => ['c' => new lang_string('no')]];
+        $this->assertFalse(unserialize_array(serialize($a)));
 
         // Array used in the grader report.
         $a = array('aggregatesonly' => [51, 34], 'gradesonly' => [21, 45, 78]);
         $this->assertEquals($a, unserialize_array(serialize($a)));
-    }
-
-    /**
-     * Test that the component_class_callback returns the correct default value when the class was not found.
-     *
-     * @dataProvider component_class_callback_default_provider
-     * @param $default
-     */
-    public function test_component_class_callback_not_found($default) {
-        $this->assertSame($default, component_class_callback('thisIsNotTheClassYouWereLookingFor', 'anymethod', [], $default));
     }
 
     /**
@@ -4485,7 +4487,17 @@ class core_moodlelib_testcase extends advanced_testcase {
         $langstr = new lang_string('no');
         $serializedlangstr = serialize($langstr);
         $unserializedlangstr = unserialize_object($serializedlangstr);
-        $this->assertInstanceOf(stdClass::class, $unserializedlangstr);
+        $this->assertInstanceOf(\stdClass::class, $unserializedlangstr);
+    }
+
+    /**
+     * Test that the component_class_callback returns the correct default value when the class was not found.
+     *
+     * @dataProvider component_class_callback_default_provider
+     * @param $default
+     */
+    public function test_component_class_callback_not_found($default) {
+        $this->assertSame($default, component_class_callback('thisIsNotTheClassYouWereLookingFor', 'anymethod', [], $default));
     }
 
     /**
@@ -4509,8 +4521,8 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function test_component_class_callback_found_returns_null($default) {
         require_once(__DIR__ . '/fixtures/component_class_callback_example.php');
 
-        $this->assertSame($default, component_class_callback(test_component_class_callback_example::class, 'method_returns_value', [null], $default));
-        $this->assertSame($default, component_class_callback(test_component_class_callback_child_example::class, 'method_returns_value', [null], $default));
+        $this->assertSame($default, component_class_callback(\test_component_class_callback_example::class, 'method_returns_value', [null], $default));
+        $this->assertSame($default, component_class_callback(\test_component_class_callback_child_example::class, 'method_returns_value', [null], $default));
     }
 
     /**
@@ -4522,8 +4534,8 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function test_component_class_callback_found_returns_value($value) {
         require_once(__DIR__ . '/fixtures/component_class_callback_example.php');
 
-        $this->assertSame($value, component_class_callback(test_component_class_callback_example::class, 'method_returns_value', [$value], 'This is not the value you were looking for'));
-        $this->assertSame($value, component_class_callback(test_component_class_callback_child_example::class, 'method_returns_value', [$value], 'This is not the value you were looking for'));
+        $this->assertSame($value, component_class_callback(\test_component_class_callback_example::class, 'method_returns_value', [$value], 'This is not the value you were looking for'));
+        $this->assertSame($value, component_class_callback(\test_component_class_callback_child_example::class, 'method_returns_value', [$value], 'This is not the value you were looking for'));
     }
 
     /**
@@ -4535,8 +4547,8 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function test_component_class_callback_found_accepts_multiple($params, $count) {
         require_once(__DIR__ . '/fixtures/component_class_callback_example.php');
 
-        $this->assertSame($count, component_class_callback(test_component_class_callback_example::class, 'method_returns_all_params', $params, 'This is not the value you were looking for'));
-        $this->assertSame($count, component_class_callback(test_component_class_callback_child_example::class, 'method_returns_all_params', $params, 'This is not the value you were looking for'));
+        $this->assertSame($count, component_class_callback(\test_component_class_callback_example::class, 'method_returns_all_params', $params, 'This is not the value you were looking for'));
+        $this->assertSame($count, component_class_callback(\test_component_class_callback_child_example::class, 'method_returns_all_params', $params, 'This is not the value you were looking for'));
     }
 
     /**
@@ -4640,7 +4652,7 @@ class core_moodlelib_testcase extends advanced_testcase {
             ],
             'static_method_of_object' => [
                 [$this, 'my_foobar_method'],
-                'core_moodlelib_testcase::my_foobar_method',
+                'core\moodlelib_test::my_foobar_method',
             ],
             'method_of_object' => [
                 [new lang_string('parentlanguage', 'core_langconfig'), 'my_foobar_method'],
@@ -4683,13 +4695,13 @@ class core_moodlelib_testcase extends advanced_testcase {
                 'email', 's2@example.com', false
             ],
             'Fetch data using a non-existent email, throw exception' => [
-                'email', 's2@example.com', false, dml_missing_record_exception::class
+                'email', 's2@example.com', false, \dml_missing_record_exception::class
             ],
             'Multiple accounts with the same email' => [
                 'email', 's1@example.com', false, 1
             ],
             'Multiple accounts with the same email, throw exception' => [
-                'email', 's1@example.com', false, 1, dml_multiple_records_exception::class
+                'email', 's1@example.com', false, 1, \dml_multiple_records_exception::class
             ],
             'Fetch data using a valid user ID' => [
                 'id', true, true
@@ -4781,12 +4793,16 @@ class core_moodlelib_testcase extends advanced_testcase {
      * @param int $time2 the time2 param.
      * @param string|null $format the format param.
      * @param string $expected the expected string.
+     * @param bool $dropzeroes the value passed for the `$dropzeros` param.
+     * @param bool $fullformat the value passed for the `$fullformat` param.
+     * @covers \get_time_interval_string
      */
-    public function test_get_time_interval_string(int $time1, int $time2, ?string $format, string $expected) {
+    public function test_get_time_interval_string(int $time1, int $time2, ?string $format, string $expected,
+            bool $dropzeroes = false, bool $fullformat = false) {
         if (is_null($format)) {
             $this->assertEquals($expected, get_time_interval_string($time1, $time2));
         } else {
-            $this->assertEquals($expected, get_time_interval_string($time1, $time2, $format));
+            $this->assertEquals($expected, get_time_interval_string($time1, $time2, $format, $dropzeroes, $fullformat));
         }
     }
 
@@ -4849,6 +4865,37 @@ class core_moodlelib_testcase extends advanced_testcase {
                 'format' => '%R%adays %hhours %imins',
                 'expected' => '+0days 0hours 0mins'
             ],
+            'Default format, time is after the reference time by 1 minute, drop zeroes, short form' => [
+                'time1' => 12345660,
+                'time2' => 12345600,
+                'format' => '',
+                'expected' => '1m',
+                'dropzeroes' => true,
+            ],
+            'Default format, time is after the reference time by 1 minute, drop zeroes, full form' => [
+                'time1' => 12345660,
+                'time2' => 12345600,
+                'format' => '',
+                'expected' => '1 minutes',
+                'dropzeroes' => true,
+                'fullformat' => true,
+            ],
+            'Default format, time is after the reference time by 1 minute, retain zeroes, full form' => [
+                'time1' => 12345660,
+                'time2' => 12345600,
+                'format' => '',
+                'expected' => '0 days 0 hours 1 minutes',
+                'dropzeroes' => false,
+                'fullformat' => true,
+            ],
+            'Empty string format, time is after the reference time by 1 minute, retain zeroes, full form' => [
+                'time1' => 12345660,
+                'time2' => 12345600,
+                'format' => '     ',
+                'expected' => '0 days 0 hours 1 minutes',
+                'dropzeroes' => false,
+                'fullformat' => true,
+            ],
         ];
     }
 
@@ -4866,7 +4913,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $newname = rename_to_unused_name($file);
 
         // Check new name has expected format.
-        $this->assertRegExp('~/_temp_[a-f0-9]+$~', $newname);
+        $this->assertMatchesRegularExpression('~/_temp_[a-f0-9]+$~', $newname);
 
         // Check it's still in the same folder.
         $this->assertEquals($CFG->dataroot, dirname($newname));
@@ -4892,7 +4939,7 @@ class core_moodlelib_testcase extends advanced_testcase {
         $newname = rename_to_unused_name($file);
 
         // Check new name has expected format.
-        $this->assertRegExp('~/_temp_[a-f0-9]+$~', $newname);
+        $this->assertMatchesRegularExpression('~/_temp_[a-f0-9]+$~', $newname);
 
         // Check it's still in the same folder.
         $this->assertEquals($CFG->dataroot, dirname($newname));
@@ -4923,25 +4970,25 @@ class core_moodlelib_testcase extends advanced_testcase {
     public function display_size_provider() {
 
         return [
-            [0,     '0 bytes'    ],
-            [1,     '1 bytes'    ],
-            [1023,  '1023 bytes' ],
-            [1024,      '1KB'    ],
-            [2222,      '2.2KB'  ],
-            [33333,     '32.6KB' ],
-            [444444,    '434KB'  ],
-            [5555555,       '5.3MB'  ],
-            [66666666,      '63.6MB' ],
-            [777777777,     '741.7MB'],
-            [8888888888,        '8.3GB'  ],
-            [99999999999,       '93.1GB' ],
-            [111111111111,      '103.5GB'],
-            [2222222222222,         '2TB'    ],
-            [33333333333333,        '30.3TB' ],
-            [444444444444444,       '404.2TB'],
-            [5555555555555555,          '4.9PB'  ],
-            [66666666666666666,         '59.2PB' ],
-            [777777777777777777,        '690.8PB'],
+            [0, '0 bytes'],
+            [1, '1 bytes'],
+            [1023, '1023 bytes'],
+            [1024, '1.0 KB'],
+            [2222, '2.2 KB'],
+            [33333, '32.6 KB'],
+            [444444, '434.0 KB'],
+            [5555555, '5.3 MB'],
+            [66666666, '63.6 MB'],
+            [777777777, '741.7 MB'],
+            [8888888888, '8.3 GB'],
+            [99999999999, '93.1 GB'],
+            [111111111111, '103.5 GB'],
+            [2222222222222, '2.0 TB'],
+            [33333333333333, '30.3 TB'],
+            [444444444444444, '404.2 TB'],
+            [5555555555555555, '4.9 PB'],
+            [66666666666666666, '59.2 PB'],
+            [777777777777777777, '690.8 PB'],
         ];
     }
 
@@ -4953,6 +5000,449 @@ class core_moodlelib_testcase extends advanced_testcase {
      */
     public function test_display_size($size, $expected) {
         $result = display_size($size);
+        $expected = str_replace(' ', "\xc2\xa0", $expected); // Should be non-breaking space.
         $this->assertEquals($expected, $result);
     }
+
+    /**
+     * Provider for display_size using fixed units.
+     *
+     * @return array of ($size, $units, $expected)
+     */
+    public function display_size_fixed_provider(): array {
+        return [
+            [0, 'KB', '0.0 KB'],
+            [1, 'MB', '0.0 MB'],
+            [777777777, 'GB', '0.7 GB'],
+            [8888888888, 'PB', '0.0 PB'],
+            [99999999999, 'TB', '0.1 TB'],
+            [99999999999, 'B', '99999999999 bytes'],
+        ];
+    }
+
+    /**
+     * Test display_size using fixed units.
+     *
+     * @dataProvider display_size_fixed_provider
+     * @param int $size Size in bytes
+     * @param string $units Fixed units
+     * @param string $expected Expected string.
+     */
+    public function test_display_size_fixed(int $size, string $units, string $expected): void {
+        $result = display_size($size, 1, $units);
+        $expected = str_replace(' ', "\xc2\xa0", $expected); // Should be non-breaking space.
+        $this->assertEquals($expected, $result);
+    }
+
+    /**
+     * Provider for display_size using specified decimal places.
+     *
+     * @return array of ($size, $decimalplaces, $units, $expected)
+     */
+    public function display_size_dp_provider(): array {
+        return [
+            [0, 1, 'KB', '0.0 KB'],
+            [1, 6, 'MB', '0.000001 MB'],
+            [777777777, 0, 'GB', '1 GB'],
+            [777777777, 0, '', '742 MB'],
+            [42, 6, '', '42 bytes'],
+        ];
+    }
+
+    /**
+     * Test display_size using specified decimal places.
+     *
+     * @dataProvider display_size_dp_provider
+     * @param int $size Size in bytes
+     * @param int $places Number of decimal places
+     * @param string $units Fixed units
+     * @param string $expected Expected string.
+     */
+    public function test_display_size_dp(int $size, int $places, string $units, string $expected): void {
+        $result = display_size($size, $places, $units);
+        $expected = str_replace(' ', "\xc2\xa0", $expected); // Should be non-breaking space.
+        $this->assertEquals($expected, $result);
+    }
+
+    /**
+     * Test that the get_list_of_plugins function includes/excludes directories as appropriate.
+     *
+     * @dataProvider get_list_of_plugins_provider
+     * @param   array $expectedlist The expected list of folders
+     * @param   array $content The list of file content to set up in the virtual file root
+     * @param   string $dir The base dir to look at in the virtual file root
+     * @param   string $exclude Any additional folder to exclude
+     */
+    public function test_get_list_of_plugins(array $expectedlist, array $content, string $dir, string $exclude): void {
+        $vfileroot = \org\bovigo\vfs\vfsStream::setup('root', null, $content);
+        $base = \org\bovigo\vfs\vfsStream::url('root');
+
+        $this->assertEquals($expectedlist, get_list_of_plugins($dir, $exclude, $base));
+    }
+
+    /**
+     * Data provider for get_list_of_plugins checks.
+     *
+     * @return  array
+     */
+    public function get_list_of_plugins_provider(): array {
+        return [
+            'Standard excludes' => [
+                ['amdd', 'class', 'local', 'test'],
+                [
+                    '.' => [],
+                    '..' => [],
+                    'amd' => [],
+                    'amdd' => [],
+                    'class' => [],
+                    'classes' => [],
+                    'local' => [],
+                    'test' => [],
+                    'tests' => [],
+                    'yui' => [],
+                ],
+                '',
+                '',
+            ],
+            'Standard excludes with addition' => [
+                ['amdd', 'local', 'test'],
+                [
+                    '.' => [],
+                    '..' => [],
+                    'amd' => [],
+                    'amdd' => [],
+                    'class' => [],
+                    'classes' => [],
+                    'local' => [],
+                    'test' => [],
+                    'tests' => [],
+                    'yui' => [],
+                ],
+                '',
+                'class',
+            ],
+            'Files excluded' => [
+                ['def'],
+                [
+                    '.' => [],
+                    '..' => [],
+                    'abc' => 'File with filename abc',
+                    'def' => [
+                        '.' => [],
+                        '..' => [],
+                        'example.txt' => 'In a directory called "def"',
+                    ],
+                ],
+                '',
+                '',
+            ],
+            'Subdirectories only' => [
+                ['abc'],
+                [
+                    '.' => [],
+                    '..' => [],
+                    'foo' => [
+                        '.' => [],
+                        '..' => [],
+                        'abc' => [],
+                    ],
+                    'bar' => [
+                        '.' => [],
+                        '..' => [],
+                        'def' => [],
+                    ],
+                ],
+                'foo',
+                '',
+            ],
+        ];
+    }
+
+    /**
+     * Test get_home_page() method.
+     *
+     * @dataProvider get_home_page_provider
+     * @param string $user Whether the user is logged, guest or not logged.
+     * @param int $expected Expected value after calling the get_home_page method.
+     * @param int $defaulthomepage The $CFG->defaulthomepage setting value.
+     * @param int $enabledashboard Whether the dashboard should be enabled or not.
+     * @param int $userpreference User preference for the home page setting.
+     * @covers ::get_home_page
+     */
+    public function test_get_home_page(string $user, int $expected, ?int $defaulthomepage = null, ?int $enabledashboard = null,
+            ?int $userpreference = null) {
+        global $CFG, $USER;
+
+        $this->resetAfterTest();
+
+        if ($user == 'guest') {
+            $this->setGuestUser();
+        } else if ($user == 'logged') {
+            $this->setUser($this->getDataGenerator()->create_user());
+        }
+
+        if (isset($defaulthomepage)) {
+            $CFG->defaulthomepage = $defaulthomepage;
+        }
+        if (isset($enabledashboard)) {
+            $CFG->enabledashboard = $enabledashboard;
+        }
+
+        if ($USER) {
+            set_user_preferences(['user_home_page_preference' => $userpreference], $USER->id);
+        }
+
+        $homepage = get_home_page();
+        $this->assertEquals($expected, $homepage);
+    }
+
+    /**
+     * Data provider for get_home_page checks.
+     *
+     * @return array
+     */
+    public function get_home_page_provider(): array {
+        return [
+            'No logged user' => [
+                'user' => 'nologged',
+                'expected' => HOMEPAGE_SITE,
+            ],
+            'Guest user' => [
+                'user' => 'guest',
+                'expected' => HOMEPAGE_SITE,
+            ],
+            'Logged user. Dashboard set as default home page and enabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MY,
+                'defaulthomepage' => HOMEPAGE_MY,
+                'enabledashboard' => 1,
+            ],
+            'Logged user. Dashboard set as default home page but disabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_MY,
+                'enabledashboard' => 0,
+            ],
+            'Logged user. My courses set as default home page with dashboard enabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_MYCOURSES,
+                'enabledashboard' => 1,
+            ],
+            'Logged user. My courses set as default home page with dashboard disabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_MYCOURSES,
+                'enabledashboard' => 0,
+            ],
+            'Logged user. Site set as default home page with dashboard enabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_SITE,
+                'defaulthomepage' => HOMEPAGE_SITE,
+                'enabledashboard' => 1,
+            ],
+            'Logged user. Site set as default home page with dashboard disabled' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_SITE,
+                'defaulthomepage' => HOMEPAGE_SITE,
+                'enabledashboard' => 0,
+            ],
+            'Logged user. User preference set as default page with dashboard enabled and user preference set to dashboard' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MY,
+                'defaulthomepage' => HOMEPAGE_USER,
+                'enabledashboard' => 1,
+                'userpreference' => HOMEPAGE_MY,
+            ],
+            'Logged user. User preference set as default page with dashboard disabled and user preference set to dashboard' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_USER,
+                'enabledashboard' => 0,
+                'userpreference' => HOMEPAGE_MY,
+            ],
+            'Logged user. User preference set as default page with dashboard enabled and user preference set to my courses' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_USER,
+                'enabledashboard' => 1,
+                'userpreference' => HOMEPAGE_MYCOURSES,
+            ],
+            'Logged user. User preference set as default page with dashboard disabled and user preference set to my courses' => [
+                'user' => 'logged',
+                'expected' => HOMEPAGE_MYCOURSES,
+                'defaulthomepage' => HOMEPAGE_USER,
+                'enabledashboard' => 0,
+                'userpreference' => HOMEPAGE_MYCOURSES,
+            ],
+        ];
+    }
+
+    /**
+     * Test get_default_home_page() method.
+     *
+     * @covers ::get_default_home_page
+     */
+    public function test_get_default_home_page() {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        $CFG->enabledashboard = 1;
+        $default = get_default_home_page();
+        $this->assertEquals(HOMEPAGE_MY, $default);
+
+        $CFG->enabledashboard = 0;
+        $default = get_default_home_page();
+        $this->assertEquals(HOMEPAGE_MYCOURSES, $default);
+    }
+
+    /**
+     * Tests the get_performance_info function with regard to locks.
+     *
+     * @covers ::get_performance_info
+     */
+    public function test_get_performance_info_locks(): void {
+        global $PERF;
+
+        // Unset lock data just in case previous tests have set it.
+        unset($PERF->locks);
+
+        // With no lock data, there should be no information about locks in the results.
+        $result = get_performance_info();
+        $this->assertStringNotContainsString('Lock', $result['html']);
+        $this->assertStringNotContainsString('Lock', $result['txt']);
+
+        // Rather than really do locks, just fill the array with fake data in the right format.
+        $PERF->locks = [
+            (object) [
+                'type' => 'phpunit',
+                'resource' => 'lock1',
+                'wait' => 0.59,
+                'success' => true,
+                'held' => '6.04'
+            ], (object) [
+                'type' => 'phpunit',
+                'resource' => 'lock2',
+                'wait' => 0.91,
+                'success' => false
+            ]
+        ];
+        $result = get_performance_info();
+
+        // Extract HTML table rows.
+        $this->assertEquals(1, preg_match('~<table class="locktimings.*?</table>~s',
+                $result['html'], $matches));
+        $this->assertEquals(3, preg_match_all('~<tr[> ].*?</tr>~s', $matches[0], $matches2));
+        $rows = $matches2[0];
+
+        // Check header.
+        $this->assertMatchesRegularExpression('~Lock.*Waited.*Obtained.*Held~s', $rows[0]);
+        // Check both locks.
+        $this->assertMatchesRegularExpression('~phpunit/lock1.*0\.6.*&#x2713;.*6\.0~s', $rows[1]);
+        $this->assertMatchesRegularExpression('~phpunit/lock2.*0\.9.*&#x274c;.*-~s', $rows[2]);
+
+        $this->assertStringContainsString('Locks (waited/obtained/held): ' .
+                'phpunit/lock1 (0.6/y/6.0) phpunit/lock2 (0.9/n/-).', $result['txt']);
+    }
+
+    /**
+     * Tests the get_performance_info function with regard to session wait time.
+     *
+     * @covers ::get_performance_info
+     */
+    public function test_get_performance_info_session_wait(): void {
+        global $PERF;
+
+        // With no session lock data, there should be no session wait information in the results.
+        unset($PERF->sessionlock);
+        $result = get_performance_info();
+        $this->assertStringNotContainsString('Session wait', $result['html']);
+        $this->assertStringNotContainsString('sessionwait', $result['txt']);
+
+        // With suitable data, it should be included in the result.
+        $PERF->sessionlock = ['wait' => 4.2];
+        $result = get_performance_info();
+        $this->assertStringContainsString('Session wait: 4.200 secs', $result['html']);
+        $this->assertStringContainsString('sessionwait: 4.200 secs', $result['txt']);
+    }
+
+    /**
+     * Test the html_is_blank() function.
+     *
+     * @covers ::html_is_blank
+     */
+    public function test_html_is_blank() {
+        $this->assertEquals(true, html_is_blank(null));
+        $this->assertEquals(true, html_is_blank(''));
+        $this->assertEquals(true, html_is_blank('<p> </p>'));
+        $this->assertEquals(false, html_is_blank('<p>.</p>'));
+        $this->assertEquals(false, html_is_blank('<img src="#">'));
+    }
+
+    /**
+     * Provider for is_proxybypass
+     *
+     * @return array of test cases.
+     */
+    public function is_proxybypass_provider(): array {
+
+        return [
+            'Proxybypass contains the same IP as the beginning of the URL' => [
+                'http://192.168.5.5-fake-app-7f000101.nip.io',
+                '192.168.5.5, 127.0.0.1',
+                false
+            ],
+            'Proxybypass contains the last part of the URL' => [
+                'http://192.168.5.5-fake-app-7f000101.nip.io',
+                'app-7f000101.nip.io',
+                false
+            ],
+            'Proxybypass contains the last part of the URL 2' => [
+                'http://store.mydomain.com',
+                'mydomain.com',
+                false
+            ],
+            'Proxybypass contains part of the url' => [
+                'http://myweb.com',
+                'store.myweb.com',
+                false
+            ],
+            'Different IPs used in proxybypass' => [
+                'http://192.168.5.5',
+                '192.168.5.3',
+                false
+            ],
+            'Proxybypass and URL matchs' => [
+                'http://store.mydomain.com',
+                'store.mydomain.com',
+                true
+            ],
+            'IP used in proxybypass' => [
+                'http://192.168.5.5',
+                '192.168.5.5',
+                true
+            ],
+        ];
+    }
+
+    /**
+     * Check if $url matches anything in proxybypass list
+     *
+     * Test function {@see is_proxybypass()}.
+     * @dataProvider is_proxybypass_provider
+     * @param string $url url to check
+     * @param string $proxybypass
+     * @param bool $expected Expected value.
+     */
+    public function test_is_proxybypass(string $url, string $proxybypass, bool $expected): void {
+        $this->resetAfterTest();
+
+        global $CFG;
+        $CFG->proxyhost = '192.168.5.5'; // Test with a fake proxy.
+        $CFG->proxybypass = $proxybypass;
+
+        $this->assertEquals($expected, is_proxybypass($url));
+    }
+
 }

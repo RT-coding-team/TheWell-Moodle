@@ -35,7 +35,7 @@ $courseid = required_param('courseid', PARAM_INT);
 $PAGE->set_url('/group/autogroup.php', array('courseid' => $courseid));
 
 if (!$course = $DB->get_record('course', array('id'=>$courseid))) {
-    print_error('invalidcourseid');
+    throw new \moodle_exception('invalidcourseid');
 }
 
 // Make sure that the user has permissions to manage groups.
@@ -83,7 +83,7 @@ if ($editform->is_cancelled()) {
         case 'idnumber':
             $orderby = 'idnumber'; break;
         default:
-            print_error('unknoworder');
+            throw new \moodle_exception('unknoworder');
     }
     $source = array();
     if ($data->cohortid) {
@@ -99,7 +99,8 @@ if ($editform->is_cancelled()) {
     // Display only active users if the option was selected or they do not have the capability to view suspended users.
     $onlyactive = !empty($data->includeonlyactiveenrol) || !has_capability('moodle/course:viewsuspendedusers', $context);
 
-    $extrafields = get_extra_user_fields($context);
+    // TODO Does not support custom user profile fields (MDL-70456).
+    $extrafields = \core_user\fields::get_identity_fields($context, false);
     $users = groups_get_potential_members($data->courseid, $data->roleid, $source, $orderby, !empty($data->notingroup),
         $onlyactive, $extrafields);
     $usercnt = count($users);
@@ -233,6 +234,7 @@ if ($editform->is_cancelled()) {
             $newgroup->courseid = $data->courseid;
             $newgroup->name     = $group['name'];
             $newgroup->enablemessaging = $data->enablemessaging ?? 0;
+            $newgroup->visibility = GROUPS_VISIBILITY_ALL;
             $groupid = groups_create_group($newgroup);
             $createdgroups[] = $groupid;
             foreach($group['members'] as $user) {

@@ -85,6 +85,14 @@ class qtype_multichoice extends question_type {
         return $options;
     }
 
+    public function save_defaults_for_new_questions(stdClass $fromform): void {
+        parent::save_defaults_for_new_questions($fromform);
+        $this->set_default_value('single', $fromform->single);
+        $this->set_default_value('shuffleanswers', $fromform->shuffleanswers);
+        $this->set_default_value('answernumbering', $fromform->answernumbering);
+        $this->set_default_value('showstandardinstruction', $fromform->showstandardinstruction);
+    }
+
     public function save_question_options($question) {
         global $DB;
         $context = $question->context;
@@ -233,6 +241,13 @@ class qtype_multichoice extends question_type {
     public function get_random_guess_score($questiondata) {
         if (!$questiondata->options->single) {
             // Pretty much impossible to compute for _multi questions. Don't try.
+            return null;
+        }
+
+        if (empty($questiondata->options->answers)) {
+            // A multi-choice question with no choices is senseless,
+            // but, seemingly, it can happen (presumably as a side-effect of bugs).
+            // Therefore, ensure it does not lead to errors here.
             return null;
         }
 

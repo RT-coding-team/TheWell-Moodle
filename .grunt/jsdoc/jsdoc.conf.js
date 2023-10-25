@@ -36,7 +36,7 @@ plugins.push('plugins/markdown');
 const getSource = () => {
     const glob = require('glob');
     const path = require('path');
-    const ComponentList = require(path.resolve('GruntfileComponents.js'));
+    const ComponentList = require(path.resolve('.grunt/components.js'));
     const thirdPartyPaths = ComponentList.getThirdPartyPaths();
 
     const source = {
@@ -114,7 +114,7 @@ module.exports = {
         ],
         "menu": {
             "Developer Docs": {
-                href: "https://docs.moodle.org/dev",
+                href: "https://moodledev.io",
                 target: "_blank",
                 "class": "menu-item",
                 id: "devdocs"

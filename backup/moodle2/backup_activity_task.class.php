@@ -204,6 +204,11 @@ abstract class backup_activity_task extends backup_task {
         // Migrate the already exported inforef entries to final ones
         $this->add_step(new move_inforef_annotations_to_final('migrate_inforef'));
 
+        // Generate the xAPI state file (conditionally).
+        if ($this->get_setting_value('xapistate')) {
+            $this->add_step(new backup_xapistate_structure_step('activity_xapistate', 'xapistate.xml'));
+        }
+
         // At the end, mark it as built
         $this->built = true;
     }
@@ -271,7 +276,7 @@ abstract class backup_activity_task extends backup_task {
         // - section_included setting (if exists)
         $settingname = $settingprefix . 'included';
         $activity_included = new backup_activity_generic_setting($settingname, base_setting::IS_BOOLEAN, true);
-        $activity_included->get_ui()->set_icon(new image_icon('icon', get_string('pluginname', $this->modulename),
+        $activity_included->get_ui()->set_icon(new image_icon('monologo', get_string('pluginname', $this->modulename),
             $this->modulename, array('class' => 'iconlarge icon-post ml-1')));
         $this->add_setting($activity_included);
         // Look for "activities" root setting

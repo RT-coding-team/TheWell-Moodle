@@ -16,12 +16,10 @@ Feature: In a lesson activity, teacher can edit a cluster page
       | user | course | role |
       | teacher1 | C1 | editingteacher |
       | student1 | C1 | student |
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
-    And I add a "Lesson" to section "1" and I fill the form with:
-      | Name | Lesson with cluster |
-      | Description | Test lesson description |
-    And I follow "Lesson with cluster"
+    And the following "activities" exist:
+      | activity | name                | course | idnumber |
+      | lesson   | Lesson with cluster | C1     | lesson1  |
+    And I am on the "Lesson with cluster" "lesson activity" page logged in as teacher1
     And I follow "Add a content page"
     And I set the following fields to these values:
       | Page title | First page name |
@@ -29,7 +27,7 @@ Feature: In a lesson activity, teacher can edit a cluster page
       | id_answer_editor_0 | Next page |
       | id_jumpto_0 | Next page |
     And I press "Save page"
-    And I follow "Expanded"
+    And I select edit type "Expanded"
     And I click on "Add a cluster" "link" in the "//div[contains(concat(' ', normalize-space(@class), ' '), ' addlinks ')][2]" "xpath_element"
     And I click on "Add a question page here" "link" in the "//div[contains(concat(' ', normalize-space(@class), ' '), ' addlinks ')][3]" "xpath_element"
     And I set the field "Select a question type" to "Multichoice"
@@ -87,10 +85,7 @@ Feature: In a lesson activity, teacher can edit a cluster page
       | id_jumpto_0 | Second page name |
     And I press "Save page"
     And I should see "Modified end"
-    And I log out
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
-    And I follow "Lesson with cluster"
+    And I am on the "Lesson with cluster" "lesson activity" page logged in as student1
     And I should see "First page contents"
     And I press "Next page"
     And I should see "Question from cluster"

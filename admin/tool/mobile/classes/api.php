@@ -53,7 +53,7 @@ class api {
     const LOGIN_KEY_TTL = 60;
     /** @var string URL of the Moodle Apps Portal */
     const MOODLE_APPS_PORTAL_URL = 'https://apps.moodle.com';
-    /** @var int seconds a QR login key will expire. */
+    /** @var int default value in seconds a QR login key will expire. */
     const LOGIN_QR_KEY_TTL = 600;
     /** @var int QR code disabled value */
     const QR_CODE_DISABLED = 0;
@@ -65,6 +65,12 @@ class api {
     const DEFAULT_ANDROID_APP_ID = 'com.moodle.moodlemobile';
     /** @var string Default iOS app id */
     const DEFAULT_IOS_APP_ID = '633359593';
+    /** @var int AUTOLOGOUT disabled value */
+    const AUTOLOGOUT_DISABLED = 0;
+    /** @var int AUTOLOGOUT type inmediate value */
+    const AUTOLOGOUT_INMEDIATE = 1;
+    /** @var int AUTOLOGOUT type custom value */
+    const AUTOLOGOUT_CUSTOM = 2;
 
     /**
      * Returns a list of Moodle plugins supporting the mobile app.
@@ -118,8 +124,12 @@ class api {
                         $langs = $stringmanager->get_list_of_translations(true);
                         foreach ($langs as $langid => $langname) {
                             foreach ($addoninfo['lang'] as $stringinfo) {
-                                $lang[$langid][$stringinfo[0]] =
-                                    $stringmanager->get_string($stringinfo[0], $stringinfo[1], null, $langid);
+                                $lang[$langid][$stringinfo[0]] = $stringmanager->get_string(
+                                    $stringinfo[0],
+                                    $stringinfo[1] ?? '',
+                                    null,
+                                    $langid,
+                                );
                             }
                         }
                     }
@@ -167,12 +177,15 @@ class api {
         // We need this to make work the format text functions.
         $PAGE->set_context($context);
 
-        list($authinstructions, $notusedformat) = external_format_text($CFG->auth_instructions, FORMAT_MOODLE, $context->id);
-        list($maintenancemessage, $notusedformat) = external_format_text($CFG->maintenance_message, FORMAT_MOODLE, $context->id);
+        // Check if contacting site support is available to all visitors.
+        $sitesupportavailable = (isset($CFG->supportavailability) && $CFG->supportavailability == CONTACT_SUPPORT_ANYONE);
+
+        [$authinstructions] = \core_external\util::format_text($CFG->auth_instructions, FORMAT_MOODLE, $context->id);
+        [$maintenancemessage] = \core_external\util::format_text($CFG->maintenance_message, FORMAT_MOODLE, $context->id);
         $settings = array(
             'wwwroot' => $CFG->wwwroot,
             'httpswwwroot' => $CFG->wwwroot,
-            'sitename' => external_format_string($SITE->fullname, $context->id, true),
+            'sitename' => \core_external\util::format_string($SITE->fullname, $context->id, true),
             'guestlogin' => $CFG->guestloginbutton,
             'rememberusername' => $CFG->rememberusername,
             'authloginviaemail' => $CFG->authloginviaemail,
@@ -197,6 +210,9 @@ class api {
             'tool_mobile_iosappid' => get_config('tool_mobile', 'iosappid'),
             'tool_mobile_androidappid' => get_config('tool_mobile', 'androidappid'),
             'tool_mobile_setuplink' => clean_param(get_config('tool_mobile', 'setuplink'), PARAM_URL),
+            'tool_mobile_qrcodetype' => clean_param(get_config('tool_mobile', 'qrcodetype'), PARAM_INT),
+            'supportpage' => $sitesupportavailable ? clean_param($CFG->supportpage, PARAM_URL) : '',
+            'supportavailability' => clean_param($CFG->supportavailability, PARAM_INT),
         );
 
         $typeoflogin = get_config('tool_mobile', 'typeoflogin');
@@ -221,7 +237,7 @@ class api {
         }
 
         // Identity providers.
-        $authsequence = get_enabled_auth_plugins(true);
+        $authsequence = get_enabled_auth_plugins();
         $identityproviders = \auth_plugin_base::get_identity_providers($authsequence);
         $identityprovidersdata = \auth_plugin_base::prepare_identity_providers_for_output($identityproviders, $OUTPUT);
         if (!empty($identityprovidersdata)) {
@@ -234,8 +250,8 @@ class api {
             }
         }
 
-        // If age is verified, return also the admin contact details.
-        if ($settings['agedigitalconsentverification']) {
+        // If age is verified or support is available to all visitors, also return the admin contact details.
+        if ($settings['agedigitalconsentverification'] || $sitesupportavailable) {
             $settings['supportname'] = clean_param($CFG->supportname, PARAM_NOTAGS);
             $settings['supportemail'] = clean_param($CFG->supportemail, PARAM_EMAIL);
         }
@@ -259,12 +275,12 @@ class api {
         if (empty($section) or $section == 'frontpagesettings') {
             require_once($CFG->dirroot . '/course/format/lib.php');
             // First settings that anyone can deduce.
-            $settings->fullname = external_format_string($SITE->fullname, $context->id);
-            $settings->shortname = external_format_string($SITE->shortname, $context->id);
+            $settings->fullname = \core_external\util::format_string($SITE->fullname, $context->id);
+            $settings->shortname = \core_external\util::format_string($SITE->shortname, $context->id);
 
             // Return to a var instead of directly to $settings object because of differences between
             // list() in php5 and php7. {@link http://php.net/manual/en/function.list.php}
-            $formattedsummary = external_format_text($SITE->summary, $SITE->summaryformat,
+            $formattedsummary = \core_external\util::format_text($SITE->summary, $SITE->summaryformat,
                                                                                         $context->id);
             $settings->summary = $formattedsummary[0];
             $settings->summaryformat = $formattedsummary[1];
@@ -305,6 +321,12 @@ class api {
             $settings->tool_mobile_filetypeexclusionlist = get_config('tool_mobile', 'filetypeexclusionlist');
             $settings->tool_mobile_custommenuitems = get_config('tool_mobile', 'custommenuitems');
             $settings->tool_mobile_apppolicy = get_config('tool_mobile', 'apppolicy');
+            // This setting could be not set in some edge cases such as bad upgrade.
+            $mintimereq = get_config('tool_mobile', 'autologinmintimebetweenreq');
+            $mintimereq = empty($mintimereq) ? 6 * MINSECS : $mintimereq;
+            $settings->tool_mobile_autologinmintimebetweenreq = $mintimereq;
+            $settings->tool_mobile_autologout = get_config('tool_mobile', 'autologout');
+            $settings->tool_mobile_autologouttime = get_config('tool_mobile', 'autologouttime');
         }
 
         if (empty($section) or $section == 'calendar') {
@@ -324,14 +346,45 @@ class api {
         }
 
         if (empty($section) or $section == 'supportcontact') {
-            $settings->supportname = $CFG->supportname;
-            $settings->supportemail = $CFG->supportemail;
-            $settings->supportpage = $CFG->supportpage;
+            $settings->supportavailability = $CFG->supportavailability;
+
+            if ($CFG->supportavailability == CONTACT_SUPPORT_DISABLED) {
+                $settings->supportname = null;
+                $settings->supportemail = null;
+                $settings->supportpage = null;
+            } else {
+                $settings->supportname = $CFG->supportname;
+                $settings->supportemail = $CFG->supportemail ?? null;
+                $settings->supportpage = $CFG->supportpage;
+            }
         }
 
         if (empty($section) || $section === 'graceperiodsettings') {
             $settings->coursegraceperiodafter = $CFG->coursegraceperiodafter;
             $settings->coursegraceperiodbefore = $CFG->coursegraceperiodbefore;
+        }
+
+        if (empty($section) || $section === 'navigation') {
+            $settings->enabledashboard = $CFG->enabledashboard;
+        }
+
+        if (empty($section) || $section === 'themesettings') {
+            $settings->customusermenuitems = $CFG->customusermenuitems;
+        }
+
+        if (empty($section) || $section === 'locationsettings') {
+            $settings->timezone = $CFG->timezone;
+            $settings->forcetimezone = $CFG->forcetimezone;
+        }
+
+        if (empty($section) || $section === 'manageglobalsearch') {
+            $settings->searchengine = $CFG->searchengine;
+            $settings->searchenablecategories = $CFG->searchenablecategories;
+            $settings->searchdefaultcategory = $CFG->searchdefaultcategory;
+            $settings->searchhideallcategory = $CFG->searchhideallcategory;
+            $settings->searchmaxtopresults = $CFG->searchmaxtopresults;
+            $settings->searchbannerenable = $CFG->searchbannerenable;
+            $settings->searchbanner = $CFG->searchbanner;
         }
 
         return $settings;
@@ -383,17 +436,19 @@ class api {
      * Creates a QR login key for the current user, this key is restricted by time and ip address.
      * This key is used for automatically login the user in the site when the user scans a QR code in the Moodle app.
      *
+     * @param  stdClass $mobilesettings  mobile app plugin settings
      * @return string the key
      * @since Moodle 3.9
      */
-    public static function get_qrlogin_key() {
+    public static function get_qrlogin_key(stdClass $mobilesettings) {
         global $USER;
         // Delete previous keys.
         delete_user_key('tool_mobile', $USER->id);
 
         // Create a new key.
-        $iprestriction = getremoteaddr(null);
-        $validuntil = time() + self::LOGIN_QR_KEY_TTL;
+        $iprestriction = !empty($mobilesettings->qrsameipcheck) ? getremoteaddr(null) : null;
+        $qrkeyttl = !empty($mobilesettings->qrkeyttl) ? $mobilesettings->qrkeyttl : self::LOGIN_QR_KEY_TTL;
+        $validuntil = time() + $qrkeyttl;
         return create_user_key('tool_mobile', $USER->id, null, $iprestriction, $validuntil);
     }
 
@@ -412,7 +467,8 @@ class api {
         $course = new lang_string('course');
         $modules = new lang_string('managemodules');
         $blocks = new lang_string('blocks');
-        $user = new lang_string('user');
+        $useraccount = new lang_string('useraccount');
+        $participants = new lang_string('participants');
         $files = new lang_string('files');
         $remoteaddons = new lang_string('remoteaddons', 'tool_mobile');
         $identityproviders = new lang_string('oauth2identityproviders', 'tool_mobile');
@@ -420,8 +476,8 @@ class api {
         $availablemods = core_plugin_manager::instance()->get_plugins_of_type('mod');
         $coursemodules = array();
         $appsupportedmodules = array(
-            'assign', 'book', 'chat', 'choice', 'data', 'feedback', 'folder', 'forum', 'glossary', 'h5pactivity', 'imscp',
-            'label', 'lesson', 'lti', 'page', 'quiz', 'resource', 'scorm', 'survey', 'url', 'wiki', 'workshop');
+            'assign', 'bigbluebuttonbn', 'book', 'chat', 'choice', 'data', 'feedback', 'folder', 'forum', 'glossary', 'h5pactivity',
+            'imscp', 'label', 'lesson', 'lti', 'page', 'quiz', 'resource', 'scorm', 'survey', 'url', 'wiki', 'workshop');
 
         foreach ($availablemods as $mod) {
             if (in_array($mod->name, $appsupportedmodules)) {
@@ -446,6 +502,7 @@ class api {
             'activity_results' => 'CoreBlockDelegate_AddonBlockActivityResults',
             'site_main_menu' => 'CoreBlockDelegate_AddonBlockSiteMainMenu',
             'myoverview' => 'CoreBlockDelegate_AddonBlockMyOverview',
+            'course_list' => 'CoreBlockDelegate_AddonBlockCourseList',
             'timeline' => 'CoreBlockDelegate_AddonBlockTimeline',
             'recentlyaccessedcourses' => 'CoreBlockDelegate_AddonBlockRecentlyAccessedCourses',
             'starredcourses' => 'CoreBlockDelegate_AddonBlockStarredCourses',
@@ -464,6 +521,9 @@ class api {
             'lp' => 'CoreBlockDelegate_AddonBlockLp',
             'news_items' => 'CoreBlockDelegate_AddonBlockNewsItems',
             'online_users' => 'CoreBlockDelegate_AddonBlockOnlineUsers',
+            'private_files' => 'CoreBlockDelegate_AddonBlockPrivateFiles',
+            'recent_activity' => 'CoreBlockDelegate_AddonBlockRecentActivity',
+            'rss_client' => 'CoreBlockDelegate_AddonBlockRssClient',
             'selfcompletion' => 'CoreBlockDelegate_AddonBlockSelfCompletion',
             'tags' => 'CoreBlockDelegate_AddonBlockTags',
         );
@@ -488,45 +548,49 @@ class api {
                 'NoDelegate_H5POffline' => new lang_string('h5poffline', 'tool_mobile'),
                 'NoDelegate_DarkMode' => new lang_string('darkmode', 'tool_mobile'),
                 'CoreFilterDelegate' => new lang_string('type_filter_plural', 'plugin'),
+                'CoreReportBuilderDelegate' => new lang_string('reportbuilder', 'core_reportbuilder'),
+                'NoDelegate_CoreUserSupport' => new lang_string('contactsitesupport', 'admin'),
+                'NoDelegate_GlobalSearch' => new lang_string('globalsearch', 'search'),
             ),
             "$mainmenu" => array(
                 '$mmSideMenuDelegate_mmaFrontpage' => new lang_string('sitehome'),
-                '$mmSideMenuDelegate_mmCourses' => new lang_string('mycourses'),
                 'CoreMainMenuDelegate_CoreCoursesDashboard' => new lang_string('myhome'),
-                '$mmSideMenuDelegate_mmaCalendar' => new lang_string('calendar', 'calendar'),
-                '$mmSideMenuDelegate_mmaNotifications' => new lang_string('notifications', 'message'),
+                '$mmSideMenuDelegate_mmCourses' => new lang_string('mycourses'),
                 '$mmSideMenuDelegate_mmaMessages' => new lang_string('messages', 'message'),
-                '$mmSideMenuDelegate_mmaGrades' => new lang_string('grades', 'grades'),
-                '$mmSideMenuDelegate_mmaCompetency' => new lang_string('myplans', 'tool_lp'),
+                '$mmSideMenuDelegate_mmaNotifications' => new lang_string('notifications', 'message'),
+                '$mmSideMenuDelegate_mmaCalendar' => new lang_string('calendar', 'calendar'),
                 'CoreMainMenuDelegate_AddonBlog' => new lang_string('blog', 'blog'),
-                '$mmSideMenuDelegate_mmaFiles' => new lang_string('files'),
                 'CoreMainMenuDelegate_CoreTag' => new lang_string('tags'),
-                '$mmSideMenuDelegate_website' => new lang_string('webpage'),
-                '$mmSideMenuDelegate_help' => new lang_string('help'),
                 'CoreMainMenuDelegate_QrReader' => new lang_string('scanqrcode', 'tool_mobile'),
             ),
+            "$useraccount" => array(
+                '$mmSideMenuDelegate_mmaGrades' => new lang_string('grades', 'grades'),
+                '$mmSideMenuDelegate_mmaFiles' => new lang_string('files'),
+                'CoreUserDelegate_AddonBadges:account' => new lang_string('badges', 'badges'),
+                'CoreUserDelegate_AddonBlog:account' => new lang_string('blog', 'blog'),
+                '$mmSideMenuDelegate_mmaCompetency' => new lang_string('myplans', 'tool_lp'),
+                'NoDelegate_SwitchAccount' => new lang_string('switchaccount', 'tool_mobile'),
+            ),
             "$course" => array(
+                '$mmCoursesDelegate_mmaParticipants' => new lang_string('participants'),
+                '$mmCoursesDelegate_mmaGrades' => new lang_string('grades', 'grades'),
+                '$mmCoursesDelegate_mmaCompetency' => new lang_string('competencies', 'competency'),
+                '$mmCoursesDelegate_mmaNotes' => new lang_string('notes', 'notes'),
+                '$mmCoursesDelegate_mmaCourseCompletion' => new lang_string('coursecompletion', 'completion'),
                 'NoDelegate_CourseBlocks' => new lang_string('blocks'),
                 'CoreCourseOptionsDelegate_AddonBlog' => new lang_string('blog', 'blog'),
                 '$mmCoursesDelegate_search' => new lang_string('search'),
-                '$mmCoursesDelegate_mmaCompetency' => new lang_string('competencies', 'competency'),
-                '$mmCoursesDelegate_mmaParticipants' => new lang_string('participants'),
-                '$mmCoursesDelegate_mmaGrades' => new lang_string('grades', 'grades'),
-                '$mmCoursesDelegate_mmaCourseCompletion' => new lang_string('coursecompletion', 'completion'),
-                '$mmCoursesDelegate_mmaNotes' => new lang_string('notes', 'notes'),
                 'NoDelegate_CoreCourseDownload' => new lang_string('downloadcourse', 'tool_mobile'),
                 'NoDelegate_CoreCoursesDownload' => new lang_string('downloadcourses', 'tool_mobile'),
             ),
-            "$user" => array(
-                'CoreUserDelegate_AddonBlog:blogs' => new lang_string('blog', 'blog'),
-                '$mmUserDelegate_mmaBadges' => new lang_string('badges', 'badges'),
-                '$mmUserDelegate_mmaCompetency:learningPlan' => new lang_string('competencies', 'competency'),
-                '$mmUserDelegate_mmaCourseCompletion:viewCompletion' => new lang_string('coursecompletion', 'completion'),
+            "$participants" => array(
                 '$mmUserDelegate_mmaGrades:viewGrades' => new lang_string('grades', 'grades'),
+                '$mmUserDelegate_mmaCourseCompletion:viewCompletion' => new lang_string('coursecompletion', 'completion'),
+                '$mmUserDelegate_mmaBadges' => new lang_string('badges', 'badges'),
+                '$mmUserDelegate_mmaNotes:addNote' => new lang_string('notes', 'notes'),
+                'CoreUserDelegate_AddonBlog:blogs' => new lang_string('blog', 'blog'),
+                '$mmUserDelegate_mmaCompetency:learningPlan' => new lang_string('competencies', 'competency'),
                 '$mmUserDelegate_mmaMessages:sendMessage' => new lang_string('sendmessage', 'message'),
-                '$mmUserDelegate_mmaMessages:addContact' => new lang_string('addcontact', 'message'),
-                '$mmUserDelegate_mmaMessages:blockContact' => new lang_string('blockcontact', 'message'),
-                '$mmUserDelegate_mmaNotes:addNote' => new lang_string('addnewnote', 'notes'),
                 '$mmUserDelegate_picture' => new lang_string('userpic'),
             ),
             "$files" => array(
@@ -544,8 +608,8 @@ class api {
 
         if (!empty($availablemods['lti'])) {
             $ltidisplayname = $availablemods['lti']->displayname;
-            $features["$ltidisplayname"]['CoreCourseModuleDelegate_AddonModLti:openInAppBrowser'] =
-                new lang_string('openusingembeddedbrowser', 'tool_mobile');
+            $features["$ltidisplayname"]['CoreCourseModuleDelegate_AddonModLti:launchViaSite'] =
+                new lang_string('launchviasiteinbrowser', 'tool_mobile');
         }
 
         // Display OAuth 2 identity providers.
@@ -589,68 +653,65 @@ class api {
 
         $warnings = array();
 
-        $curl = new curl();
-        // Return certificate information and verify the certificate.
-        $curl->setopt(array('CURLOPT_CERTINFO' => 1, 'CURLOPT_SSL_VERIFYPEER' => true));
-        $httpswwwroot = str_replace('http:', 'https:', $CFG->wwwroot); // Force https url.
-        // Check https using a page not redirecting or returning exceptions.
-        $curl->head($httpswwwroot . "/$CFG->admin/tool/mobile/mobile.webmanifest.php");
-        $info = $curl->get_info();
+        if (is_https()) {
+            $curl = new curl();
+            // Return certificate information and verify the certificate.
+            $curl->setopt(array('CURLOPT_CERTINFO' => 1, 'CURLOPT_SSL_VERIFYPEER' => true));
+            // Check https using a page not redirecting or returning exceptions.
+            $curl->head("$CFG->wwwroot/$CFG->admin/tool/mobile/mobile.webmanifest.php");
+            $info = $curl->get_info();
 
-// Remove HTTPS requirement for QR Login -- Derek Maxson 20210211
-//
-//        // First of all, check the server certificate (if any).
-//         if (empty($info['http_code']) or ($info['http_code'] >= 400)) {
-//             $warnings[] = ['nohttpsformobilewarning', 'admin'];
-//         } else {
-//             // Check the certificate is not self-signed or has an untrusted-root.
-//             // This may be weak in some scenarios (when the curl SSL verifier is outdated).
-//             if (empty($info['certinfo'])) {
-//                 $warnings[] = ['selfsignedoruntrustedcertificatewarning', 'tool_mobile'];
-//             } else {
-//                 $timenow = time();
-//                 $expectedissuer = null;
-//                 foreach ($info['certinfo'] as $cert) {
-// 
-//                     // Due to a bug in certain curl/openssl versions the signature algorithm isn't always correctly parsed.
-//                     // See https://github.com/curl/curl/issues/3706 for reference.
-//                     if (!array_key_exists('Signature Algorithm', $cert)) {
-//                         // The malformed field that does contain the algorithm we're looking for looks like the following:
-//                         // <WHITESPACE>Signature Algorithm: <ALGORITHM><CRLF><ALGORITHM>.
-//                         preg_match('/\s+Signature Algorithm: (?<algorithm>[^\s]+)/', $cert['Public Key Algorithm'], $matches);
-// 
-//                         $signaturealgorithm = $matches['algorithm'] ?? '';
-//                     } else {
-//                         $signaturealgorithm = $cert['Signature Algorithm'];
-//                     }
-// 
-//                     // Check if the signature algorithm is weak (Android won't work with SHA-1).
-//                     if ($signaturealgorithm == 'sha1WithRSAEncryption' || $signaturealgorithm == 'sha1WithRSA') {
-//                         $warnings[] = ['insecurealgorithmwarning', 'tool_mobile'];
-//                     }
-//                     // Check certificate start date.
-//                     if (strtotime($cert['Start date']) > $timenow) {
-//                         $warnings[] = ['invalidcertificatestartdatewarning', 'tool_mobile'];
-//                     }
-//                     // Check certificate end date.
-//                     if (strtotime($cert['Expire date']) < $timenow) {
-//                         $warnings[] = ['invalidcertificateexpiredatewarning', 'tool_mobile'];
-//                     }
-//                     // Check the chain.
-//                     if ($expectedissuer !== null) {
-//                         if ($expectedissuer !== $cert['Subject'] || $cert['Subject'] === $cert['Issuer']) {
-//                             $warnings[] = ['invalidcertificatechainwarning', 'tool_mobile'];
-//                         }
-//                     }
-//                     $expectedissuer = $cert['Issuer'];
-//                 }
-//             }
-//         }
-        // Now check typical configuration problems.
-        if ((int) $CFG->userquota === PHP_INT_MAX) {
-            // In old Moodle version was a text so was possible to have numeric values > PHP_INT_MAX.
-            $warnings[] = ['invaliduserquotawarning', 'tool_mobile'];
+            // Check the certificate is not self-signed or has an untrusted-root.
+            // This may be weak in some scenarios (when the curl SSL verifier is outdated).
+            // Remove HTTPS requirement for QR Login -- Derek Maxson 20210211
+            // if (empty($info['http_code']) || empty($info['certinfo'])) {
+            //     $warnings[] = ['selfsignedoruntrustedcertificatewarning', 'tool_mobile'];
+            // } else {
+            //     $timenow = time();
+            //     $infokeys = array_keys($info['certinfo']);
+            //     $lastkey = end($infokeys);
+
+            //     if (count($info['certinfo']) == 1) {
+            //         // This will work in a normal browser because it will complete the chain, but not in a mobile app.
+            //         $warnings[] = ['invalidcertificatechainwarning', 'tool_mobile'];
+            //     }
+
+            //     foreach ($info['certinfo'] as $key => $cert) {
+            //         // Convert to lower case the keys, some OS/curl implementations differ.
+            //         $cert = array_change_key_case($cert, CASE_LOWER);
+
+            //         // Due to a bug in certain curl/openssl versions the signature algorithm isn't always correctly parsed.
+            //         // See https://github.com/curl/curl/issues/3706 for reference.
+            //         if (!array_key_exists('signature algorithm', $cert)) {
+            //             // The malformed field that does contain the algorithm we're looking for looks like the following:
+            //             // <WHITESPACE>Signature Algorithm: <ALGORITHM><CRLF><ALGORITHM>.
+            //             preg_match('/\s+Signature Algorithm: (?<algorithm>[^\s]+)/', $cert['public key algorithm'], $matches);
+
+            //             $signaturealgorithm = $matches['algorithm'] ?? '';
+            //         } else {
+            //             $signaturealgorithm = $cert['signature algorithm'];
+            //         }
+
+            //         // Check if the signature algorithm is weak (Android won't work with SHA-1).
+            //         if ($key != $lastkey &&
+            //                 ($signaturealgorithm == 'sha1WithRSAEncryption' || $signaturealgorithm == 'sha1WithRSA')) {
+            //             $warnings['insecurealgorithmwarning'] = ['insecurealgorithmwarning', 'tool_mobile'];
+            //         }
+            //         // Check certificate start date.
+            //         if (strtotime($cert['start date']) > $timenow) {
+            //             $warnings['invalidcertificatestartdatewarning'] = ['invalidcertificatestartdatewarning', 'tool_mobile'];
+            //         }
+            //         // Check certificate end date.
+            //         if (strtotime($cert['expire date']) < $timenow) {
+            //             $warnings['invalidcertificateexpiredatewarning'] = ['invalidcertificateexpiredatewarning', 'tool_mobile'];
+            //         }
+            //     }
+            // }
+        } else {
+            // Warning for non https sites.
+            $warnings[] = ['nohttpsformobilewarning', 'admin'];
         }
+
         // Check ADOdb debug enabled.
         if (get_config('auth_db', 'debugauthdb') || get_config('enrol_database', 'debugdb')) {
             $warnings[] = ['adodbdebugwarning', 'tool_mobile'];
@@ -691,7 +752,7 @@ class api {
         $data = $urlscheme . '://' . $CFG->wwwroot;
 
         if ($mobilesettings->qrcodetype == static::QR_CODE_LOGIN) {
-            $qrloginkey = static::get_qrlogin_key();
+            $qrloginkey = static::get_qrlogin_key($mobilesettings);
             $data .= '?qrlogin=' . $qrloginkey . '&userid=' . $USER->id;
         }
 

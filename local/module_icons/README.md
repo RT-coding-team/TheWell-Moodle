@@ -20,4 +20,4 @@ To learn more, checkout [this Moodle Doc](https://docs.moodle.org/dev/Javascript
 
 ## Issues
 
-In order for this to work, I needed to add a new function callback named **PLUGINNAME**_modify_coursemodule_info.  I then modified `course/lib.php` to call this callback.  You will find the code on the following lines: 478 & 558-574.
+In order for this to work, I needed to add a new function callback named **PLUGINNAME**_modify_coursemodule_icon.  I then modified `course/lib.php` to call this callback.  You will find the code on the following lines: 478 & 558-574.

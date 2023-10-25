@@ -49,21 +49,9 @@ function xmldb_folder_upgrade($oldversion) {
 
     $dbman = $DB->get_manager(); // Loads ddl manager and xmldb classes.
 
-    // Automatically generated Moodle v3.5.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.6.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.7.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.8.0 release upgrade line.
-    // Put any upgrade step following this.
-
     // Automatically generated Moodle v3.9.0 release upgrade line.
     // Put any upgrade step following this.
-    if ($oldversion < 2020061501) {
+    if ($oldversion < 2021052501) {
 
         // Define field forcedownload to be added to folder.
         $table = new xmldb_table('folder');
@@ -75,10 +63,19 @@ function xmldb_folder_upgrade($oldversion) {
         }
 
         // Folder savepoint reached.
-        upgrade_mod_savepoint(true, 2020061501, 'folder');
+        upgrade_mod_savepoint(true, 2021052501, 'folder');
     }
 
-    // Automatically generated Moodle v3.10.0 release upgrade line.
+    // Automatically generated Moodle v4.0.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.1.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.2.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.3.0 release upgrade line.
     // Put any upgrade step following this.
 
     return true;

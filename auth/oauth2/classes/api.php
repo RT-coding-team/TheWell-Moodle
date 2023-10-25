@@ -252,21 +252,13 @@ class api {
         require_once($CFG->dirroot.'/user/lib.php');
 
         $user = new stdClass();
-        $user->username = $userinfo['username'];
-        $user->email = $userinfo['email'];
         $user->auth = 'oauth2';
         $user->mnethostid = $CFG->mnet_localhost_id;
-        $user->lastname = isset($userinfo['lastname']) ? $userinfo['lastname'] : '';
-        $user->firstname = isset($userinfo['firstname']) ? $userinfo['firstname'] : '';
-        $user->url = isset($userinfo['url']) ? $userinfo['url'] : '';
-        $user->alternatename = isset($userinfo['alternatename']) ? $userinfo['alternatename'] : '';
         $user->secret = random_string(15);
-
         $user->password = '';
-        // This user is confirmed.
-        $user->confirmed = 1;
+        $user->confirmed = 1;  // Set the user to confirmed.
 
-        $user->id = user_create_user($user, false, true);
+        $user = self::save_user($userinfo, $user);
 
         // The linked account is pre-confirmed.
         $record = new stdClass();
@@ -301,21 +293,13 @@ class api {
         }
 
         $user = new stdClass();
-        $user->username = $userinfo['username'];
-        $user->email = $userinfo['email'];
         $user->auth = 'oauth2';
         $user->mnethostid = $CFG->mnet_localhost_id;
-        $user->lastname = isset($userinfo['lastname']) ? $userinfo['lastname'] : '';
-        $user->firstname = isset($userinfo['firstname']) ? $userinfo['firstname'] : '';
-        $user->url = isset($userinfo['url']) ? $userinfo['url'] : '';
-        $user->alternatename = isset($userinfo['alternatename']) ? $userinfo['alternatename'] : '';
         $user->secret = random_string(15);
-
         $user->password = '';
-        // This user is not confirmed.
-        $user->confirmed = 0;
+        $user->confirmed = 0;  // The user is not yet confirmed.
 
-        $user->id = user_create_user($user, false, true);
+        $user = self::save_user($userinfo, $user);
 
         // The linked account is pre-confirmed.
         $record = new stdClass();
@@ -403,5 +387,37 @@ class api {
      */
     public static function is_enabled() {
         return is_enabled_auth('oauth2');
+    }
+
+    /**
+     * Create a new user & update the profile fields
+     *
+     * @param array $userinfo
+     * @param object $user
+     * @return object
+     */
+    private static function save_user(array $userinfo, object $user): object {
+        // Map supplied issuer user info to Moodle user fields.
+        $userfieldmapping = new \core\oauth2\user_field_mapping();
+        $userfieldlist = $userfieldmapping->get_internalfields();
+        $hasprofilefield = false;
+        foreach ($userfieldlist as $field) {
+            if (isset($userinfo[$field]) && $userinfo[$field]) {
+                $user->$field = $userinfo[$field];
+
+                // Check whether the profile fields exist or not.
+                $hasprofilefield = $hasprofilefield || strpos($field, \core_user\fields::PROFILE_FIELD_PREFIX) === 0;
+            }
+        }
+
+        // Create a new user.
+        $user->id = user_create_user($user, false, true);
+
+        // If profile fields exist then save custom profile fields data.
+        if ($hasprofilefield) {
+            profile_save_data($user);
+        }
+
+        return $user;
     }
 }

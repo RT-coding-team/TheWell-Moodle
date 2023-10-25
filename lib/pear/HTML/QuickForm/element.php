@@ -351,7 +351,7 @@ class HTML_QuickForm_element extends HTML_Common
         if (empty($values)) {
             return null;
         }
-        $elementName = $this->getName();
+        $elementName = $this->getName() ?? '';
         if (isset($values[$elementName])) {
             return $values[$elementName];
         } elseif (strpos($elementName, '[')) {
@@ -383,10 +383,12 @@ class HTML_QuickForm_element extends HTML_Common
     {
         switch ($event) {
             case 'createElement':
-                static::__construct($arg[0], $arg[1], $arg[2], $arg[3], $arg[4]);
+                static::__construct($arg[0], $arg[1], $arg[2], $arg[3], $arg[4], $arg[5]);
                 if ($caller->getAttribute('data-random-ids') && !$this->getAttribute('id')) {
                     $this->_generateId();
-                    $this->updateAttributes(array('id' => $this->getAttribute('id') . '_' . random_string()));
+                    $attributes = $this->getAttributes();
+                    $attributes['id'] = $this->getAttribute('id') . '_' . random_string();
+                    $this->updateAttributes($attributes);
                 }
                 break;
             case 'addElement':
@@ -447,7 +449,7 @@ class HTML_QuickForm_element extends HTML_Common
             return;
         }
 
-        $id = $this->getName();
+        $id = $this->getName() ?? '';
         $id = 'id_' . str_replace(array('qf_', '[', ']'), array('', '_', ''), $id);
         $id = clean_param($id, PARAM_ALPHANUMEXT);
         $this->updateAttributes(array('id' => $id));

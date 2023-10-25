@@ -32,6 +32,11 @@
  * @subpackage 3rd-party
  */
 
+defined('MOODLE_INTERNAL') || die();
+
+global $CFG;
+require_once("{$CFG->libdir}/flickrclient.php");
+
 /**
  * Flickr Class
  * @package moodlecore
@@ -51,6 +56,9 @@ class phpFlickr {
     var $error_msg;
     var $token;
     var $php_version;
+
+    /** @var curl cURL class. */
+    private $curl;
 
     /**
      * When your database cache table hits this many rows, a cleanup
@@ -73,12 +81,16 @@ class phpFlickr {
         $this->api_key = $api_key;
         $this->secret = $secret;
         $this->die_on_error = false;
-        $this->service = "flickr";
         $this->token = $token;
         //Find the PHP version and store it for future reference
         $this->php_version = explode("-", phpversion());
         $this->php_version = explode(".", $this->php_version[0]);
+
+        // Initialize curl helper, set custom user agent as Flickr blocks our "MoodleBot" agent string.
         $this->curl = new curl(array('cache'=>true, 'module_cache'=>'repository'));
+        $this->curl->setopt([
+            'CURLOPT_USERAGENT' => flickr_client::user_agent(),
+        ]);
     }
 
     function request ($command, $args = array())
@@ -1124,12 +1136,6 @@ class phpFlickr {
         // $args['async'] = 1;
         $args['api_key'] = $this->api_key;
 
-        if (!empty($this->email)) {
-            $args['email'] = $this->email;
-        }
-        if (!empty($this->password)) {
-            $args['password'] = $this->password;
-        }
         if (!empty($this->token)) {
             $args['auth_token'] = $this->token;
         }

@@ -71,13 +71,13 @@ class block_base {
 
     /**
      * An object to contain the information to be displayed in the block.
-     * @var stdObject $content
+     * @var stdClass $content
      */
     var $content       = NULL;
 
     /**
      * The initialized instance of this block object.
-     * @var block $instance
+     * @var stdClass $instance
      */
     var $instance      = NULL;
 
@@ -89,13 +89,13 @@ class block_base {
 
     /**
      * This blocks's context.
-     * @var stdClass
+     * @var context
      */
     public $context    = NULL;
 
     /**
      * An object containing the instance configuration information for the current instance of this block.
-     * @var stdObject $config
+     * @var stdClass $config
      */
     var $config        = NULL;
 
@@ -132,12 +132,8 @@ class block_base {
     function name() {
         // Returns the block name, as present in the class name,
         // the database, the block directory, etc etc.
-        static $myname;
-        if ($myname === NULL) {
-            $myname = strtolower(get_class($this));
-            $myname = substr($myname, strpos($myname, '_') + 1);
-        }
-        return $myname;
+        $myname = strtolower(get_class($this));
+        return substr($myname, strpos($myname, '_') + 1);
     }
 
     /**
@@ -249,7 +245,7 @@ class block_base {
             $this->arialabel = $bc->arialabel;
         }
 
-        if ($this->page->user_is_editing()) {
+        if ($this->page->user_is_editing() && $this->instance_can_be_edited()) {
             $bc->controls = $this->page->blocks->edit_controls($this);
         } else {
             // we must not use is_empty on hidden blocks
@@ -282,7 +278,7 @@ class block_base {
      * Return an object containing all the block content to be returned by external functions.
      *
      * If your block is returning formatted content or provide files for download, you should override this method to use the
-     * external_format_text, external_format_string functions for formatting or external_util::get_area_files for files.
+     * \core_external\util::format_text, \core_external\util::format_string functions for formatting or external_util::get_area_files for files.
      *
      * @param  core_renderer $output the rendered used for output
      * @return stdClass      object containing the block title, central content, footer and linked files (if any).
@@ -466,7 +462,7 @@ class block_base {
      * table and the current page. (See {@link block_manager::load_blocks()}.)
      *
      * @param stdClass $instance data from block_insances, block_positions, etc.
-     * @param moodle_page $the page this block is on.
+     * @param moodle_page $page the page this block is on.
      */
     function _load_instance($instance, $page) {
         if (!empty($instance->configdata)) {
@@ -597,8 +593,19 @@ class block_base {
      * @return boolean
      */
     function user_can_addto($page) {
+        global $CFG;
+        require_once($CFG->dirroot . '/user/lib.php');
+
         // List of formats this block supports.
         $formats = $this->applicable_formats();
+
+        // Check if user is trying to add blocks to their profile page.
+        $userpagetypes = user_page_type_list($page->pagetype, null, null);
+        if (array_key_exists($page->pagetype, $userpagetypes)) {
+            $capability = 'block/' . $this->name() . ':addinstance';
+            return $this->has_add_block_capability($page, $capability)
+                && has_capability('moodle/user:manageownblocks', $page->context);
+        }
 
         // The blocks in My Moodle are a special case and use a different capability.
         $mypagetypes = my_page_type_list($page->pagetype); // Get list of possible my page types.
@@ -692,6 +699,15 @@ class block_base {
         return true;
     }
 
+    /**
+     * If overridden and set to false by the block it will not be editable.
+     *
+     * @return bool
+     */
+    public function instance_can_be_edited() {
+        return true;
+    }
+
     /** @callback callback functions for comments api */
     public static function comment_template($options) {
         $ret = <<<EOD
@@ -737,6 +753,18 @@ EOD;
      */
     public function get_aria_role() {
         return 'complementary';
+    }
+
+    /**
+     * This method can be overriden to add some extra checks to decide whether the block can be added or not to a page.
+     * It doesn't need to do the standard capability checks as they will be performed by has_add_block_capability().
+     * This method is user agnostic. If you want to check if a user can add a block or not, you should use user_can_addto().
+     *
+     * @param moodle_page $page The page where this block will be added.
+     * @return bool Whether the block can be added or not to the given page.
+     */
+    public function can_block_be_added(moodle_page $page): bool {
+        return true;
     }
 }
 
@@ -827,9 +855,6 @@ class block_tree extends block_list {
         $this->get_required_javascript();
         $this->get_content();
         $content = $output->tree_block_contents($this->content->items,array('class'=>'block_tree list'));
-        if (isset($this->id) && !is_numeric($this->id)) {
-            $content = $output->box($content, 'block_tree_box', $this->id);
-        }
         return $content;
     }
 }

@@ -98,17 +98,17 @@ class assign_override_form extends moodleform {
         $assigninstance = $this->assign->get_instance($userid);
         $inrelativedatesmode = !empty($this->assign->get_course()->relativedatesmode);
 
-        $mform->addElement('header', 'override', get_string('override', 'assign'));
-
         $assigngroupmode = groups_get_activity_groupmode($cm);
         $accessallgroups = ($assigngroupmode == NOGROUPS) || has_capability('moodle/site:accessallgroups', $this->context);
 
         if ($this->groupmode) {
+            $mform->addElement('header', 'override', get_string('groupoverrides', 'assign'));
             // Group override.
             if ($this->groupid) {
                 // There is already a groupid, so freeze the selector.
-                $groupchoices = array();
-                $groupchoices[$this->groupid] = groups_get_group_name($this->groupid);
+                $groupchoices = [
+                    $this->groupid => format_string(groups_get_group_name($this->groupid), true, $this->context),
+                ];
                 $mform->addElement('select', 'groupid',
                         get_string('overridegroup', 'assign'), $groupchoices);
                 $mform->freeze('groupid');
@@ -123,12 +123,14 @@ class assign_override_form extends moodleform {
                 if (empty($groups)) {
                     // Generate an error.
                     $link = new moodle_url('/mod/assign/overrides.php', array('cmid' => $cm->id));
-                    print_error('groupsnone', 'assign', $link);
+                    throw new \moodle_exception('groupsnone', 'assign', $link);
                 }
 
                 $groupchoices = array();
                 foreach ($groups as $group) {
-                    $groupchoices[$group->id] = $group->name;
+                    if ($group->visibility != GROUPS_VISIBILITY_NONE) {
+                        $groupchoices[$group->id] = format_string($group->name, true, $this->context);
+                    }
                 }
                 unset($groups);
 
@@ -141,6 +143,7 @@ class assign_override_form extends moodleform {
                 $mform->addRule('groupid', get_string('required'), 'required', null, 'client');
             }
         } else {
+            $mform->addElement('header', 'override', get_string('useroverrides', 'assign'));
             // User override.
             if ($this->userid) {
                 // There is already a userid, so freeze the selector.
@@ -156,23 +159,15 @@ class assign_override_form extends moodleform {
                 list($sort) = users_order_by_sql('u');
 
                 // Get the list of appropriate users, depending on whether and how groups are used.
-                if ($accessallgroups) {
-                    $users = get_enrolled_users($this->context, '', 0,
-                            'u.id, u.email, ' . get_all_user_name_fields(true, 'u'), $sort);
-                } else if ($groups = groups_get_activity_allowed_groups($cm)) {
-                    $enrolledjoin = get_enrolled_join($this->context, 'u.id');
-                    $userfields = 'u.id, u.email, ' . get_all_user_name_fields(true, 'u');
-                    list($ingroupsql, $ingroupparams) = $DB->get_in_or_equal(array_keys($groups), SQL_PARAMS_NAMED);
-                    $params = $enrolledjoin->params + $ingroupparams;
-                    $sql = "SELECT $userfields
-                              FROM {user} u
-                              JOIN {groups_members} gm ON gm.userid = u.id
-                                   {$enrolledjoin->joins}
-                             WHERE gm.groupid $ingroupsql
-                                   AND {$enrolledjoin->wheres}
-                          ORDER BY $sort";
-                    $users = $DB->get_records_sql($sql, $params);
+                $userfieldsapi = \core_user\fields::for_name();
+                $userfields = 'u.id, u.email, ' . $userfieldsapi->get_sql('u', false, '', '', false)->selects;
+                $groupids = 0;
+                if (!$accessallgroups) {
+                    $groups = groups_get_activity_allowed_groups($cm);
+                    $groupids = array_keys($groups);
                 }
+                $users = get_enrolled_users($this->context, '',
+                        $groupids, $userfields, $sort);
 
                 // Filter users based on any fixed restrictions (groups, profile).
                 $info = new \core_availability\info_module($cm);
@@ -181,11 +176,12 @@ class assign_override_form extends moodleform {
                 if (empty($users)) {
                     // Generate an error.
                     $link = new moodle_url('/mod/assign/overrides.php', array('cmid' => $cm->id));
-                    print_error('usersnone', 'assign', $link);
+                    throw new \moodle_exception('usersnone', 'assign', $link);
                 }
 
                 $userchoices = array();
-                $canviewemail = in_array('email', get_extra_user_fields($this->context));
+                // TODO Does not support custom user profile fields (MDL-70456).
+                $canviewemail = in_array('email', \core_user\fields::get_identity_fields($this->context, false));
                 foreach ($users as $id => $user) {
                     if (empty($invalidusers[$id]) || (!empty($override) &&
                             $id == $override->userid)) {
@@ -266,6 +262,11 @@ class assign_override_form extends moodleform {
                 userdate($assigninstance->extensionduedate));
         }
 
+        // Time limit.
+        $mform->addElement('duration', 'timelimit',
+            get_string('timelimit', 'assign'), array('optional' => true));
+        $mform->setDefault('timelimit', $assigninstance->timelimit);
+
         // Submit buttons.
         $mform->addElement('submit', 'resetbutton',
                 get_string('reverttodefaults', 'assign'));
@@ -316,8 +317,8 @@ class assign_override_form extends moodleform {
         }
 
         if (!empty($data['allowsubmissionsfromdate']) && !empty($data['duedate'])) {
-            if ($data['duedate'] < $data['allowsubmissionsfromdate']) {
-                $errors['duedate'] = get_string('duedatevalidation', 'assign');
+            if ($data['duedate'] <= $data['allowsubmissionsfromdate']) {
+                $errors['duedate'] = get_string('duedateaftersubmissionvalidation', 'assign');
             }
         }
 
@@ -341,7 +342,7 @@ class assign_override_form extends moodleform {
 
         // Ensure that at least one assign setting was changed.
         $changed = false;
-        $keys = array('duedate', 'cutoffdate', 'allowsubmissionsfromdate');
+        $keys = array('duedate', 'cutoffdate', 'allowsubmissionsfromdate', 'timelimit');
         foreach ($keys as $key) {
             if ($data[$key] != $assigninstance->{$key}) {
                 $changed = true;

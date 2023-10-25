@@ -35,7 +35,7 @@ require_once('templatable_form_element.php');
 /**
  * Editor element
  *
- * It creates preffered editor (textbox/TinyMce) form element for the format (Text/HTML) selected.
+ * It creates preffered editor (textbox/Tiny) form element for the format (Text/HTML) selected.
  *
  * @package   core_form
  * @category  form
@@ -63,6 +63,9 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element implements templatab
 
     /** @var array values for editor */
     protected $_values     = array('text'=>null, 'format'=>null, 'itemid'=>null);
+
+    /** @var bool if true label will be hidden */
+    protected $_hiddenLabel = false;
 
     /**
      * Constructor
@@ -246,6 +249,15 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element implements templatab
     }
 
     /**
+     * Returns editor text content
+     *
+     * @return string Text content
+     */
+    public function get_text(): string {
+        return $this->_values['text'];
+    }
+
+    /**
      * Returns editor format
      *
      * @return int.
@@ -410,7 +422,8 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element implements templatab
             $fpoptions['subtitle'] = $subtitle_options;
         }
 
-        //If editor is required and tinymce, then set required_tinymce option to initalize tinymce validation.
+        // TODO Remove this in MDL-77334 for Moodle 4.6.
+        // If editor is required and tinymce, then set required_tinymce option to initalize tinymce validation.
         if (($editor instanceof tinymce_texteditor)  && !is_null($this->getAttribute('onchange'))) {
             $this->_options['required'] = true;
         }
@@ -441,6 +454,7 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element implements templatab
         $context['id'] = $id;
         $context['value'] = $text;
         $context['format'] = $format;
+        $context['formatlabel'] = get_string('editorxformat', 'editor', $this->_label);
 
         if (!is_null($this->getAttribute('onblur')) && !is_null($this->getAttribute('onchange'))) {
             $context['changelistener'] = true;
@@ -488,12 +502,21 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element implements templatab
     }
 
     /**
-     * What to display when element is frozen.
+     * Returns the formatted value. The return from parent class is not acceptable.
      *
-     * @return empty string
+     * @return string
      */
-    function getFrozenHtml() {
+    public function getFrozenHtml(): string {
+        return format_text($this->get_text(), $this->getFormat()) . $this->_getPersistantData();
+    }
 
-        return '';
+    /**
+     * Sets label to be hidden.
+     *
+     * @param bool $hiddenLabel Whether the label should be hidden or not.
+     * @return void
+     */
+    function setHiddenLabel($hiddenLabel) {
+        $this->_hiddenLabel = $hiddenLabel;
     }
 }

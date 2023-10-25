@@ -14,14 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * The module forums external functions unit tests
- *
- * @package    mod_forum
- * @category   external
- * @copyright  2012 Mark Nelson <markn@moodle.com>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace mod_forum;
+
+use core_external\external_api;
+use externallib_advanced_testcase;
+use mod_forum_external;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -30,7 +27,15 @@ global $CFG;
 require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 require_once($CFG->dirroot . '/mod/forum/lib.php');
 
-class mod_forum_external_testcase extends externallib_advanced_testcase {
+/**
+ * The module forums external functions unit tests
+ *
+ * @package    mod_forum
+ * @category   external
+ * @copyright  2012 Mark Nelson <markn@moodle.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class externallib_test extends externallib_advanced_testcase {
 
     /**
      * Tests set up
@@ -52,6 +57,51 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
     }
 
     /**
+     * Get the expected attachment.
+     *
+     * @param \stored_file $file
+     * @param array $values
+     * @param \moodle_url|null $url
+     * @return array
+     */
+    protected function get_expected_attachment(\stored_file $file, array $values  = [], ?\moodle_url $url = null): array {
+        if (!$url) {
+            $url = \moodle_url::make_pluginfile_url(
+                $file->get_contextid(),
+                $file->get_component(),
+                $file->get_filearea(),
+                $file->get_itemid(),
+                $file->get_filepath(),
+                $file->get_filename()
+            );
+            $url->param('forcedownload', 1);
+        }
+
+        return array_merge(
+            [
+                'contextid' => $file->get_contextid(),
+                'component' => $file->get_component(),
+                'filearea' => $file->get_filearea(),
+                'itemid' => $file->get_itemid(),
+                'filepath' => $file->get_filepath(),
+                'filename' => $file->get_filename(),
+                'isdir' => $file->is_directory(),
+                'isimage' => $file->is_valid_image(),
+                'timemodified' => $file->get_timemodified(),
+                'timecreated' => $file->get_timecreated(),
+                'filesize' => $file->get_filesize(),
+                'author' => $file->get_author(),
+                'license' => $file->get_license(),
+                'filenameshort' => $file->get_filename(),
+                'filesizeformatted' => display_size((int) $file->get_filesize()),
+                'icon' => $file->is_directory() ? file_folder_icon() : file_file_icon($file),
+                'timecreatedformatted' => userdate($file->get_timecreated()),
+                'timemodifiedformatted' => userdate($file->get_timemodified()),
+                'url' => $url->out(),
+            ], $values);
+    }
+
+    /**
      * Test get forums
      */
     public function test_mod_forum_get_forums_by_courses() {
@@ -70,14 +120,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course2 = self::getDataGenerator()->create_course();
 
         // First forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->introformat = FORMAT_HTML;
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_FORCED;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
 
         // Second forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->introformat = FORMAT_HTML;
         $record->course = $course2->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
@@ -85,7 +135,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $forum2->introfiles = [];
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user->id;
         $record->forum = $forum1->id;
@@ -96,8 +146,9 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $forum1->istracked = true;
         $forum1->unreadpostscount = 0;
         $forum1->introfiles = [];
+        $forum1->lang = '';
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course2->id;
         $record->userid = $user->id;
         $record->forum = $forum2->id;
@@ -108,6 +159,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Default limited role, no create discussion capability enabled.
         $forum2->cancreatediscussions = false;
         $forum2->istracked = false;
+        $forum2->lang = '';
 
         // Check the forum was correctly created.
         $this->assertEquals(2, $DB->count_records_select('forum', 'id = :forum1 OR id = :forum2',
@@ -129,7 +181,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Assign capabilities to view forums for forum 2.
         $cm2 = get_coursemodule_from_id('forum', $forum2->cmid, 0, false, MUST_EXIST);
-        $context2 = context_module::instance($cm2->id);
+        $context2 = \context_module::instance($cm2->id);
         $newrole = create_role('Role 2', 'role2', 'Role 2 description');
         $roleid2 = $this->assignUserCapability('mod/forum:viewdiscussion', $context2->id, $newrole);
 
@@ -198,7 +250,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course1 = self::getDataGenerator()->create_course();
         $this->getDataGenerator()->enrol_user($user->id, $course1->id);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->introformat = FORMAT_HTML;
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
@@ -206,7 +258,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $forum1->introfiles = [];
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user->id;
         $record->forum = $forum1->id;
@@ -223,7 +275,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->setUser(0);
         try {
             $response = mod_forum_external::toggle_favourite_state($discussion1->id, 0);
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('requireloginerror', $e->errorcode);
         }
     }
@@ -244,7 +296,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course1 = self::getDataGenerator()->create_course();
         $this->getDataGenerator()->enrol_user($user->id, $course1->id);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->introformat = FORMAT_HTML;
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
@@ -252,7 +304,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $forum1->introfiles = [];
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user->id;
         $record->forum = $forum1->id;
@@ -260,7 +312,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         try {
             $response = mod_forum_external::set_pin_state($discussion1->id, 1);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->assertEquals('cannotpindiscussions', $e->errorcode);
         }
 
@@ -276,253 +328,6 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
     /**
      * Test get forum posts
-     */
-    public function test_mod_forum_get_forum_discussion_posts() {
-        global $CFG, $PAGE;
-
-        $this->resetAfterTest(true);
-
-        // Set the CFG variable to allow track forums.
-        $CFG->forum_trackreadposts = true;
-
-        // Create a user who can track forums.
-        $record = new stdClass();
-        $record->trackforums = true;
-        $user1 = self::getDataGenerator()->create_user($record);
-        // Create a bunch of other users to post.
-        $user2 = self::getDataGenerator()->create_user();
-        $user3 = self::getDataGenerator()->create_user();
-
-        // Set the first created user to the test user.
-        self::setUser($user1);
-
-        // Create course to add the module.
-        $course1 = self::getDataGenerator()->create_course();
-
-        // Forum with tracking off.
-        $record = new stdClass();
-        $record->course = $course1->id;
-        $record->trackingtype = FORUM_TRACKING_OFF;
-        $forum1 = self::getDataGenerator()->create_module('forum', $record);
-        $forum1context = context_module::instance($forum1->cmid);
-
-        // Forum with tracking enabled.
-        $record = new stdClass();
-        $record->course = $course1->id;
-        $forum2 = self::getDataGenerator()->create_module('forum', $record);
-        $forum2cm = get_coursemodule_from_id('forum', $forum2->cmid);
-        $forum2context = context_module::instance($forum2->cmid);
-
-        // Add discussions to the forums.
-        $record = new stdClass();
-        $record->course = $course1->id;
-        $record->userid = $user1->id;
-        $record->forum = $forum1->id;
-        $discussion1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
-
-        $record = new stdClass();
-        $record->course = $course1->id;
-        $record->userid = $user2->id;
-        $record->forum = $forum1->id;
-        $discussion2 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
-
-        $record = new stdClass();
-        $record->course = $course1->id;
-        $record->userid = $user2->id;
-        $record->forum = $forum2->id;
-        $discussion3 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
-
-        // Add 2 replies to the discussion 1 from different users.
-        $record = new stdClass();
-        $record->discussion = $discussion1->id;
-        $record->parent = $discussion1->firstpost;
-        $record->userid = $user2->id;
-        $discussion1reply1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_post($record);
-        $filename = 'shouldbeanimage.jpg';
-        // Add a fake inline image to the post.
-        $filerecordinline = array(
-            'contextid' => $forum1context->id,
-            'component' => 'mod_forum',
-            'filearea'  => 'post',
-            'itemid'    => $discussion1reply1->id,
-            'filepath'  => '/',
-            'filename'  => $filename,
-        );
-        $fs = get_file_storage();
-        $timepost = time();
-        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
-
-        $record->parent = $discussion1reply1->id;
-        $record->userid = $user3->id;
-        $record->tags = array('Cats', 'Dogs');
-        $discussion1reply2 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_post($record);
-
-        // Enrol the user in the  course.
-        $enrol = enrol_get_plugin('manual');
-        // Following line enrol and assign default role id to the user.
-        // So the user automatically gets mod/forum:viewdiscussion on all forums of the course.
-        $this->getDataGenerator()->enrol_user($user1->id, $course1->id);
-        $this->getDataGenerator()->enrol_user($user2->id, $course1->id);
-
-        // Delete one user, to test that we still receive posts by this user.
-        delete_user($user3);
-
-        // Create what we expect to be returned when querying the discussion.
-        $expectedposts = array(
-            'posts' => array(),
-            'ratinginfo' => array(
-                'contextid' => $forum1context->id,
-                'component' => 'mod_forum',
-                'ratingarea' => 'post',
-                'canviewall' => null,
-                'canviewany' => null,
-                'scales' => array(),
-                'ratings' => array(),
-            ),
-            'warnings' => array(),
-        );
-
-        // User pictures are initially empty, we should get the links once the external function is called.
-        $expectedposts['posts'][] = array(
-            'id' => $discussion1reply2->id,
-            'discussion' => $discussion1reply2->discussion,
-            'parent' => $discussion1reply2->parent,
-            'userid' => (int) $discussion1reply2->userid,
-            'created' => $discussion1reply2->created,
-            'modified' => $discussion1reply2->modified,
-            'mailed' => $discussion1reply2->mailed,
-            'subject' => $discussion1reply2->subject,
-            'message' => file_rewrite_pluginfile_urls($discussion1reply2->message, 'pluginfile.php',
-                    $forum1context->id, 'mod_forum', 'post', $discussion1reply2->id),
-            'messageformat' => 1,   // This value is usually changed by external_format_text() function.
-            'messagetrust' => $discussion1reply2->messagetrust,
-            'attachment' => $discussion1reply2->attachment,
-            'totalscore' => $discussion1reply2->totalscore,
-            'mailnow' => $discussion1reply2->mailnow,
-            'children' => array(),
-            'canreply' => true,
-            'postread' => false,
-            'userfullname' => fullname($user3),
-            'userpictureurl' => '',
-            'deleted' => false,
-            'isprivatereply' => false,
-            'tags' => \core_tag\external\util::get_item_tags('mod_forum', 'forum_posts', $discussion1reply2->id),
-        );
-        // Cast to expected.
-        $this->assertCount(2, $expectedposts['posts'][0]['tags']);
-        $expectedposts['posts'][0]['tags'][0]['isstandard'] = (bool) $expectedposts['posts'][0]['tags'][0]['isstandard'];
-        $expectedposts['posts'][0]['tags'][1]['isstandard'] = (bool) $expectedposts['posts'][0]['tags'][1]['isstandard'];
-
-        $expectedposts['posts'][] = array(
-            'id' => $discussion1reply1->id,
-            'discussion' => $discussion1reply1->discussion,
-            'parent' => $discussion1reply1->parent,
-            'userid' => (int) $discussion1reply1->userid,
-            'created' => $discussion1reply1->created,
-            'modified' => $discussion1reply1->modified,
-            'mailed' => $discussion1reply1->mailed,
-            'subject' => $discussion1reply1->subject,
-            'message' => file_rewrite_pluginfile_urls($discussion1reply1->message, 'pluginfile.php',
-                    $forum1context->id, 'mod_forum', 'post', $discussion1reply1->id),
-            'messageformat' => 1,   // This value is usually changed by external_format_text() function.
-            'messagetrust' => $discussion1reply1->messagetrust,
-            'attachment' => $discussion1reply1->attachment,
-            'messageinlinefiles' => array(
-                array(
-                    'filename' => $filename,
-                    'filepath' => '/',
-                    'filesize' => '27',
-                    'fileurl' => moodle_url::make_webservice_pluginfile_url($forum1context->id, 'mod_forum', 'post',
-                                    $discussion1reply1->id, '/', $filename),
-                    'timemodified' => $timepost,
-                    'mimetype' => 'image/jpeg',
-                    'isexternalfile' => false,
-                )
-            ),
-            'totalscore' => $discussion1reply1->totalscore,
-            'mailnow' => $discussion1reply1->mailnow,
-            'children' => array($discussion1reply2->id),
-            'canreply' => true,
-            'postread' => false,
-            'userfullname' => fullname($user2),
-            'userpictureurl' => '',
-            'deleted' => false,
-            'isprivatereply' => false,
-            'tags' => array(),
-        );
-
-        // Test a discussion with two additional posts (total 3 posts).
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
-        $this->assertEquals(3, count($posts['posts']));
-
-        // Generate here the pictures because we need to wait to the external function to init the theme.
-        $userpicture = new user_picture($user3);
-        $userpicture->size = 1; // Size f1.
-        $expectedposts['posts'][0]['userpictureurl'] = $userpicture->get_url($PAGE)->out(false);
-
-        $userpicture = new user_picture($user2);
-        $userpicture->size = 1; // Size f1.
-        $expectedposts['posts'][1]['userpictureurl'] = $userpicture->get_url($PAGE)->out(false);
-
-        // Unset the initial discussion post.
-        array_pop($posts['posts']);
-        $this->assertEquals($expectedposts, $posts);
-
-        // Check we receive the unread count correctly on tracked forum.
-        forum_tp_count_forum_unread_posts($forum2cm, $course1, true);    // Reset static cache.
-        $result = mod_forum_external::get_forums_by_courses(array($course1->id));
-        $result = external_api::clean_returnvalue(mod_forum_external::get_forums_by_courses_returns(), $result);
-        foreach ($result as $f) {
-            if ($f['id'] == $forum2->id) {
-                $this->assertEquals(1, $f['unreadpostscount']);
-            }
-        }
-
-        // Test discussion without additional posts. There should be only one post (the one created by the discussion).
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion2->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
-        $this->assertEquals(1, count($posts['posts']));
-
-        // Test discussion tracking on not tracked forum.
-        $result = mod_forum_external::view_forum_discussion($discussion1->id);
-        $result = external_api::clean_returnvalue(mod_forum_external::view_forum_discussion_returns(), $result);
-        $this->assertTrue($result['status']);
-        $this->assertEmpty($result['warnings']);
-
-        // Test posts have not been marked as read.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
-        foreach ($posts['posts'] as $post) {
-            $this->assertFalse($post['postread']);
-        }
-
-        // Test discussion tracking on tracked forum.
-        $result = mod_forum_external::view_forum_discussion($discussion3->id);
-        $result = external_api::clean_returnvalue(mod_forum_external::view_forum_discussion_returns(), $result);
-        $this->assertTrue($result['status']);
-        $this->assertEmpty($result['warnings']);
-
-        // Test posts have been marked as read.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion3->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
-        foreach ($posts['posts'] as $post) {
-            $this->assertTrue($post['postread']);
-        }
-
-        // Check we receive 0 unread posts.
-        forum_tp_count_forum_unread_posts($forum2cm, $course1, true);    // Reset static cache.
-        $result = mod_forum_external::get_forums_by_courses(array($course1->id));
-        $result = external_api::clean_returnvalue(mod_forum_external::get_forums_by_courses_returns(), $result);
-        foreach ($result as $f) {
-            if ($f['id'] == $forum2->id) {
-                $this->assertEquals(0, $f['unreadpostscount']);
-            }
-        }
-    }
-
-    /**
-     * Test get forum posts
      *
      * Tests is similar to the get_forum_discussion_posts only utilizing the new return structure and entities
      */
@@ -534,20 +339,20 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Set the CFG variable to allow track forums.
         $CFG->forum_trackreadposts = true;
 
-        $urlfactory = mod_forum\local\container::get_url_factory();
-        $legacyfactory = mod_forum\local\container::get_legacy_data_mapper_factory();
-        $entityfactory = mod_forum\local\container::get_entity_factory();
+        $urlfactory = \mod_forum\local\container::get_url_factory();
+        $legacyfactory = \mod_forum\local\container::get_legacy_data_mapper_factory();
+        $entityfactory = \mod_forum\local\container::get_entity_factory();
 
         // Create course to add the module.
         $course1 = self::getDataGenerator()->create_course();
 
         // Create a user who can track forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->trackforums = true;
         $user1 = self::getDataGenerator()->create_user($record);
         // Create a bunch of other users to post.
         $user2 = self::getDataGenerator()->create_user();
-        $user2entity = $entityfactory->get_author_from_stdclass($user2);
+        $user2entity = $entityfactory->get_author_from_stdClass($user2);
         $exporteduser2 = [
             'id' => (int) $user2->id,
             'fullname' => fullname($user2),
@@ -561,7 +366,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user2->fullname = $exporteduser2['fullname'];
 
         $user3 = self::getDataGenerator()->create_user(['fullname' => "Mr Pants 1"]);
-        $user3entity = $entityfactory->get_author_from_stdclass($user3);
+        $user3entity = $entityfactory->get_author_from_stdClass($user3);
         $exporteduser3 = [
             'id' => (int) $user3->id,
             'fullname' => fullname($user3),
@@ -579,42 +384,42 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         self::setUser($user1);
 
         // Forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
         // Display word count. Otherwise, word and char counts will be set to null by the forum post exporter.
         $record->displaywordcount = true;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
-        $forum1context = context_module::instance($forum1->cmid);
+        $forum1context = \context_module::instance($forum1->cmid);
 
         // Forum with tracking enabled.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $forum2 = self::getDataGenerator()->create_module('forum', $record);
         $forum2cm = get_coursemodule_from_id('forum', $forum2->cmid);
-        $forum2context = context_module::instance($forum2->cmid);
+        $forum2context = \context_module::instance($forum2->cmid);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
         $discussion1 = $forumgenerator->create_discussion($record);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user2->id;
         $record->forum = $forum1->id;
         $discussion2 = $forumgenerator->create_discussion($record);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user2->id;
         $record->forum = $forum2->id;
         $discussion3 = $forumgenerator->create_discussion($record);
 
         // Add 2 replies to the discussion 1 from different users.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
@@ -631,7 +436,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         );
         $fs = get_file_storage();
         $timepost = time();
-        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+        $file = $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
 
         $record->parent = $discussion1reply1->id;
         $record->userid = $user3->id;
@@ -685,10 +490,11 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
             'parentid' => $discussion1reply2->parent,
             'hasparent' => true,
             'timecreated' => $discussion1reply2->created,
+            'timemodified' => $discussion1reply2->modified,
             'subject' => $discussion1reply2->subject,
             'replysubject' => get_string('re', 'mod_forum') . " {$discussion1reply2->subject}",
             'message' => $message,
-            'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+            'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
             'unread' => null,
             'isdeleted' => false,
             'isprivatereply' => false,
@@ -697,6 +503,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
             'charcount' => count_letters($message),
             'author'=> $exporteduser3,
             'attachments' => [],
+            'messageinlinefiles' => [],
             'tags' => [],
             'html' => [
                 'rating' => null,
@@ -721,7 +528,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                 'edit' => null,
                 'delete' =>null,
                 'split' => null,
-                'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                     'reply' => $discussion1reply2->id
                 ]))->out(false),
                 'export' => null,
@@ -742,10 +549,11 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
             'parentid' => $discussion1reply1->parent,
             'hasparent' => true,
             'timecreated' => $discussion1reply1->created,
+            'timemodified' => $discussion1reply1->modified,
             'subject' => $discussion1reply1->subject,
             'replysubject' => get_string('re', 'mod_forum') . " {$discussion1reply1->subject}",
             'message' => $message,
-            'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+            'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
             'unread' => null,
             'isdeleted' => false,
             'isprivatereply' => false,
@@ -754,6 +562,9 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
             'charcount' => count_letters($message),
             'author'=> $exporteduser2,
             'attachments' => [],
+            'messageinlinefiles' => [
+                0 => $this->get_expected_attachment($file)
+            ],
             'tags' => [],
             'html' => [
                 'rating' => null,
@@ -778,7 +589,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                 'edit' => null,
                 'delete' =>null,
                 'split' => null,
-                'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                     'reply' => $discussion1reply1->id
                 ]))->out(false),
                 'export' => null,
@@ -789,7 +600,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         );
 
         // Test a discussion with two additional posts (total 3 posts).
-        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'DESC');
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'DESC', true);
         $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(3, count($posts['posts']));
 
@@ -852,7 +663,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
     /**
      * Test get forum posts
      */
-    public function test_mod_forum_get_forum_discussion_posts_deleted() {
+    public function test_mod_forum_get_discussion_posts_deleted() {
         global $CFG, $PAGE;
 
         $this->resetAfterTest(true);
@@ -872,57 +683,57 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Create test data.
         $forum1 = self::getDataGenerator()->create_module('forum', (object) [
-                'course' => $course1->id,
-            ]);
-        $forum1context = context_module::instance($forum1->cmid);
+            'course' => $course1->id,
+        ]);
+        $forum1context = \context_module::instance($forum1->cmid);
 
         // Add discussions to the forum.
         $discussion = $generator->create_discussion((object) [
-                'course' => $course1->id,
-                'userid' => $user1->id,
-                'forum' => $forum1->id,
-            ]);
+            'course' => $course1->id,
+            'userid' => $user1->id,
+            'forum' => $forum1->id,
+        ]);
 
         $discussion2 = $generator->create_discussion((object) [
-                'course' => $course1->id,
-                'userid' => $user2->id,
-                'forum' => $forum1->id,
-            ]);
+            'course' => $course1->id,
+            'userid' => $user2->id,
+            'forum' => $forum1->id,
+        ]);
 
         // Add replies to the discussion.
         $discussionreply1 = $generator->create_post((object) [
-                'discussion' => $discussion->id,
-                'parent' => $discussion->firstpost,
-                'userid' => $user2->id,
-            ]);
+            'discussion' => $discussion->id,
+            'parent' => $discussion->firstpost,
+            'userid' => $user2->id,
+        ]);
         $discussionreply2 = $generator->create_post((object) [
-                'discussion' => $discussion->id,
-                'parent' => $discussionreply1->id,
-                'userid' => $user2->id,
-                'subject' => '',
-                'message' => '',
-                'messageformat' => FORMAT_PLAIN,
-                'deleted' => 1,
-            ]);
+            'discussion' => $discussion->id,
+            'parent' => $discussionreply1->id,
+            'userid' => $user2->id,
+            'subject' => '',
+            'message' => '',
+            'messageformat' => FORMAT_PLAIN,
+            'deleted' => 1,
+        ]);
         $discussionreply3 = $generator->create_post((object) [
-                'discussion' => $discussion->id,
-                'parent' => $discussion->firstpost,
-                'userid' => $user2->id,
-            ]);
+            'discussion' => $discussion->id,
+            'parent' => $discussion->firstpost,
+            'userid' => $user2->id,
+        ]);
 
         // Test where some posts have been marked as deleted.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
-        $deletedsubject = get_string('privacy:request:delete:post:subject', 'mod_forum');
-        $deletedmessage = get_string('privacy:request:delete:post:message', 'mod_forum');
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
+        $deletedsubject = get_string('forumsubjectdeleted', 'mod_forum');
+        $deletedmessage = get_string('forumbodydeleted', 'mod_forum');
 
         foreach ($posts['posts'] as $post) {
             if ($post['id'] == $discussionreply2->id) {
-                $this->assertTrue($post['deleted']);
+                $this->assertTrue($post['isdeleted']);
                 $this->assertEquals($deletedsubject, $post['subject']);
                 $this->assertEquals($deletedmessage, $post['message']);
             } else {
-                $this->assertFalse($post['deleted']);
+                $this->assertFalse($post['isdeleted']);
                 $this->assertNotEquals($deletedsubject, $post['subject']);
                 $this->assertNotEquals($deletedmessage, $post['message']);
             }
@@ -930,14 +741,89 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
     }
 
     /**
+     * Test get forum posts returns inline attachments.
+     */
+    public function test_mod_forum_get_discussion_posts_inline_attachments() {
+        global $CFG;
+
+        $this->resetAfterTest(true);
+
+        // Create a course and enrol some users in it.
+        $course = self::getDataGenerator()->create_course();
+
+        // Create users.
+        $user = self::getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id);
+
+
+        // Set the first created user to the test user.
+        self::setUser($user);
+
+        // Create test data.
+        $forum = self::getDataGenerator()->create_module('forum', (object) [
+            'course' => $course->id,
+        ]);
+
+        // Create a file in a draft area for inline attachments.
+        $draftidinlineattach = file_get_unused_draft_itemid();
+        $draftidattach = file_get_unused_draft_itemid();
+        self::setUser($user);
+        $usercontext = \context_user::instance($user->id);
+        $filepath = '/';
+        $filearea = 'draft';
+        $component = 'user';
+        $filenameimg = 'fakeimage.png';
+        $filerecordinline = [
+            'contextid' => $usercontext->id,
+            'component' => $component,
+            'filearea'  => $filearea,
+            'itemid'    => $draftidinlineattach,
+            'filepath'  => $filepath,
+            'filename'  => $filenameimg,
+        ];
+        $fs = get_file_storage();
+        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+
+        // Create discussion.
+        $dummytext = 'Here is an inline image: <img src="' . $CFG->wwwroot .
+            "/draftfile.php/{$usercontext->id}/user/draft/{$draftidinlineattach}/{$filenameimg}" .
+            '" alt="inlineimage">.';
+        $options = [
+            [
+                'name' => 'inlineattachmentsid',
+                'value' => $draftidinlineattach
+            ],
+            [
+                'name' => 'attachmentsid',
+                'value' => $draftidattach
+            ]
+        ];
+        $discussion = mod_forum_external::add_discussion($forum->id, 'the inline attachment subject', $dummytext,
+            -1, $options);
+
+        $posts = mod_forum_external::get_discussion_posts($discussion['discussionid'], 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
+        $post = $posts['posts'][0];
+        $this->assertCount(0, $post['messageinlinefiles']);
+        $this->assertEmpty($post['messageinlinefiles']);
+
+        $posts = mod_forum_external::get_discussion_posts($discussion['discussionid'], 'modified', 'DESC',
+            true);
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
+        $post = $posts['posts'][0];
+        $this->assertCount(1, $post['messageinlinefiles']);
+        $this->assertEquals('fakeimage.png', $post['messageinlinefiles'][0]['filename']);
+    }
+
+    /**
      * Test get forum posts (qanda forum)
      */
-    public function test_mod_forum_get_forum_discussion_posts_qanda() {
+    public function test_mod_forum_get_discussion_posts_qanda() {
         global $CFG, $DB;
 
         $this->resetAfterTest(true);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $user1 = self::getDataGenerator()->create_user($record);
         $user2 = self::getDataGenerator()->create_user();
 
@@ -950,48 +836,48 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->getDataGenerator()->enrol_user($user2->id, $course1->id);
 
         // Forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->type = 'qanda';
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
-        $forum1context = context_module::instance($forum1->cmid);
+        $forum1context = \context_module::instance($forum1->cmid);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user2->id;
         $record->forum = $forum1->id;
         $discussion1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
 
         // Add 1 reply (not the actual user).
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
         $discussion1reply1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_post($record);
 
         // We still see only the original post.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(1, count($posts['posts']));
 
         // Add a new reply, the user is going to be able to see only the original post and their new post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user1->id;
         $discussion1reply2 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_post($record);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(2, count($posts['posts']));
 
         // Now, we can fake the time of the user post, so he can se the rest of the discussion posts.
         $discussion1reply2->created -= $CFG->maxeditingtime * 2;
         $DB->update_record('forum_posts', $discussion1reply2);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id, 'modified', 'DESC');
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(3, count($posts['posts']));
     }
 
@@ -1007,7 +893,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $CFG->forum_trackreadposts = true;
 
         // Create a user who can track forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->trackforums = true;
         $user1 = self::getDataGenerator()->create_user($record);
         // Create a bunch of other users to post.
@@ -1022,20 +908,20 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course1 = self::getDataGenerator()->create_course();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
         $discussion1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
 
         // Add three replies to the discussion 1 from different users.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
@@ -1066,7 +952,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Assign capabilities to view discussions for forum 1.
         $cm = get_coursemodule_from_id('forum', $forum1->cmid, 0, false, MUST_EXIST);
-        $context = context_module::instance($cm->id);
+        $context = \context_module::instance($cm->id);
         $newrole = create_role('Role 2', 'role2', 'Role 2 description');
         $this->assignUserCapability('mod/forum:viewdiscussion', $context->id, $newrole);
 
@@ -1117,11 +1003,11 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         );
 
         // Wait the theme to be loaded (the external_api call does that) to generate the user profiles.
-        $userpicture = new user_picture($user1);
+        $userpicture = new \user_picture($user1);
         $userpicture->size = 1; // Size f1.
         $expectedreturn['discussions'][0]['userpictureurl'] = $userpicture->get_url($PAGE)->out(false);
 
-        $userpicture = new user_picture($user4);
+        $userpicture = new \user_picture($user4);
         $userpicture->size = 1; // Size f1.
         $expectedreturn['discussions'][0]['usermodifiedpictureurl'] = $userpicture->get_url($PAGE)->out(false);
 
@@ -1132,7 +1018,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::get_forum_discussions_paginated($forum1->id);
             $this->fail('Exception expected due to missing capability.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('noviewdiscussionspermission', $e->errorcode);
         }
 
@@ -1143,7 +1029,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::get_forum_discussions_paginated($forum1->id);
             $this->fail('Exception expected due to being unenrolled from the course.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('requireloginerror', $e->errorcode);
         }
 
@@ -1167,13 +1053,13 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user2 = self::getDataGenerator()->create_user();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'qanda';
         $forum = self::getDataGenerator()->create_module('forum', $record);
 
         // Add discussions to the forums.
-        $discussionrecord = new stdClass();
+        $discussionrecord = new \stdClass();
         $discussionrecord->course = $course->id;
         $discussionrecord->userid = $user2->id;
         $discussionrecord->forum = $forum->id;
@@ -1209,7 +1095,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $CFG->forum_trackreadposts = true;
 
         // Create a user who can track forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->trackforums = true;
         $user1 = self::getDataGenerator()->create_user($record);
         // Create a bunch of other users to post.
@@ -1224,20 +1110,20 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course1 = self::getDataGenerator()->create_course();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
         $discussion1 = self::getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
 
         // Add three replies to the discussion 1 from different users.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
@@ -1268,7 +1154,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Assign capabilities to view discussions for forum 1.
         $cm = get_coursemodule_from_id('forum', $forum1->cmid, 0, false, MUST_EXIST);
-        $context = context_module::instance($cm->id);
+        $context = \context_module::instance($cm->id);
         $newrole = create_role('Role 2', 'role2', 'Role 2 description');
         $this->assignUserCapability('mod/forum:viewdiscussion', $context->id, $newrole);
 
@@ -1321,11 +1207,11 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         );
 
         // Wait the theme to be loaded (the external_api call does that) to generate the user profiles.
-        $userpicture = new user_picture($user1);
+        $userpicture = new \user_picture($user1);
         $userpicture->size = 2; // Size f2.
         $expectedreturn['discussions'][0]['userpictureurl'] = $userpicture->get_url($PAGE)->out(false);
 
-        $userpicture = new user_picture($user4);
+        $userpicture = new \user_picture($user4);
         $userpicture->size = 2; // Size f2.
         $expectedreturn['discussions'][0]['usermodifiedpictureurl'] = $userpicture->get_url($PAGE)->out(false);
 
@@ -1343,7 +1229,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::get_forum_discussions($forum1->id);
             $this->fail('Exception expected due to missing capability.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('noviewdiscussionspermission', $e->errorcode);
         }
 
@@ -1354,7 +1240,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::get_forum_discussions($forum1->id);
             $this->fail('Exception expected due to being unenrolled from the course.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('requireloginerror', $e->errorcode);
         }
 
@@ -1376,7 +1262,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $CFG->forum_trackreadposts = true;
 
         // Create a user who can track forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->trackforums = true;
         $user1 = self::getDataGenerator()->create_user($record);
         // Create a bunch of other users to post.
@@ -1404,19 +1290,19 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $enrol->enrol_user($instance1, $user1->id);
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->trackingtype = FORUM_TRACKING_OFF;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
 
         // Assign capabilities to view discussions for forum 1.
         $cm = get_coursemodule_from_id('forum', $forum1->cmid, 0, false, MUST_EXIST);
-        $context = context_module::instance($cm->id);
+        $context = \context_module::instance($cm->id);
         $newrole = create_role('Role 2', 'role2', 'Role 2 description');
         $this->assignUserCapability('mod/forum:viewdiscussion', $context->id, $newrole);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
@@ -1424,7 +1310,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         sleep(1);
 
         // Add three replies to the discussion 1 from different users.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
@@ -1441,7 +1327,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         sleep(1);
 
         // Create discussion2.
-        $record2 = new stdClass();
+        $record2 = new \stdClass();
         $record2->course = $course1->id;
         $record2->userid = $user1->id;
         $record2->forum = $forum1->id;
@@ -1449,7 +1335,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         sleep(1);
 
         // Add one reply to the discussion 2.
-        $record2 = new stdClass();
+        $record2 = new \stdClass();
         $record2->discussion = $discussion2->id;
         $record2->parent = $discussion2->firstpost;
         $record2->userid = $user2->id;
@@ -1457,7 +1343,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         sleep(1);
 
         // Create discussion 3.
-        $record3 = new stdClass();
+        $record3 = new \stdClass();
         $record3->course = $course1->id;
         $record3->userid = $user1->id;
         $record3->forum = $forum1->id;
@@ -1465,7 +1351,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         sleep(1);
 
         // Add two replies to the discussion 3.
-        $record3 = new stdClass();
+        $record3 = new \stdClass();
         $record3->discussion = $discussion3->id;
         $record3->parent = $discussion3->firstpost;
         $record3->userid = $user2->id;
@@ -1567,14 +1453,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course = self::getDataGenerator()->create_course(array('groupmode' => VISIBLEGROUPS, 'groupmodeforce' => 0));
 
         // Forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $forum = self::getDataGenerator()->create_module('forum', $record);
         $cm = get_coursemodule_from_id('forum', $forum->cmid, 0, false, MUST_EXIST);
-        $forumcontext = context_module::instance($forum->cmid);
+        $forumcontext = \context_module::instance($forum->cmid);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -1585,7 +1471,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion_post($discussion->firstpost, 'some subject', 'some text here...');
             $this->fail('Exception expected due to being unenrolled from the course.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('requireloginerror', $e->errorcode);
         }
 
@@ -1595,8 +1481,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $createdpost = mod_forum_external::add_discussion_post($discussion->firstpost, 'some subject', 'some text here...');
         $createdpost = external_api::clean_returnvalue(mod_forum_external::add_discussion_post_returns(), $createdpost);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         $this->assertEquals(2, count($posts['posts']));
 
@@ -1642,7 +1528,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $draftidinlineattach = file_get_unused_draft_itemid();
         $draftidattach = file_get_unused_draft_itemid();
         self::setUser($user);
-        $usercontext = context_user::instance($user->id);
+        $usercontext = \context_user::instance($user->id);
         $filepath = '/';
         $filearea = 'draft';
         $component = 'user';
@@ -1674,16 +1560,16 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                                                                $dummytext, $options);
         $createdpost = external_api::clean_returnvalue(mod_forum_external::add_discussion_post_returns(), $createdpost);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         // Can't guarantee order of posts during tests.
         $postfound = false;
         foreach ($posts['posts'] as $thispost) {
             if ($createdpost['postid'] == $thispost['id']) {
                 $this->assertEquals($createdpost['postid'], $thispost['id']);
-                $this->assertEquals($thispost['attachment'], 1, "There should be a non-inline attachment");
-                $this->assertCount(1, $thispost['attachments'], "There should be 1 attachment");
+                $this->assertCount(1, $thispost['attachments']);
+                $this->assertEquals('attachment.txt', $thispost['attachments'][0]['filename']);
                 $this->assertEquals($thispost['attachments'][0]['filename'], $attachfilename, "There should be 1 attachment");
                 $this->assertStringContainsString('pluginfile.php', $thispost['message']);
                 $postfound = true;
@@ -1706,7 +1592,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion_post($discussion->firstpost, 'some subject', 'some text here...');
             $this->fail('Exception expected due to invalid permissions for posting.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('nopostforum', $e->errorcode);
         }
     }
@@ -1729,13 +1615,13 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->getDataGenerator()->enrol_user($user->id, $course->id);
 
         // Forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $forum = self::getDataGenerator()->create_module('forum', $record);
         $cm = get_coursemodule_from_id('forum', $forum->cmid, 0, false, MUST_EXIST);
 
         // Add discussions to the forums.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $admin->id;
         $record->forum = $forum->id;
@@ -1749,8 +1635,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Add a discussion post in a forum discussion where the user is not subscribed (auto-subscribe preference enabled).
         mod_forum_external::add_discussion_post($discussion1->firstpost, 'some subject', 'some text here...');
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         $this->assertEquals(2, count($posts['posts']));
         // The user should be subscribed to the discussion after adding a discussion post.
@@ -1762,8 +1648,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Add a discussion post in a forum discussion where the user is subscribed (auto-subscribe preference disabled).
         mod_forum_external::add_discussion_post($discussion1->firstpost, 'some subject 1', 'some text here 1...');
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         $this->assertEquals(3, count($posts['posts']));
         // The user should still be subscribed to the discussion after adding a discussion post.
@@ -1773,8 +1659,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Add a discussion post in a forum discussion where the user is not subscribed (auto-subscribe preference disabled).
         mod_forum_external::add_discussion_post($discussion2->firstpost, 'some subject 2', 'some text here 2...');
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion2->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion2->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         $this->assertEquals(2, count($posts['posts']));
         // The user should still not be subscribed to the discussion after adding a discussion post.
@@ -1789,8 +1675,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         mod_forum_external::add_discussion_post($discussion2->firstpost, 'some subject 2', 'some text here 2...',
             $options);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion2->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion2->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // We receive the discussion and the post.
         $this->assertEquals(3, count($posts['posts']));
         // The user should now be subscribed to the discussion after adding a discussion post.
@@ -1811,7 +1697,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user2 = self::getDataGenerator()->create_user();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'news';
         $forum = self::getDataGenerator()->create_module('forum', $record);
@@ -1822,7 +1708,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion($forum->id, 'the subject', 'some text here...');
             $this->fail('Exception expected due to invalid permissions.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('cannotcreatediscussion', $e->errorcode);
         }
 
@@ -1858,7 +1744,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $draftidinlineattach = file_get_unused_draft_itemid();
         $draftidattach = file_get_unused_draft_itemid();
 
-        $usercontext = context_user::instance($USER->id);
+        $usercontext = \context_user::instance($USER->id);
         $filepath = '/';
         $filearea = 'draft';
         $component = 'user';
@@ -1926,7 +1812,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->getDataGenerator()->enrol_user($user->id, $course->id);
 
         // Forum forcing separate gropus.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $forum = self::getDataGenerator()->create_module('forum', $record, array('groupmode' => SEPARATEGROUPS));
 
@@ -1937,14 +1823,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion($forum->id, 'the subject', 'some text here...');
             $this->fail('Exception expected due to invalid group permissions.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('cannotcreatediscussion', $e->errorcode);
         }
 
         try {
             mod_forum_external::add_discussion($forum->id, 'the subject', 'some text here...', 0);
             $this->fail('Exception expected due to invalid group permissions.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('cannotcreatediscussion', $e->errorcode);
         }
 
@@ -1955,7 +1841,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion($forum->id, 'the subject', 'some text here...', $group->id);
             $this->fail('Exception expected due to invalid group permissions.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('cannotcreatediscussion', $e->errorcode);
         }
 
@@ -1966,7 +1852,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             mod_forum_external::add_discussion($forum->id, 'the subject', 'some text here...', $group->id + 1);
             $this->fail('Exception expected due to invalid group.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('cannotcreatediscussion', $e->errorcode);
         }
 
@@ -2015,6 +1901,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
     /*
      * Test set_lock_state.
+     *
+     * @covers \mod_forum\event\discussion_lock_updated
      */
     public function test_set_lock_state() {
         global $DB;
@@ -2026,12 +1914,13 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $studentrole = $DB->get_record('role', array('shortname' => 'student'));
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'news';
         $forum = self::getDataGenerator()->create_module('forum', $record);
+        $context = \context_module::instance($forum->cmid);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -2045,22 +1934,44 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         try {
             $result = mod_forum_external::set_lock_state($forum->id, $discussion->id, 0);
             $this->fail('Exception expected due to missing capability.');
-        } catch (moodle_exception $e) {
+        } catch (\moodle_exception $e) {
             $this->assertEquals('errorcannotlock', $e->errorcode);
         }
 
         // Set the lock.
         self::setAdminUser();
+        $sink = $this->redirectEvents(); // Capturing the event.
         $result = mod_forum_external::set_lock_state($forum->id, $discussion->id, 0);
         $result = external_api::clean_returnvalue(mod_forum_external::set_lock_state_returns(), $result);
         $this->assertTrue($result['locked']);
         $this->assertNotEquals(0, $result['times']['locked']);
 
+        // Check that the event contains the expected values.
+        $events = $sink->get_events();
+        $this->assertCount(1, $events);
+        $event = reset($events);
+        $this->assertInstanceOf('\mod_forum\event\discussion_lock_updated', $event);
+        $this->assertEquals($context, $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $this->assertNotEmpty($event->get_name());
+        $this->assertStringContainsString(' locked the discussion:', $event->get_description());
+
         // Unset the lock.
+        $sink = $this->redirectEvents(); // Capturing the event.
         $result = mod_forum_external::set_lock_state($forum->id, $discussion->id, time());
         $result = external_api::clean_returnvalue(mod_forum_external::set_lock_state_returns(), $result);
         $this->assertFalse($result['locked']);
         $this->assertEquals('0', $result['times']['locked']);
+
+        // Check that the event contains the expected values.
+        $events = $sink->get_events();
+        $this->assertCount(1, $events);
+        $event = reset($events);
+        $this->assertInstanceOf('\mod_forum\event\discussion_lock_updated', $event);
+        $this->assertEquals($context, $event->get_context());
+        $this->assertEventContextNotUsed($event);
+        $this->assertNotEmpty($event->get_name());
+        $this->assertStringContainsString(' unlocked the discussion:', $event->get_description());
     }
 
     /*
@@ -2076,7 +1987,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user = self::getDataGenerator()->create_user();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'news';
         $forum = self::getDataGenerator()->create_module('forum', $record);
@@ -2137,12 +2048,12 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
     }
 
     /**
-     * Test get forum posts discussions including rating information.
+     * Test get posts discussions including rating information.
      */
-    public function test_mod_forum_get_forum_discussion_rating_information() {
-        global $DB, $CFG;
+    public function test_mod_forum_get_discussion_rating_information() {
+        global $DB, $CFG, $PAGE;
         require_once($CFG->dirroot . '/rating/lib.php');
-
+        $PAGE->set_url('/my/index.php');    // Need this because some internal API calls require the $PAGE url to be set.
         $this->resetAfterTest(true);
 
         $user1 = self::getDataGenerator()->create_user();
@@ -2161,16 +2072,16 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->getDataGenerator()->enrol_user($teacher->id, $course->id, $teacherrole->id, 'manual');
 
         // Create the forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         // Set Aggregate type = Average of ratings.
         $record->assessed = RATING_AGGREGATE_AVERAGE;
         $record->scale = 100;
         $forum = self::getDataGenerator()->create_module('forum', $record);
-        $context = context_module::instance($forum->cmid);
+        $context = \context_module::instance($forum->cmid);
 
         // Add discussion to the forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user1->id;
         $record->forum = $forum->id;
@@ -2180,7 +2091,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $post = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
 
         // Rate the discussion as user2.
-        $rating1 = new stdClass();
+        $rating1 = new \stdClass();
         $rating1->contextid = $context->id;
         $rating1->component = 'mod_forum';
         $rating1->ratingarea = 'post';
@@ -2193,7 +2104,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $rating1->id = $DB->insert_record('rating', $rating1);
 
         // Rate the discussion as user3.
-        $rating2 = new stdClass();
+        $rating2 = new \stdClass();
         $rating2->contextid = $context->id;
         $rating2->component = 'mod_forum';
         $rating2->ratingarea = 'post';
@@ -2207,8 +2118,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Retrieve the rating for the post as student.
         $this->setUser($user1);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertCount(1, $posts['ratinginfo']['ratings']);
         $this->assertTrue($posts['ratinginfo']['ratings'][0]['canviewaggregate']);
         $this->assertFalse($posts['ratinginfo']['canviewall']);
@@ -2218,8 +2129,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Retrieve the rating for the post as teacher.
         $this->setUser($teacher);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertCount(1, $posts['ratinginfo']['ratings']);
         $this->assertTrue($posts['ratinginfo']['ratings'][0]['canviewaggregate']);
         $this->assertTrue($posts['ratinginfo']['canviewall']);
@@ -2239,7 +2150,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $student = self::getDataGenerator()->create_user();
         $course = self::getDataGenerator()->create_course();
         // Create the forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $forum = self::getDataGenerator()->create_module('forum', $record);
 
@@ -2252,7 +2163,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Check default values for capabilities.
         $enabledcaps = array('canviewdiscussion', 'canstartdiscussion', 'canreplypost', 'canviewrating', 'cancreateattachment',
-            'canexportownpost', 'cancantogglefavourite', 'candeleteownpost', 'canallowforcesubscribe');
+            'canexportownpost', 'cancantogglefavourite', 'cancanmailnow', 'candeleteownpost', 'canallowforcesubscribe');
 
         unset($result['warnings']);
         foreach ($result as $capname => $capvalue) {
@@ -2295,11 +2206,11 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $course = self::getDataGenerator()->create_course();
 
         // Standard forum.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $forum = self::getDataGenerator()->create_module('forum', $record);
         $cm = get_coursemodule_from_id('forum', $forum->cmid, 0, false, MUST_EXIST);
-        $forumcontext = context_module::instance($forum->cmid);
+        $forumcontext = \context_module::instance($forum->cmid);
         $generator = self::getDataGenerator()->get_plugin_generator('mod_forum');
 
         // Create an enrol users.
@@ -2314,7 +2225,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // Add a new discussion to the forum.
         self::setUser($student1);
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $student1->id;
         $record->forum = $forum->id;
@@ -2338,29 +2249,29 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         // The teacher will receive their private reply.
         self::setUser($teacher1);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(2, count($posts['posts']));
         $this->assertTrue($posts['posts'][0]['isprivatereply']);
 
         // Another teacher on the course will also receive the private reply.
         self::setUser($teacher2);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(2, count($posts['posts']));
         $this->assertTrue($posts['posts'][0]['isprivatereply']);
 
         // The student will receive the private reply.
         self::setUser($student1);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(2, count($posts['posts']));
         $this->assertTrue($posts['posts'][0]['isprivatereply']);
 
         // Another student will not receive the private reply.
         self::setUser($student2);
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion->id, 'id', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         $this->assertEquals(1, count($posts['posts']));
         $this->assertFalse($posts['posts'][0]['isprivatereply']);
 
@@ -2392,14 +2303,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user1 = self::getDataGenerator()->create_user();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'qanda';
         $forum = self::getDataGenerator()->create_module('forum', $record);
-        $context = context_module::instance($forum->cmid);
+        $context = \context_module::instance($forum->cmid);
 
         // Add discussions to the forums.
-        $discussionrecord = new stdClass();
+        $discussionrecord = new \stdClass();
         $discussionrecord->course = $course->id;
         $discussionrecord->userid = $user1->id;
         $discussionrecord->forum = $forum->id;
@@ -2425,16 +2336,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->assertEquals($cleantext, $discussions['discussions'][1]['message']);
 
         // Get posts now.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion2->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion2->id, 'modified', 'DESC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // Admin message is fully trusted.
-        $this->assertEquals(1, $posts['posts'][0]['messagetrust']);
         $this->assertEquals($dangeroustext, $posts['posts'][0]['message']);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // Student message is not trusted.
-        $this->assertEquals(0, $posts['posts'][0]['messagetrust']);
         $this->assertEquals($cleantext, $posts['posts'][0]['message']);
     }
 
@@ -2455,14 +2364,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $user1 = self::getDataGenerator()->create_user();
 
         // First forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->type = 'qanda';
         $forum = self::getDataGenerator()->create_module('forum', $record);
-        $context = context_module::instance($forum->cmid);
+        $context = \context_module::instance($forum->cmid);
 
         // Add discussions to the forums.
-        $discussionrecord = new stdClass();
+        $discussionrecord = new \stdClass();
         $discussionrecord->course = $course->id;
         $discussionrecord->userid = $user1->id;
         $discussionrecord->forum = $forum->id;
@@ -2488,16 +2397,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->assertEquals($cleantext, $discussions['discussions'][1]['message']);
 
         // Get posts now.
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion2->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion2->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // Admin message is not trusted because enabletrusttext is disabled.
-        $this->assertEquals(0, $posts['posts'][0]['messagetrust']);
         $this->assertEquals($cleantext, $posts['posts'][0]['message']);
 
-        $posts = mod_forum_external::get_forum_discussion_posts($discussion1->id);
-        $posts = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $posts);
+        $posts = mod_forum_external::get_discussion_posts($discussion1->id, 'modified', 'ASC');
+        $posts = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $posts);
         // Student message is not trusted.
-        $this->assertEquals(0, $posts['posts'][0]['messagetrust']);
         $this->assertEquals($cleantext, $posts['posts'][0]['message']);
     }
 
@@ -2516,7 +2423,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         self::getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
 
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -2545,7 +2452,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         self::getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
 
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -2553,7 +2460,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
 
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -2594,7 +2501,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
 
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -2614,18 +2521,18 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         global $DB;
         $this->resetAfterTest(true);
 
-        $urlfactory = mod_forum\local\container::get_url_factory();
-        $entityfactory = mod_forum\local\container::get_entity_factory();
-        $vaultfactory = mod_forum\local\container::get_vault_factory();
+        $urlfactory = \mod_forum\local\container::get_url_factory();
+        $entityfactory = \mod_forum\local\container::get_entity_factory();
+        $vaultfactory = \mod_forum\local\container::get_vault_factory();
         $postvault = $vaultfactory->get_post_vault();
-        $legacydatamapper = mod_forum\local\container::get_legacy_data_mapper_factory();
+        $legacydatamapper = \mod_forum\local\container::get_legacy_data_mapper_factory();
         $legacypostmapper = $legacydatamapper->get_post_data_mapper();
 
         // Create course to add the module.
         $course1 = self::getDataGenerator()->create_course();
 
         $user1 = self::getDataGenerator()->create_user();
-        $user1entity = $entityfactory->get_author_from_stdclass($user1);
+        $user1entity = $entityfactory->get_author_from_stdClass($user1);
         $exporteduser1 = [
             'id' => (int) $user1->id,
             'fullname' => fullname($user1),
@@ -2638,7 +2545,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         ];
         // Create a bunch of other users to post.
         $user2 = self::getDataGenerator()->create_user();
-        $user2entity = $entityfactory->get_author_from_stdclass($user2);
+        $user2entity = $entityfactory->get_author_from_stdClass($user2);
         $exporteduser2 = [
             'id' => (int) $user2->id,
             'fullname' => fullname($user2),
@@ -2657,14 +2564,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         self::setUser($user1);
 
         // Forum with tracking off.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $forum1 = self::getDataGenerator()->create_module('forum', $record);
-        $forum1context = context_module::instance($forum1->cmid);
+        $forum1context = \context_module::instance($forum1->cmid);
 
         // Add discussions to the forums.
         $time = time();
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
@@ -2674,7 +2581,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $discussion1firstpost = $discussion1firstpost[$discussion1->firstpost];
         $discussion1firstpostobject = $legacypostmapper->to_legacy_object($discussion1firstpost);
 
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course1->id;
         $record->userid = $user1->id;
         $record->forum = $forum1->id;
@@ -2685,7 +2592,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $discussion2firstpostobject = $legacypostmapper->to_legacy_object($discussion2firstpost);
 
         // Add 1 reply to the discussion 1 from a different user.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion1->id;
         $record->parent = $discussion1->firstpost;
         $record->userid = $user2->id;
@@ -2701,10 +2608,10 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                 'filename'  => $filename,
         );
         $fs = get_file_storage();
-        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+        $file1 = $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
 
         // Add 1 reply to the discussion 2 from a different user.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->discussion = $discussion2->id;
         $record->parent = $discussion2->firstpost;
         $record->userid = $user2->id;
@@ -2720,7 +2627,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                 'filename'  => $filename,
         );
         $fs = get_file_storage();
-        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+        $file2 = $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
 
         // Following line enrol and assign default role id to the user.
         // So the user automatically gets mod/forum:viewdiscussion on all forums of the course.
@@ -2761,11 +2668,12 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'parentid' => $discussion1reply1->parent,
                         'hasparent' => true,
                         'timecreated' => $discussion1reply1->created,
+                        'timemodified' => $discussion1reply1->modified,
                         'subject' => $discussion1reply1->subject,
                         'replysubject' => get_string('re', 'mod_forum') . " {$discussion1reply1->subject}",
                         'message' => file_rewrite_pluginfile_urls($discussion1reply1->message, 'pluginfile.php',
                         $forum1context->id, 'mod_forum', 'post', $discussion1reply1->id),
-                        'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+                        'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
                         'unread' => null,
                         'isdeleted' => false,
                         'isprivatereply' => false,
@@ -2773,6 +2681,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'wordcount' => null,
                         'author' => $exporteduser2,
                         'attachments' => [],
+                        'messageinlinefiles' => [],
                         'tags' => [],
                         'html' => [
                             'rating' => null,
@@ -2798,16 +2707,16 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                             'viewisolated' => $isolatedurluser->out(false),
                             'viewparent' => $urlfactory->get_view_post_url_from_post_id(
                                 $discussion1reply1->discussion, $discussion1reply1->parent)->out(false),
-                            'edit' => (new moodle_url('/mod/forum/post.php', [
+                            'edit' => (new \moodle_url('/mod/forum/post.php', [
                                 'edit' => $discussion1reply1->id
                             ]))->out(false),
-                            'delete' => (new moodle_url('/mod/forum/post.php', [
+                            'delete' => (new \moodle_url('/mod/forum/post.php', [
                                 'delete' => $discussion1reply1->id
                             ]))->out(false),
-                            'split' => (new moodle_url('/mod/forum/post.php', [
+                            'split' => (new \moodle_url('/mod/forum/post.php', [
                                 'prune' => $discussion1reply1->id
                             ]))->out(false),
-                            'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                            'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                                 'reply' => $discussion1reply1->id
                             ]))->out(false),
                             'export' => null,
@@ -2825,11 +2734,12 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'parentid' => null,
                         'hasparent' => false,
                         'timecreated' => $discussion1firstpostobject->created,
+                        'timemodified' => $discussion1firstpostobject->modified,
                         'subject' => $discussion1firstpostobject->subject,
                         'replysubject' => get_string('re', 'mod_forum') . " {$discussion1firstpostobject->subject}",
                         'message' => file_rewrite_pluginfile_urls($discussion1firstpostobject->message, 'pluginfile.php',
                             $forum1context->id, 'mod_forum', 'post', $discussion1firstpostobject->id),
-                        'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+                        'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
                         'unread' => null,
                         'isdeleted' => false,
                         'isprivatereply' => false,
@@ -2837,6 +2747,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'wordcount' => null,
                         'author' => $exporteduser1,
                         'attachments' => [],
+                        'messageinlinefiles' => [],
                         'tags' => [],
                         'html' => [
                             'rating' => null,
@@ -2861,14 +2772,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                                 $discussion1firstpostobject->discussion, $discussion1firstpostobject->id)->out(false),
                             'viewisolated' => $isolatedurlparent->out(false),
                             'viewparent' => null,
-                            'edit' => (new moodle_url('/mod/forum/post.php', [
+                            'edit' => (new \moodle_url('/mod/forum/post.php', [
                                 'edit' => $discussion1firstpostobject->id
                             ]))->out(false),
-                            'delete' => (new moodle_url('/mod/forum/post.php', [
+                            'delete' => (new \moodle_url('/mod/forum/post.php', [
                                 'delete' => $discussion1firstpostobject->id
                             ]))->out(false),
                             'split' => null,
-                            'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                            'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                                 'reply' => $discussion1firstpostobject->id
                             ]))->out(false),
                             'export' => null,
@@ -2900,11 +2811,12 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'parentid' => $discussion2reply1->parent,
                         'hasparent' => true,
                         'timecreated' => $discussion2reply1->created,
+                        'timemodified' => $discussion2reply1->modified,
                         'subject' => $discussion2reply1->subject,
                         'replysubject' => get_string('re', 'mod_forum') . " {$discussion2reply1->subject}",
                         'message' => file_rewrite_pluginfile_urls($discussion2reply1->message, 'pluginfile.php',
                             $forum1context->id, 'mod_forum', 'post', $discussion2reply1->id),
-                        'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+                        'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
                         'unread' => null,
                         'isdeleted' => false,
                         'isprivatereply' => false,
@@ -2912,6 +2824,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'wordcount' => null,
                         'author' => $exporteduser2,
                         'attachments' => [],
+                        'messageinlinefiles' => [],
                         'tags' => [],
                         'html' => [
                             'rating' => null,
@@ -2937,16 +2850,16 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                             'viewisolated' => $isolatedurluser->out(false),
                             'viewparent' => $urlfactory->get_view_post_url_from_post_id(
                                 $discussion2reply1->discussion, $discussion2reply1->parent)->out(false),
-                            'edit' => (new moodle_url('/mod/forum/post.php', [
+                            'edit' => (new \moodle_url('/mod/forum/post.php', [
                                 'edit' => $discussion2reply1->id
                             ]))->out(false),
-                            'delete' => (new moodle_url('/mod/forum/post.php', [
+                            'delete' => (new \moodle_url('/mod/forum/post.php', [
                                 'delete' => $discussion2reply1->id
                             ]))->out(false),
-                            'split' => (new moodle_url('/mod/forum/post.php', [
+                            'split' => (new \moodle_url('/mod/forum/post.php', [
                                 'prune' => $discussion2reply1->id
                             ]))->out(false),
-                            'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                            'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                                 'reply' => $discussion2reply1->id
                             ]))->out(false),
                             'export' => null,
@@ -2964,11 +2877,12 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'parentid' => null,
                         'hasparent' => false,
                         'timecreated' => $discussion2firstpostobject->created,
+                        'timemodified' => $discussion2firstpostobject->modified,
                         'subject' => $discussion2firstpostobject->subject,
                         'replysubject' => get_string('re', 'mod_forum') . " {$discussion2firstpostobject->subject}",
                         'message' => file_rewrite_pluginfile_urls($discussion2firstpostobject->message, 'pluginfile.php',
                             $forum1context->id, 'mod_forum', 'post', $discussion2firstpostobject->id),
-                        'messageformat' => 1,   // This value is usually changed by external_format_text() function.
+                        'messageformat' => 1,   // This value is usually changed by \core_external\util::format_text() function.
                         'unread' => null,
                         'isdeleted' => false,
                         'isprivatereply' => false,
@@ -2976,6 +2890,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                         'wordcount' => null,
                         'author' => $exporteduser1,
                         'attachments' => [],
+                        'messageinlinefiles' => [],
                         'tags' => [],
                         'html' => [
                             'rating' => null,
@@ -3000,14 +2915,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
                                 $discussion2firstpostobject->discussion, $discussion2firstpostobject->id)->out(false),
                             'viewisolated' => $isolatedurlparent->out(false),
                             'viewparent' => null,
-                            'edit' => (new moodle_url('/mod/forum/post.php', [
+                            'edit' => (new \moodle_url('/mod/forum/post.php', [
                                 'edit' => $discussion2firstpostobject->id
                             ]))->out(false),
-                            'delete' => (new moodle_url('/mod/forum/post.php', [
+                            'delete' => (new \moodle_url('/mod/forum/post.php', [
                                 'delete' => $discussion2firstpostobject->id
                             ]))->out(false),
                             'split' => null,
-                            'reply' => (new moodle_url('/mod/forum/post.php#mformforum', [
+                            'reply' => (new \moodle_url('/mod/forum/post.php#mformforum', [
                                 'reply' => $discussion2firstpostobject->id
                             ]))->out(false),
                             'export' => null,
@@ -3030,6 +2945,32 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->assertEquals(2, count($discussions['discussions']));
 
         $this->assertEquals($expectedposts, $discussions);
+
+        // When groupmode is SEPARATEGROUPS, even there is no groupid specified, the post not for the user shouldn't be seen.
+        $group1 = self::getDataGenerator()->create_group(['courseid' => $course1->id]);
+        $group2 = self::getDataGenerator()->create_group(['courseid' => $course1->id]);
+        // Update discussion with group.
+        $discussion = new \stdClass();
+        $discussion->id = $discussion1->id;
+        $discussion->groupid = $group1->id;
+        $DB->update_record('forum_discussions', $discussion);
+        $discussion = new \stdClass();
+        $discussion->id = $discussion2->id;
+        $discussion->groupid = $group2->id;
+        $DB->update_record('forum_discussions', $discussion);
+        $cm = get_coursemodule_from_id('forum', $forum1->cmid);
+        $cm->groupmode = SEPARATEGROUPS;
+        $DB->update_record('course_modules', $cm);
+        $teacher = self::getDataGenerator()->create_user();
+        $role = $DB->get_record('role', array('shortname' => 'teacher'), '*', MUST_EXIST);
+        self::getDataGenerator()->enrol_user($teacher->id, $course1->id, $role->id);
+        groups_add_member($group2->id, $teacher->id);
+        self::setUser($teacher);
+        $discussions = mod_forum_external::get_discussion_posts_by_userid($user2->id, $forum1->cmid, 'modified', 'DESC');
+        $discussions = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_by_userid_returns(), $discussions);
+        // Discussion is only 1 record (group 2).
+        $this->assertEquals(1, count($discussions['discussions']));
+        $this->assertEquals($expectedposts['discussions'][1], $discussions['discussions'][0]);
     }
 
     /**
@@ -3045,7 +2986,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $role = $DB->get_record('role', array('shortname' => 'student'), '*', MUST_EXIST);
         self::getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -3071,14 +3012,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $role = $DB->get_record('role', array('shortname' => 'student'), '*', MUST_EXIST);
         self::getDataGenerator()->enrol_user($user->id, $course->id, $role->id);
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
         $discussion = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
         $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -3115,7 +3056,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $discussion = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
         $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -3151,7 +3092,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $discussion = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
         $parentpost = $DB->get_record('forum_posts', array('discussion' => $discussion->id));
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -3162,7 +3103,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         // Add some files only in the attachment area.
         $filename = 'faketxt.txt';
         $filerecordinline = array(
-            'contextid' => context_module::instance($forum->cmid)->id,
+            'contextid' => \context_module::instance($forum->cmid)->id,
             'component' => 'mod_forum',
             'filearea'  => 'attachment',
             'itemid'    => $post->id,
@@ -3221,7 +3162,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->setAdminUser();
 
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $USER->id;
         $record->forum = $forum->id;
@@ -3272,7 +3213,7 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $USER->autosubscribe = true;
 
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $user->id;
         $record->forum = $forum->id;
@@ -3283,24 +3224,33 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $newpost = $result['post'];
         $this->assertTrue(\mod_forum\subscriptions::is_subscribed($user->id, $forum, $discussion->id, $cm));
 
-        // Add files in the different areas.
+        // Test inline and regular attachment in post
+        // Create a file in a draft area for inline attachments.
+        $draftidinlineattach = file_get_unused_draft_itemid();
         $draftidattach = file_get_unused_draft_itemid();
+        self::setUser($user);
+        $usercontext = \context_user::instance($user->id);
+        $filepath = '/';
+        $filearea = 'draft';
+        $component = 'user';
+        $filenameimg = 'fakeimage.png';
         $filerecordinline = array(
-            'contextid' => context_user::instance($user->id)->id,
-            'component' => 'user',
-            'filearea'  => 'draft',
-            'itemid'    => $draftidattach,
-            'filepath'  => '/',
-            'filename'  => 'faketxt.txt',
+            'contextid' => $usercontext->id,
+            'component' => $component,
+            'filearea'  => $filearea,
+            'itemid'    => $draftidinlineattach,
+            'filepath'  => $filepath,
+            'filename'  => $filenameimg,
         );
         $fs = get_file_storage();
-        $fs->create_file_from_string($filerecordinline, 'fake txt contents 1.');
 
-        // Create files in post area (inline).
-        $draftidinlineattach = file_get_unused_draft_itemid();
-        $filerecordinline['itemid'] = $draftidinlineattach;
-        $filerecordinline['filename'] = 'fakeimage.png';
-        $fs->create_file_from_string($filerecordinline, 'img...');
+        // Create a file in a draft area for regular attachments.
+        $filerecordattach = $filerecordinline;
+        $attachfilename = 'faketxt.txt';
+        $filerecordattach['filename'] = $attachfilename;
+        $filerecordattach['itemid'] = $draftidattach;
+        $fs->create_file_from_string($filerecordinline, 'image contents (not really)');
+        $fs->create_file_from_string($filerecordattach, 'simple text attachment');
 
         // Do not update subject.
         $message = 'Hey message updated';
@@ -3318,8 +3268,8 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
         $this->assertFalse(\mod_forum\subscriptions::is_subscribed($user->id, $forum, $discussion->id, $cm));
 
         // Get the post from WS.
-        $result = mod_forum_external::get_forum_discussion_posts($discussion->id);
-        $result = external_api::clean_returnvalue(mod_forum_external::get_forum_discussion_posts_returns(), $result);
+        $result = mod_forum_external::get_discussion_posts($discussion->id, 'modified', 'DESC', true);
+        $result = external_api::clean_returnvalue(mod_forum_external::get_discussion_posts_returns(), $result);
         $found = false;
         foreach ($result['posts'] as $post) {
             if ($post['id'] == $newpost->id) {
@@ -3351,14 +3301,14 @@ class mod_forum_external_testcase extends externallib_advanced_testcase {
 
         $this->setAdminUser();
         // Add a discussion.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $USER->id;
         $record->forum = $forum->id;
         $discussion = $this->getDataGenerator()->get_plugin_generator('mod_forum')->create_discussion($record);
 
         // Add a post.
-        $record = new stdClass();
+        $record = new \stdClass();
         $record->course = $course->id;
         $record->userid = $USER->id;
         $record->forum = $forum->id;

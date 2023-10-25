@@ -79,7 +79,7 @@ class event_exporter_base extends exporter {
             $event->get_id()
         );
         $data->descriptionformat = $event->get_description()->get_format();
-        $data->location = external_format_text($event->get_location(), FORMAT_PLAIN, $related['context']->id)[0];
+        $data->location = \core_external\util::format_text($event->get_location(), FORMAT_PLAIN, $related['context']->id)[0];
         $data->groupid = $groupid;
         $data->userid = $userid;
         $data->categoryid = $categoryid;
@@ -91,6 +91,7 @@ class event_exporter_base extends exporter {
         $data->visible = $event->is_visible() ? 1 : 0;
         $data->timemodified = $event->get_times()->get_modified_time()->getTimestamp();
         $data->component = $event->get_component();
+        $data->overdue = $data->timesort < time();
 
         if ($repeats = $event->get_repeats()) {
             $data->repeatid = $repeats->get_id();
@@ -100,6 +101,19 @@ class event_exporter_base extends exporter {
         if ($cm = $event->get_course_module()) {
             $data->modulename = $cm->get('modname');
             $data->instance = $cm->get('id');
+            $data->activityname = $cm->get('name');
+
+            $component = 'mod_' . $data->modulename;
+            if (!component_callback_exists($component, 'core_calendar_get_event_action_string')) {
+                $modulename = get_string('modulename', $data->modulename);
+                $data->activitystr = get_string('requiresaction', 'calendar', $modulename);
+            } else {
+                $data->activitystr = component_callback(
+                    $component,
+                    'core_calendar_get_event_action_string',
+                    [$event->get_type()]
+                );
+            }
         }
 
         parent::__construct($data, $related);
@@ -174,6 +188,18 @@ class event_exporter_base extends exporter {
                 'default' => null,
                 'null' => NULL_ALLOWED
             ],
+            'activityname' => [
+                'type' => PARAM_TEXT,
+                'optional' => true,
+                'default' => null,
+                'null' => NULL_ALLOWED
+            ],
+            'activitystr' => [
+                'type' => PARAM_TEXT,
+                'optional' => true,
+                'default' => null,
+                'null' => NULL_ALLOWED
+            ],
             'instance' => [
                 'type' => PARAM_INT,
                 'optional' => true,
@@ -187,6 +213,12 @@ class event_exporter_base extends exporter {
             'timeusermidnight' => ['type' => PARAM_INT],
             'visible' => ['type' => PARAM_INT],
             'timemodified' => ['type' => PARAM_INT],
+            'overdue' => [
+                'type' => PARAM_BOOL,
+                'optional' => true,
+                'default' => false,
+                'null' => NULL_ALLOWED
+            ],
         ];
     }
 
@@ -230,6 +262,9 @@ class event_exporter_base extends exporter {
             'formattedtime' => [
                 'type' => PARAM_RAW,
             ],
+            'formattedlocation' => [
+                'type' => PARAM_RAW,
+            ],
             'isactionevent' => [
                 'type' => PARAM_BOOL
             ],
@@ -254,6 +289,9 @@ class event_exporter_base extends exporter {
             'action' => [
                 'type' => event_action_exporter::read_properties_definition(),
                 'optional' => true,
+            ],
+            'purpose' => [
+                'type' => PARAM_TEXT
             ],
         ];
     }
@@ -296,6 +334,24 @@ class event_exporter_base extends exporter {
         }
         $values['normalisedeventtypetext'] = $stringexists ? get_string($identifier, 'calendar') : '';
 
+        $purpose = 'none';
+        if ($moduleproxy) {
+            $purpose = plugin_supports('mod', $moduleproxy->get('modname'), FEATURE_MOD_PURPOSE, 'none');
+            /**
+             * New callback for custom icons
+             *
+             * @author Johnathan <johnathan@missionaldigerati.org>
+             */
+            $data = call_coursemodule_modify_icon(
+                $moduleproxy->get('course'),
+                $moduleproxy->get('id')
+            );
+            if (array_key_exists('purpose', $data)) {
+                $purpose = $data['purpose'];
+            }
+        }
+        $values['purpose'] = $purpose;
+
         $values['icon'] = $iconexporter->export($output);
 
         $subscriptionexporter = new event_subscription_exporter($event);
@@ -330,6 +386,7 @@ class event_exporter_base extends exporter {
         $values['viewurl'] = $viewurl->out(false);
         $values['formattedtime'] = calendar_format_event_time($legacyevent, time(), null, false,
                 $timesort);
+        $values['formattedlocation'] = calendar_format_event_location($legacyevent);
 
         if ($group = $event->get_group()) {
             $values['groupname'] = format_string($group->get('name'), true,

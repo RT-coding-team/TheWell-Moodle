@@ -40,12 +40,11 @@ Feature: Test editing a Short answer question
     And I press "id_submitbutton"
     And I should see "Edited shortanswer-001 name"
     And I choose "Preview" action for "Edited shortanswer-001" in the question bank
-    And I switch to "questionpreview" window
     And I should see "Name an amphibian:"
     # Set behaviour options
     And I set the following fields to these values:
       | behaviour | immediatefeedback |
-    And I press "Start again with these options"
+    And I press "Save preview options and start again"
     And I set the field with xpath "//div[@class='qtext']//input[contains(@id, '1_answer')]" to "newt"
     And I press "Check"
     And I should see "Newt is an OK good answer."

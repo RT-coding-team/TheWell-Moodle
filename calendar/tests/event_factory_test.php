@@ -14,29 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Event factory test.
- *
- * @package    core_calendar
- * @copyright  2017 Cameron Ball <cameron@cameron1729.xyz>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace core_calendar;
+
+use core_calendar\local\event\factories\event_factory;
+use core_calendar\local\event\entities\event_interface;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/calendar/lib.php');
 
-use core_calendar\local\event\factories\event_factory;
-use core_calendar\local\event\entities\event_interface;
-
 /**
- * Event factory testcase.
+ * Event factory test.
  *
+ * @package core_calendar
  * @copyright 2017 Cameron Ball <cameron@cameron1729.xyz>
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class core_calendar_event_factory_testcase extends advanced_testcase {
+class event_factory_test extends \advanced_testcase {
     /**
      * Test event class getters.
      *
@@ -80,7 +75,10 @@ class core_calendar_event_factory_testcase extends advanced_testcase {
         }
 
         if ($expectedattributevalue) {
-            $this->assertEquals($instance->testattribute, $expectedattributevalue);
+            $this->assertEquals(
+                $instance->get_description()->get_value(),
+                $expectedattributevalue
+            );
         }
     }
 
@@ -373,7 +371,6 @@ class core_calendar_event_factory_testcase extends advanced_testcase {
                     'location' => 'Test location',
                 ],
                 'actioncallbackapplier' => function(event_interface $event) {
-                    $event->testattribute = 'Hello';
                     return $event;
                 },
                 'visibilitycallbackapplier' => function(event_interface $event) {
@@ -408,7 +405,6 @@ class core_calendar_event_factory_testcase extends advanced_testcase {
                     'location' => 'Test location',
                 ],
                 'actioncallbackapplier' => function(event_interface $event) {
-                    $event->testattribute = 'Hello';
                     return $event;
                 },
                 'visibilitycallbackapplier' => function(event_interface $event) {
@@ -443,7 +439,6 @@ class core_calendar_event_factory_testcase extends advanced_testcase {
                     'location' => 'Test location',
                 ],
                 'actioncallbackapplier' => function(event_interface $event) {
-                    $event->testattribute = 'Hello';
                     return $event;
                 },
                 'visibilitycallbackapplier' => function(event_interface $event) {
@@ -479,7 +474,7 @@ class core_calendar_event_factory_testcase extends advanced_testcase {
             $record->$name = $value;
         }
 
-        $event = new calendar_event($record);
+        $event = new \calendar_event($record);
         return $event->create($record, false);
     }
 }

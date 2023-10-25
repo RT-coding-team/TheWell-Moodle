@@ -24,13 +24,15 @@
 
 namespace core_course\output;
 
-use context_module;
-use lang_string;
 use cm_info;
+use context_module;
+use core_external\external_api;
+use lang_string;
 
 /**
  * Class to prepare a course module name for display and in-place editing
  *
+ * @deprecated since Moodle 4.0 MDL-72656 - please do not use this class any more.
  * @package   core_course
  * @copyright 2016 Marina Glancy
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -51,6 +53,10 @@ class course_module_name extends \core\output\inplace_editable {
      * @param array $displayoptions
      */
     public function __construct(cm_info $cm, $editable, $displayoptions = array()) {
+        debugging(
+            'course_section_cm_list is deprecated. Use core_courseformat\\output\\local\\cm\\cmname instead',
+            DEBUG_DEVELOPER
+        );
         $this->cm = $cm;
         $this->displayoptions = $displayoptions;
         $value = $cm->name;
@@ -65,7 +71,7 @@ class course_module_name extends \core\output\inplace_editable {
     /**
      * Export this data so it can be used as the context for a mustache template (core/inplace_editable).
      *
-     * @param renderer_base $output typically, the renderer that's calling this function
+     * @param \renderer_base $output typically, the renderer that's calling this function
      * @return array data context for a mustache template
      */
     public function export_for_template(\renderer_base $output) {
@@ -88,10 +94,11 @@ class course_module_name extends \core\output\inplace_editable {
     public static function update($itemid, $newvalue) {
         $context = context_module::instance($itemid);
         // Check access.
-        \external_api::validate_context($context);
+        external_api::validate_context($context);
         require_capability('moodle/course:manageactivities', $context);
-        // Update value.
-        set_coursemodule_name($itemid, $newvalue);
+
+        // Trim module name and Update value.
+        set_coursemodule_name($itemid, trim($newvalue));
         $coursemodulerecord = get_coursemodule_from_id('', $itemid, 0, false, MUST_EXIST);
         // Return instance.
         $cm = get_fast_modinfo($coursemodulerecord->course)->get_cm($itemid);

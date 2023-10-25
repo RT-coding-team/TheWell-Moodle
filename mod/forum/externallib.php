@@ -15,6 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+use mod_forum\local\exporters\post as post_exporter;
+use mod_forum\local\exporters\discussion as discussion_exporter;
+use core_external\external_api;
+use core_external\external_files;
+use core_external\external_format_value;
+use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
+use core_external\external_single_structure;
+use core_external\external_value;
+use core_external\external_warnings;
+use core_external\util as external_util;
+
 /**
  * External forum API
  *
@@ -22,14 +34,6 @@
  * @copyright  2012 Mark Nelson <markn@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die;
-
-require_once("$CFG->libdir/externallib.php");
-
-use mod_forum\local\exporters\post as post_exporter;
-use mod_forum\local\exporters\discussion as discussion_exporter;
-
 class mod_forum_external extends external_api {
 
     /**
@@ -91,12 +95,21 @@ class mod_forum_external extends external_api {
                     continue;
                 }
 
-                $forum->name = external_format_string($forum->name, $context->id);
+                $forum->name = \core_external\util::format_string($forum->name, $context);
                 // Format the intro before being returning using the format setting.
                 $options = array('noclean' => true);
-                list($forum->intro, $forum->introformat) =
-                    external_format_text($forum->intro, $forum->introformat, $context->id, 'mod_forum', 'intro', null, $options);
+                [$forum->intro, $forum->introformat] = \core_external\util::format_text(
+                    $forum->intro,
+                    $forum->introformat,
+                    $context,
+                    'mod_forum',
+                    'intro',
+                    null,
+                    $options
+                );
                 $forum->introfiles = external_util::get_area_files($context->id, 'mod_forum', 'intro', false, false);
+                $forum->lang = clean_param($forum->lang, PARAM_LANG);
+
                 // Discussions count. This function does static request cache.
                 $forum->numdiscussions = forum_count_discussions($forum, $cm, $course);
                 $forum->cmid = $forum->coursemodule;
@@ -121,6 +134,9 @@ class mod_forum_external extends external_api {
      * @since Moodle 2.5
      */
     public static function get_forums_by_courses_returns() {
+        // This should be using helper_for_get_mods_by_courses::standard_coursemodule_elements_returns, but it is so horribly
+        // inconsistent with all similar web serviecs in other modules that we just can't.
+        // Also, the return type declaration is wrong, but I am not changing it now because I don't want ot break things.
         return new external_multiple_structure(
             new external_single_structure(
                 array(
@@ -131,6 +147,7 @@ class mod_forum_external extends external_api {
                     'intro' => new external_value(PARAM_RAW, 'The forum intro'),
                     'introformat' => new external_format_value('intro'),
                     'introfiles' => new external_files('Files in the introduction text', VALUE_OPTIONAL),
+                    'lang' => new external_value(PARAM_SAFEDIR, 'Forced activity language', VALUE_OPTIONAL),
                     'duedate' => new external_value(PARAM_INT, 'duedate for the user', VALUE_OPTIONAL),
                     'cutoffdate' => new external_value(PARAM_INT, 'cutoffdate for the user', VALUE_OPTIONAL),
                     'assessed' => new external_value(PARAM_INT, 'Aggregate type'),
@@ -170,9 +187,10 @@ class mod_forum_external extends external_api {
      * @param   int $discussionid
      * @param   string $sortby
      * @param   string $sortdirection
+     * @param   bool $includeinlineattachments Whether inline attachments should be included or not.
      * @return  array
      */
-    public static function get_discussion_posts(int $discussionid, ?string $sortby, ?string $sortdirection) {
+    public static function get_discussion_posts(int $discussionid, ?string $sortby, ?string $sortdirection, bool $includeinlineattachments = false) {
         global $USER;
         // Validate the parameter.
         $params = self::validate_parameters(self::get_discussion_posts_parameters(), [
@@ -225,7 +243,7 @@ class mod_forum_external extends external_api {
         $legacydatamapper = mod_forum\local\container::get_legacy_data_mapper_factory();
 
         return [
-            'posts' => $postbuilder->build($USER, [$forum], [$discussion], $posts),
+            'posts' => $postbuilder->build($USER, [$forum], [$discussion], $posts, $includeinlineattachments),
             'forumid' => $discussion->get_forum_id(),
             'courseid' => $discussion->get_course_id(),
             'ratinginfo' => \core_rating\external\util::get_rating_info(
@@ -248,7 +266,9 @@ class mod_forum_external extends external_api {
         return new external_function_parameters ([
             'discussionid' => new external_value(PARAM_INT, 'The ID of the discussion from which to fetch posts.', VALUE_REQUIRED),
             'sortby' => new external_value(PARAM_ALPHA, 'Sort by this element: id, created or modified', VALUE_DEFAULT, 'created'),
-            'sortdirection' => new external_value(PARAM_ALPHA, 'Sort direction: ASC or DESC', VALUE_DEFAULT, 'DESC')
+            'sortdirection' => new external_value(PARAM_ALPHA, 'Sort direction: ASC or DESC', VALUE_DEFAULT, 'DESC'),
+            'includeinlineattachments' => new external_value(PARAM_BOOL, 'Whether inline attachments should be included or not', VALUE_DEFAULT,
+                false),
         ]);
     }
 
@@ -268,239 +288,11 @@ class mod_forum_external extends external_api {
     }
 
     /**
-     * Describes the parameters for get_forum_discussion_posts.
-     *
-     * @return external_function_parameters
-     * @since Moodle 2.7
-     */
-    public static function get_forum_discussion_posts_parameters() {
-        return new external_function_parameters (
-            array(
-                'discussionid' => new external_value(PARAM_INT, 'discussion ID', VALUE_REQUIRED),
-                'sortby' => new external_value(PARAM_ALPHA,
-                    'sort by this element: id, created or modified', VALUE_DEFAULT, 'created'),
-                'sortdirection' => new external_value(PARAM_ALPHA, 'sort direction: ASC or DESC', VALUE_DEFAULT, 'DESC')
-            )
-        );
-    }
-
-    /**
-     * Returns a list of forum posts for a discussion
-     *
-     * @param int $discussionid the post ids
-     * @param string $sortby sort by this element (id, created or modified)
-     * @param string $sortdirection sort direction: ASC or DESC
-     *
-     * @return array the forum post details
-     * @since Moodle 2.7
-     * @todo MDL-65252 This will be removed in Moodle 3.11
-     */
-    public static function get_forum_discussion_posts($discussionid, $sortby = "created", $sortdirection = "DESC") {
-        global $CFG, $DB, $USER, $PAGE;
-
-        $posts = array();
-        $warnings = array();
-
-        // Validate the parameter.
-        $params = self::validate_parameters(self::get_forum_discussion_posts_parameters(),
-            array(
-                'discussionid' => $discussionid,
-                'sortby' => $sortby,
-                'sortdirection' => $sortdirection));
-
-        // Compact/extract functions are not recommended.
-        $discussionid   = $params['discussionid'];
-        $sortby         = $params['sortby'];
-        $sortdirection  = $params['sortdirection'];
-
-        $sortallowedvalues = array('id', 'created', 'modified');
-        if (!in_array($sortby, $sortallowedvalues)) {
-            throw new invalid_parameter_exception('Invalid value for sortby parameter (value: ' . $sortby . '),' .
-                'allowed values are: ' . implode(',', $sortallowedvalues));
-        }
-
-        $sortdirection = strtoupper($sortdirection);
-        $directionallowedvalues = array('ASC', 'DESC');
-        if (!in_array($sortdirection, $directionallowedvalues)) {
-            throw new invalid_parameter_exception('Invalid value for sortdirection parameter (value: ' . $sortdirection . '),' .
-                'allowed values are: ' . implode(',', $directionallowedvalues));
-        }
-
-        $discussion = $DB->get_record('forum_discussions', array('id' => $discussionid), '*', MUST_EXIST);
-        $forum = $DB->get_record('forum', array('id' => $discussion->forum), '*', MUST_EXIST);
-        $course = $DB->get_record('course', array('id' => $forum->course), '*', MUST_EXIST);
-        $cm = get_coursemodule_from_instance('forum', $forum->id, $course->id, false, MUST_EXIST);
-
-        // Validate the module context. It checks everything that affects the module visibility (including groupings, etc..).
-        $modcontext = context_module::instance($cm->id);
-        self::validate_context($modcontext);
-
-        // This require must be here, see mod/forum/discuss.php.
-        require_once($CFG->dirroot . "/mod/forum/lib.php");
-
-        // Check they have the view forum capability.
-        require_capability('mod/forum:viewdiscussion', $modcontext, null, true, 'noviewdiscussionspermission', 'forum');
-
-        if (! $post = forum_get_post_full($discussion->firstpost)) {
-            throw new moodle_exception('notexists', 'forum');
-        }
-
-        // This function check groups, qanda, timed discussions, etc.
-        if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm)) {
-            throw new moodle_exception('noviewdiscussionspermission', 'forum');
-        }
-
-        $canviewfullname = has_capability('moodle/site:viewfullnames', $modcontext);
-
-        // We will add this field in the response.
-        $canreply = forum_user_can_post($forum, $discussion, $USER, $cm, $course, $modcontext);
-
-        $forumtracked = forum_tp_is_tracked($forum);
-
-        $sort = 'p.' . $sortby . ' ' . $sortdirection;
-        $allposts = forum_get_all_discussion_posts($discussion->id, $sort, $forumtracked);
-
-        foreach ($allposts as $post) {
-            if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm, false)) {
-                $warning = array();
-                $warning['item'] = 'post';
-                $warning['itemid'] = $post->id;
-                $warning['warningcode'] = '1';
-                $warning['message'] = 'You can\'t see this post';
-                $warnings[] = $warning;
-                continue;
-            }
-
-            // Function forum_get_all_discussion_posts adds postread field.
-            // Note that the value returned can be a boolean or an integer. The WS expects a boolean.
-            if (empty($post->postread)) {
-                $post->postread = false;
-            } else {
-                $post->postread = true;
-            }
-
-            $post->isprivatereply = !empty($post->privatereplyto);
-
-            $post->canreply = $canreply;
-            if (!empty($post->children)) {
-                $post->children = array_keys($post->children);
-            } else {
-                $post->children = array();
-            }
-
-            if (!forum_user_can_see_post($forum, $discussion, $post, null, $cm)) {
-                // The post is available, but has been marked as deleted.
-                // It will still be available but filled with a placeholder.
-                $post->userid = null;
-                $post->userfullname = null;
-                $post->userpictureurl = null;
-
-                $post->subject = get_string('privacy:request:delete:post:subject', 'mod_forum');
-                $post->message = get_string('privacy:request:delete:post:message', 'mod_forum');
-
-                $post->deleted = true;
-                $posts[] = $post;
-
-                continue;
-            }
-            $post->deleted = false;
-
-            if (forum_is_author_hidden($post, $forum)) {
-                $post->userid = null;
-                $post->userfullname = null;
-                $post->userpictureurl = null;
-            } else {
-                $user = new stdclass();
-                $user->id = $post->userid;
-                $user = username_load_fields_from_object($user, $post, null, array('picture', 'imagealt', 'email'));
-                $post->userfullname = fullname($user, $canviewfullname);
-
-                $userpicture = new user_picture($user);
-                $userpicture->size = 1; // Size f1.
-                $post->userpictureurl = $userpicture->get_url($PAGE)->out(false);
-            }
-
-            $post->subject = external_format_string($post->subject, $modcontext->id);
-            // Rewrite embedded images URLs.
-            $options = array('trusted' => $post->messagetrust);
-            list($post->message, $post->messageformat) =
-                external_format_text($post->message, $post->messageformat, $modcontext->id, 'mod_forum', 'post', $post->id,
-                    $options);
-
-            // List attachments.
-            if (!empty($post->attachment)) {
-                $post->attachments = external_util::get_area_files($modcontext->id, 'mod_forum', 'attachment', $post->id);
-            }
-            $messageinlinefiles = external_util::get_area_files($modcontext->id, 'mod_forum', 'post', $post->id);
-            if (!empty($messageinlinefiles)) {
-                $post->messageinlinefiles = $messageinlinefiles;
-            }
-            // Post tags.
-            $post->tags = \core_tag\external\util::get_item_tags('mod_forum', 'forum_posts', $post->id);
-
-            $posts[] = $post;
-        }
-
-        $result = array();
-        $result['posts'] = $posts;
-        $result['ratinginfo'] = \core_rating\external\util::get_rating_info($forum, $modcontext, 'mod_forum', 'post', $posts);
-        $result['warnings'] = $warnings;
-        return $result;
-    }
-
-    /**
-     * Describes the get_forum_discussion_posts return value.
-     *
-     * @return external_single_structure
-     * @since Moodle 2.7
-     */
-    public static function get_forum_discussion_posts_returns() {
-        return new external_single_structure(
-            array(
-                'posts' => new external_multiple_structure(
-                        new external_single_structure(
-                            array(
-                                'id' => new external_value(PARAM_INT, 'Post id'),
-                                'discussion' => new external_value(PARAM_INT, 'Discussion id'),
-                                'parent' => new external_value(PARAM_INT, 'Parent id'),
-                                'userid' => new external_value(PARAM_INT, 'User id'),
-                                'created' => new external_value(PARAM_INT, 'Creation time'),
-                                'modified' => new external_value(PARAM_INT, 'Time modified'),
-                                'mailed' => new external_value(PARAM_INT, 'Mailed?'),
-                                'subject' => new external_value(PARAM_RAW, 'The post subject'),
-                                'message' => new external_value(PARAM_RAW, 'The post message'),
-                                'messageformat' => new external_format_value('message'),
-                                'messagetrust' => new external_value(PARAM_INT, 'Can we trust?'),
-                                'messageinlinefiles' => new external_files('post message inline files', VALUE_OPTIONAL),
-                                'attachment' => new external_value(PARAM_RAW, 'Has attachments?'),
-                                'attachments' => new external_files('attachments', VALUE_OPTIONAL),
-                                'totalscore' => new external_value(PARAM_INT, 'The post message total score'),
-                                'mailnow' => new external_value(PARAM_INT, 'Mail now?'),
-                                'children' => new external_multiple_structure(new external_value(PARAM_INT, 'children post id')),
-                                'canreply' => new external_value(PARAM_BOOL, 'The user can reply to posts?'),
-                                'postread' => new external_value(PARAM_BOOL, 'The post was read'),
-                                'userfullname' => new external_value(PARAM_TEXT, 'Post author full name'),
-                                'userpictureurl' => new external_value(PARAM_URL, 'Post author picture.', VALUE_OPTIONAL),
-                                'deleted' => new external_value(PARAM_BOOL, 'This post has been removed.'),
-                                'isprivatereply' => new external_value(PARAM_BOOL, 'The post is a private reply'),
-                                'tags' => new external_multiple_structure(
-                                    \core_tag\external\tag_item_exporter::get_read_structure(), 'Tags', VALUE_OPTIONAL
-                                ),
-                            ), 'post'
-                        )
-                    ),
-                'ratinginfo' => \core_rating\external\util::external_ratings_structure(),
-                'warnings' => new external_warnings()
-            )
-        );
-    }
-
-    /**
-     * Mark the get_forum_discussion_posts web service as deprecated.
+     * Mark the get_forum_discussions_paginated web service as deprecated.
      *
      * @return  bool
      */
-    public static function get_forum_discussion_posts_is_deprecated() {
+    public static function get_forum_discussions_paginated_is_deprecated() {
         return true;
     }
 
@@ -634,13 +426,13 @@ class mod_forum_external extends external_api {
                     $discussion->numreplies = (int) $replies[$discussion->discussion]->replies;
                 }
 
-                $discussion->name = external_format_string($discussion->name, $modcontext->id);
-                $discussion->subject = external_format_string($discussion->subject, $modcontext->id);
+                $discussion->name = \core_external\util::format_string($discussion->name, $modcontext);
+                $discussion->subject = \core_external\util::format_string($discussion->subject, $modcontext);
                 // Rewrite embedded images URLs.
                 $options = array('trusted' => $discussion->messagetrust);
                 list($discussion->message, $discussion->messageformat) =
-                    external_format_text($discussion->message, $discussion->messageformat,
-                                            $modcontext->id, 'mod_forum', 'post', $discussion->id, $options);
+                    \core_external\util::format_text($discussion->message, $discussion->messageformat,
+                                            $modcontext, 'mod_forum', 'post', $discussion->id, $options);
 
                 // List attachments.
                 if (!empty($discussion->attachment)) {
@@ -665,7 +457,7 @@ class mod_forum_external extends external_api {
                     $discussion->usermodifiedfullname = null;
                     $discussion->usermodifiedpictureurl = null;
                 } else {
-                    $picturefields = explode(',', user_picture::fields());
+                    $picturefields = explode(',', implode(',', \core_user\fields::get_picture_fields()));
 
                     // Load user objects from the results of the query.
                     $user = new stdclass();
@@ -934,13 +726,13 @@ class mod_forum_external extends external_api {
                     $discussionobject->numreplies = (int) $replies[$discussion->get_id()];
                 }
 
-                $discussionobject->name = external_format_string($discussion->get_name(), $modcontext->id);
-                $discussionobject->subject = external_format_string($discussionobject->subject, $modcontext->id);
+                $discussionobject->name = \core_external\util::format_string($discussion->get_name(), $modcontext);
+                $discussionobject->subject = \core_external\util::format_string($discussionobject->subject, $modcontext);
                 // Rewrite embedded images URLs.
                 $options = array('trusted' => $discussionobject->messagetrust);
                 list($discussionobject->message, $discussionobject->messageformat) =
-                    external_format_text($discussionobject->message, $discussionobject->messageformat,
-                        $modcontext->id, 'mod_forum', 'post', $discussionobject->id, $options);
+                    \core_external\util::format_text($discussionobject->message, $discussionobject->messageformat,
+                        $modcontext, 'mod_forum', 'post', $discussionobject->id, $options);
 
                 // List attachments.
                 if (!empty($discussionobject->attachment)) {
@@ -1096,7 +888,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 2.9
      */
     public static function view_forum_returns() {
@@ -1167,7 +959,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 2.9
      */
     public static function view_forum_discussion_returns() {
@@ -1404,7 +1196,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.0
      */
     public static function add_discussion_post_returns() {
@@ -1476,7 +1268,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.0
      */
     public static function toggle_favourite_state_returns() {
@@ -1679,7 +1471,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.0
      */
     public static function add_discussion_returns() {
@@ -1747,7 +1539,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.1
      */
     public static function can_add_discussion_returns() {
@@ -1910,7 +1702,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value.
      *
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function set_subscription_state_returns() {
         return discussion_exporter::get_read_structure();
@@ -1955,6 +1747,18 @@ class mod_forum_external extends external_api {
         $discussion->toggle_locked_state($lockedvalue);
         $response = $discussionvault->update_discussion($discussion);
         $discussion = !$response ? $response : $discussion;
+
+        // Trigger an event.
+        $params = [
+            'context' => $forum->get_context(),
+            'objectid' => $discussion->get_id(),
+            'other' => ['forumid' => $forum->get_id(), 'status' => $lockedvalue ? 'locked' : 'unlocked'],
+        ];
+        $event = \mod_forum\event\discussion_lock_updated::create($params);
+        $discussionrecord = $DB->get_record('forum_discussions', ['id' => $discussion->get_id()]);
+        $event->add_record_snapshot('forum_discussions', $discussionrecord);
+        $event->trigger();
+
         $exporterfactory = mod_forum\local\container::get_exporter_factory();
         $exporter = $exporterfactory->get_discussion_exporter($USER, $forum, $discussion);
         return $exporter->export($PAGE->get_renderer('mod_forum'));
@@ -1978,7 +1782,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value.
      *
-     * @return external_description
+     * @return \core_external\external_description
      */
     public static function set_lock_state_returns() {
         return new external_single_structure([
@@ -2149,7 +1953,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.8
      */
     public static function delete_post_returns() {
@@ -2170,7 +1974,7 @@ class mod_forum_external extends external_api {
      * @param   string $sortdirection
      * @return  array
      */
-    public static function get_discussion_posts_by_userid(int $userid = 0, int $cmid, ?string $sortby, ?string $sortdirection) {
+    public static function get_discussion_posts_by_userid(int $userid, int $cmid, ?string $sortby, ?string $sortdirection) {
         global $USER, $DB;
         // Validate the parameter.
         $params = self::validate_parameters(self::get_discussion_posts_by_userid_parameters(), [
@@ -2228,6 +2032,9 @@ class mod_forum_external extends external_api {
         $builtdiscussions = [];
         foreach ($discussionsummaries as $discussionsummary) {
             $discussion = $discussionsummary->get_discussion();
+            if (!$capabilitymanager->can_view_discussion($USER, $discussion)) {
+                continue;
+            }
             $posts = $postvault->get_posts_in_discussion_for_user_id(
                     $discussion->get_id(),
                     $user->id,
@@ -2383,7 +2190,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.8
      */
     public static function get_discussion_post_returns() {
@@ -2537,7 +2344,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.8
      */
     public static function prepare_draft_area_for_post_returns() {
@@ -2751,7 +2558,7 @@ class mod_forum_external extends external_api {
     /**
      * Returns description of method result value
      *
-     * @return external_description
+     * @return \core_external\external_description
      * @since Moodle 3.8
      */
     public static function update_discussion_post_returns() {

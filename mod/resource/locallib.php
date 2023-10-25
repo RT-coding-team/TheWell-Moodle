@@ -61,7 +61,7 @@ function resource_redirect_if_migrated($oldid, $cmid) {
  * @return does not return
  */
 function resource_display_embed($resource, $cm, $course, $file) {
-    global $CFG, $PAGE, $OUTPUT;
+    global $PAGE, $OUTPUT;
 
     $clicktoopen = resource_get_clicktoopen($file, $resource->revision);
 
@@ -99,12 +99,12 @@ function resource_display_embed($resource, $cm, $course, $file) {
         $code = resourcelib_embed_general($moodleurl, $title, $clicktoopen, $mimetype);
     }
 
+    // Let the module handle the display.
+    $PAGE->activityheader->set_description(resource_get_intro($resource, $cm));
+
     resource_print_header($resource, $cm, $course);
-    resource_print_heading($resource, $cm, $course);
 
     echo format_text($code, FORMAT_HTML, ['noclean' => true]);
-
-    resource_print_intro($resource, $cm, $course);
 
     echo $OUTPUT->footer();
     die;
@@ -125,9 +125,8 @@ function resource_display_frame($resource, $cm, $course, $file) {
 
     if ($frame === 'top') {
         $PAGE->set_pagelayout('frametop');
+        $PAGE->activityheader->set_description(resource_get_intro($resource, $cm, true));
         resource_print_header($resource, $cm, $course);
-        resource_print_heading($resource, $cm, $course);
-        resource_print_intro($resource, $cm, $course);
         echo $OUTPUT->footer();
         die;
 
@@ -202,11 +201,12 @@ function resource_get_clicktodownload($file, $revision) {
  * @return does not return
  */
 function resource_print_workaround($resource, $cm, $course, $file) {
-    global $CFG, $OUTPUT;
+    global $CFG, $OUTPUT, $PAGE;
+
+    // Let the module handle the display.
+    $PAGE->activityheader->set_description(resource_get_intro($resource, $cm, true));
 
     resource_print_header($resource, $cm, $course);
-    resource_print_heading($resource, $cm, $course, true);
-    resource_print_intro($resource, $cm, $course, true);
 
     $resource->mainfile = $file->get_filename();
     echo '<div class="resourceworkaround">';
@@ -259,20 +259,6 @@ function resource_print_header($resource, $cm, $course) {
 }
 
 /**
- * Print resource heading.
- * @param object $resource
- * @param object $cm
- * @param object $course
- * @param bool $notused This variable is no longer used
- * @return void
- */
-function resource_print_heading($resource, $cm, $course, $notused = false) {
-    global $OUTPUT;
-    echo $OUTPUT->heading(format_string($resource->name), 2);
-}
-
-
-/**
  * Gets details of the file to cache in course cache to be displayed using {@link resource_get_optional_details()}
  *
  * @param object $resource Resource table row (only property 'displayoptions' is used here)
@@ -305,6 +291,7 @@ function resource_get_file_details($resource, $cm) {
             if ($mainfile) {
                 $filedetails['type'] = get_mimetype_description($mainfile);
                 $filedetails['mimetype'] = $mainfile->get_mimetype();
+                $filedetails['extension'] = strtoupper(resourcelib_get_extension($mainfile->get_filename()));
                 // Only show type if it is not unknown.
                 if ($filedetails['type'] === get_mimetype_description('document/unknown')) {
                     $filedetails['type'] = '';
@@ -342,15 +329,16 @@ function resource_get_file_details($resource, $cm) {
  *
  * @param object $resource Resource table row (only property 'displayoptions' is used here)
  * @param object $cm Course-module table row
+ * @param bool $showtype Whether the file type should be displayed or not (regardless the display option is enabled).
  * @return string Size and type or empty string if show options are not enabled
  */
-function resource_get_optional_details($resource, $cm) {
+function resource_get_optional_details($resource, $cm, bool $showtype = true) {
     global $DB;
 
     $details = '';
 
     $options = empty($resource->displayoptions) ? [] : (array) unserialize_array($resource->displayoptions);
-    if (!empty($options['showsize']) || !empty($options['showtype']) || !empty($options['showdate'])) {
+    if (!empty($options['showsize']) || ($showtype && !empty($options['showtype'])) || !empty($options['showdate'])) {
         if (!array_key_exists('filedetails', $options)) {
             $filedetails = resource_get_file_details($resource, $cm);
         } else {
@@ -368,9 +356,9 @@ function resource_get_optional_details($resource, $cm) {
                 $infodisplayed += 1;
             }
         }
-        if (!empty($options['showtype'])) {
+        if ($showtype && !empty($options['showtype'])) {
             if (!empty($filedetails['type'])) {
-                $type = $filedetails['type'];
+                $type = $filedetails['extension'];
                 $langstring .= 'type';
                 $infodisplayed += 1;
             }
@@ -400,16 +388,42 @@ function resource_get_optional_details($resource, $cm) {
 }
 
 /**
- * Print resource introduction.
+ * Gets optional file type extension for a resource, depending on resource settings.
+ *
+ * @param object $resource Resource table row (only property 'displayoptions' is used here)
+ * @param object $cm Course-module table row
+ * @return string File extension or null if showtype option is not enabled
+ */
+function resource_get_optional_filetype($resource, $cm): ?string {
+    $filetype = null;
+
+    $options = empty($resource->displayoptions) ? [] : (array) unserialize_array($resource->displayoptions);
+    if (empty($options['showtype'])) {
+        // Show type option is disabled; early return null filetype.
+        return $filetype;
+    }
+
+    if (!array_key_exists('filedetails', $options)) {
+        $filedetails = resource_get_file_details($resource, $cm);
+    } else {
+        $filedetails = $options['filedetails'];
+    }
+    if (!empty($filedetails['type'])) {
+        $filetype = $filedetails['extension'];
+    }
+
+    return $filetype;
+}
+
+/**
+ * Get resource introduction.
+ *
  * @param object $resource
  * @param object $cm
- * @param object $course
  * @param bool $ignoresettings print even if not specified in modedit
- * @return void
+ * @return string
  */
-function resource_print_intro($resource, $cm, $course, $ignoresettings=false) {
-    global $OUTPUT;
-
+function resource_get_intro(object $resource, object $cm, bool $ignoresettings = false): string {
     $options = empty($resource->displayoptions) ? [] : (array) unserialize_array($resource->displayoptions);
 
     $extraintro = resource_get_optional_details($resource, $cm);
@@ -418,17 +432,18 @@ function resource_print_intro($resource, $cm, $course, $ignoresettings=false) {
         $extraintro = html_writer::tag('p', $extraintro, array('class' => 'resourcedetails'));
     }
 
+    $content = "";
     if ($ignoresettings || !empty($options['printintro']) || $extraintro) {
-        $gotintro = trim(strip_tags($resource->intro));
+        $gotintro = !html_is_blank($resource->intro);
         if ($gotintro || $extraintro) {
-            echo $OUTPUT->box_start('mod_introbox', 'resourceintro');
             if ($gotintro) {
-                echo format_module_intro('resource', $resource, $cm->id);
+                $content = format_module_intro('resource', $resource, $cm->id);
             }
-            echo $extraintro;
-            echo $OUTPUT->box_end();
+            $content .= $extraintro;
         }
     }
+
+    return $content;
 }
 
 /**
@@ -439,12 +454,10 @@ function resource_print_intro($resource, $cm, $course, $ignoresettings=false) {
  * @return void, does not return
  */
 function resource_print_tobemigrated($resource, $cm, $course) {
-    global $DB, $OUTPUT;
-
+    global $DB, $OUTPUT, $PAGE;
+    $PAGE->activityheader->set_description(resource_get_intro($resource, $cm));
     $resource_old = $DB->get_record('resource_old', array('oldid'=>$resource->id));
     resource_print_header($resource, $cm, $course);
-    resource_print_heading($resource, $cm, $course);
-    resource_print_intro($resource, $cm, $course);
     echo $OUTPUT->notification(get_string('notmigrated', 'resource', $resource_old->type));
     echo $OUTPUT->footer();
     die;
@@ -458,12 +471,11 @@ function resource_print_tobemigrated($resource, $cm, $course) {
  * @return void, does not return
  */
 function resource_print_filenotfound($resource, $cm, $course) {
-    global $DB, $OUTPUT;
+    global $DB, $OUTPUT, $PAGE;
 
     $resource_old = $DB->get_record('resource_old', array('oldid'=>$resource->id));
+    $PAGE->activityheader->set_description(resource_get_intro($resource, $cm));
     resource_print_header($resource, $cm, $course);
-    resource_print_heading($resource, $cm, $course);
-    resource_print_intro($resource, $cm, $course);
     if ($resource_old) {
         echo $OUTPUT->notification(get_string('notmigrated', 'resource', $resource_old->type));
     } else {

@@ -157,6 +157,15 @@ class qtype_numerical extends question_type {
         return true;
     }
 
+    public function save_defaults_for_new_questions(stdClass $fromform): void {
+        parent::save_defaults_for_new_questions($fromform);
+        $this->set_default_value('unitrole', $fromform->unitrole);
+        $this->set_default_value('unitpenalty', $fromform->unitpenalty);
+        $this->set_default_value('unitgradingtypes', $fromform->unitgradingtypes);
+        $this->set_default_value('multichoicedisplay', $fromform->multichoicedisplay);
+        $this->set_default_value('unitsleft', $fromform->unitsleft);
+    }
+
     /**
      * Save the units and the answers associated with this question.
      */
@@ -638,10 +647,14 @@ class qtype_numerical_answer_processor {
      * default unit, by using the given unit multiplier.
      *
      * @param string $response a value, optionally with a unit.
-     * @return array(numeric, sting) the value with the unit stripped, and normalised
+     * @return array(numeric, string, multiplier) the value with the unit stripped, and normalised
      *      by the unit multiplier, if any, and the unit string, for reference.
      */
-    public function apply_units($response, $separateunit = null) {
+    public function apply_units($response, $separateunit = null): array {
+        if ($response === null || trim($response) === '') {
+            return [null, null, null];
+        }
+
         // Strip spaces (which may be thousands separators) and change other forms
         // of writing e to e.
         $response = str_replace(' ', '', $response);

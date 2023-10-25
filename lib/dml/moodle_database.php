@@ -52,9 +52,13 @@ define('SQL_QUERY_STRUCTURE', 4);
 /** SQL_QUERY_AUX - Auxiliary query done by driver, setting connection config, getting table info, etc. */
 define('SQL_QUERY_AUX', 5);
 
+/** SQL_QUERY_AUX_READONLY - Auxiliary query that can be done using the readonly connection:
+ * database parameters, table/index/column lists, if not within transaction/ddl. */
+define('SQL_QUERY_AUX_READONLY', 6);
+
 /**
  * Abstract class representing moodle database interface.
- * @link http://docs.moodle.org/dev/DML_functions
+ * @link https://moodledev.io/docs/apis/core/dml/ddl
  *
  * @package    core_dml
  * @copyright  2008 Petr Skoda (http://skodak.org)
@@ -137,7 +141,7 @@ abstract class moodle_database {
     /**
      * @var int internal temporary variable used to guarantee unique parameters in each request. Its used by {@link get_in_or_equal()}.
      */
-    private $inorequaluniqueindex = 1;
+    protected $inorequaluniqueindex = 1;
 
     /**
      * @var boolean variable use to temporarily disable logging.
@@ -414,13 +418,15 @@ abstract class moodle_database {
 
     /**
      * This should be called before each db query.
+     *
      * @param string $sql The query string.
-     * @param array $params An array of parameters.
-     * @param int $type The type of query. ( SQL_QUERY_SELECT | SQL_QUERY_AUX | SQL_QUERY_INSERT | SQL_QUERY_UPDATE | SQL_QUERY_STRUCTURE )
+     * @param array|null $params An array of parameters.
+     * @param int $type The type of query ( SQL_QUERY_SELECT | SQL_QUERY_AUX_READONLY | SQL_QUERY_AUX |
+     *                  SQL_QUERY_INSERT | SQL_QUERY_UPDATE | SQL_QUERY_STRUCTURE ).
      * @param mixed $extrainfo This is here for any driver specific extra information.
      * @return void
      */
-    protected function query_start($sql, array $params=null, $type, $extrainfo=null) {
+    protected function query_start($sql, ?array $params, $type, $extrainfo=null) {
         if ($this->loggingquery) {
             return;
         }
@@ -433,6 +439,7 @@ abstract class moodle_database {
         switch ($type) {
             case SQL_QUERY_SELECT:
             case SQL_QUERY_AUX:
+            case SQL_QUERY_AUX_READONLY:
                 $this->reads++;
                 break;
             case SQL_QUERY_INSERT:
@@ -483,6 +490,7 @@ abstract class moodle_database {
         switch ($type) {
             case SQL_QUERY_SELECT:
             case SQL_QUERY_AUX:
+            case SQL_QUERY_AUX_READONLY:
                 throw new dml_read_exception($error, $sql, $params);
             case SQL_QUERY_INSERT:
             case SQL_QUERY_UPDATE:
@@ -883,14 +891,15 @@ abstract class moodle_database {
      * @return array (sql, params, type of params)
      */
     public function fix_sql_params($sql, array $params=null) {
+        global $CFG;
+
+        require_once($CFG->libdir . '/ddllib.php');
+
         $params = (array)$params; // mke null array if needed
         $allowed_types = $this->allowed_param_types();
 
         // convert table names
         $sql = $this->fix_table_names($sql);
-
-        // Optionally add debug trace to sql as a comment.
-        $sql = $this->add_sql_debugging($sql);
 
         // cast booleans to 1/0 int and detect forbidden objects
         foreach ($params as $key => $value) {
@@ -902,6 +911,9 @@ abstract class moodle_database {
         $named_count = preg_match_all('/(?<!:):[a-z][a-z0-9_]*/', $sql, $named_matches); // :: used in pgsql casts
         $dollar_count = preg_match_all('/\$[1-9][0-9]*/', $sql, $dollar_matches);
         $q_count     = substr_count($sql, '?');
+
+        // Optionally add debug trace to sql as a comment.
+        $sql = $this->add_sql_debugging($sql);
 
         $count = 0;
 
@@ -966,9 +978,9 @@ abstract class moodle_database {
                 if (!array_key_exists($key, $params)) {
                     throw new dml_exception('missingkeyinsql', $key, '');
                 }
-                if (strlen($key) > 30) {
+                if (strlen($key) > xmldb_field::NAME_MAX_LENGTH) {
                     throw new coding_exception(
-                            "Placeholder names must be 30 characters or shorter. '" .
+                            "Placeholder names must be " . xmldb_field::NAME_MAX_LENGTH . " characters or shorter. '" .
                             $key . "' is too long.", $sql);
                 }
                 $finalparams[$key] = $params[$key];
@@ -1779,7 +1791,7 @@ abstract class moodle_database {
     /**
      * Insert new record into database, as fast as possible, no safety checks, lobs not supported.
      * @param string $table name
-     * @param mixed $params data record as object or array
+     * @param stdClass|array $params data record as object or array
      * @param bool $returnid Returns id of inserted record.
      * @param bool $bulk true means repeated inserts expected
      * @param bool $customsequence true if 'id' included in $params, disables $returnid
@@ -1856,7 +1868,7 @@ abstract class moodle_database {
     /**
      * Update record in database, as fast as possible, no safety checks, lobs not supported.
      * @param string $table name
-     * @param mixed $params data record as object or array
+     * @param stdClass|array $params data record as object or array
      * @param bool $bulk True means repeated updates expected.
      * @return bool true
      * @throws dml_exception A DML specific exception is thrown for any errors.
@@ -1871,7 +1883,8 @@ abstract class moodle_database {
      * specify the record to update
      *
      * @param string $table The database table to be checked against.
-     * @param object $dataobject An object with contents equal to fieldname=>fieldvalue. Must have an entry for 'id' to map to the table specified.
+     * @param stdClass|array $dataobject An object with contents equal to fieldname=>fieldvalue.
+     *        Must have an entry for 'id' to map to the table specified.
      * @param bool $bulk True means repeated updates expected.
      * @return bool true
      * @throws dml_exception A DML specific exception is thrown for any errors.
@@ -1883,7 +1896,7 @@ abstract class moodle_database {
      *
      * @param string $table The database table to be checked against.
      * @param string $newfield the field to set.
-     * @param string $newvalue the value to set the field to.
+     * @param mixed $newvalue the value to set the field to.
      * @param array $conditions optional array $fieldname=>requestedvalue with AND in between
      * @return bool true
      * @throws dml_exception A DML specific exception is thrown for any errors.
@@ -1898,7 +1911,7 @@ abstract class moodle_database {
      *
      * @param string $table The database table to be checked against.
      * @param string $newfield the field to set.
-     * @param string $newvalue the value to set the field to.
+     * @param mixed $newvalue the value to set the field to.
      * @param string $select A fragment of SQL to be used in a where clause in the SQL call.
      * @param array $params array of sql parameters
      * @return bool true
@@ -2090,8 +2103,8 @@ abstract class moodle_database {
      * NOTE: The SQL result is a number and can not be used directly in
      *       SQL condition, please compare it to some number to get a bool!!
      *
-     * @param int $int1 First integer in the operation.
-     * @param int $int2 Second integer in the operation.
+     * @param string $int1 SQL for the first integer in the operation.
+     * @param string $int2 SQL for the second integer in the operation.
      * @return string The piece of SQL code to be used in your statement.
      */
     public function sql_bitand($int1, $int2) {
@@ -2160,6 +2173,17 @@ abstract class moodle_database {
      */
     public function sql_ceil($fieldname) {
         return ' CEIL(' . $fieldname . ')';
+    }
+
+    /**
+     * Return SQL for casting to char of given field/expression. Default implementation performs implicit cast using
+     * concatenation with an empty string
+     *
+     * @param string $field Table field or SQL expression to be cast
+     * @return string
+     */
+    public function sql_cast_to_char(string $field): string {
+        return $this->sql_concat("''", $field);
     }
 
     /**
@@ -2298,6 +2322,16 @@ abstract class moodle_database {
     public abstract function sql_concat_join($separator="' '", $elements=array());
 
     /**
+     * Return SQL for performing group concatenation on given field/expression
+     *
+     * @param string $field Table field or SQL expression to be concatenated
+     * @param string $separator The separator desired between each concatetated field
+     * @param string $sort Ordering of the concatenated field
+     * @return string
+     */
+    public abstract function sql_group_concat(string $field, string $separator = ', ', string $sort = ''): string;
+
+    /**
      * Returns the proper SQL (for the dbms in use) to concatenate $firstname and $lastname
      *
      * @todo MDL-31233 This may not be needed here.
@@ -2323,6 +2357,19 @@ abstract class moodle_database {
      */
     public function sql_order_by_text($fieldname, $numchars=32) {
         return $fieldname;
+    }
+
+    /**
+     * Returns the SQL text to be used to order by columns, standardising the return
+     * pattern of null values across database types to sort nulls first when ascending
+     * and last when descending.
+     *
+     * @param string $fieldname The name of the field we need to sort by.
+     * @param int $sort An order to sort the results in.
+     * @return string The piece of SQL code to be used in your statement.
+     */
+    public function sql_order_by_null(string $fieldname, int $sort = SORT_ASC): string {
+        return $fieldname . ' ' . ($sort == SORT_ASC ? 'ASC' : 'DESC');
     }
 
     /**
@@ -2470,6 +2517,30 @@ abstract class moodle_database {
      * @return string or empty if not supported
      */
     public function sql_regex($positivematch = true, $casesensitive = false) {
+        return '';
+    }
+
+    /**
+     * Returns the word-beginning boundary marker if this database driver supports regex syntax when searching.
+     * @return string The word-beginning boundary marker. Otherwise, an empty string.
+     */
+    public function sql_regex_get_word_beginning_boundary_marker() {
+        if ($this->sql_regex_supported()) {
+            return '[[:<:]]';
+        }
+
+        return '';
+    }
+
+    /**
+     * Returns the word-end boundary marker if this database driver supports regex syntax when searching.
+     * @return string The word-end boundary marker. Otherwise, an empty string.
+     */
+    public function sql_regex_get_word_end_boundary_marker() {
+        if ($this->sql_regex_supported()) {
+            return '[[:>:]]';
+        }
+
         return '';
     }
 

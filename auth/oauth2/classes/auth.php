@@ -63,6 +63,7 @@ class auth extends \auth_plugin_base {
     public function __construct() {
         $this->authtype = 'oauth2';
         $this->config = get_config('auth_oauth2');
+        $this->customfields = $this->get_custom_user_profile_fields();
     }
 
     /**
@@ -167,34 +168,23 @@ class auth extends \auth_plugin_base {
     }
 
     /**
-     * Do some checks on the identity provider before showing it on the login page.
-     * @param core\oauth2\issuer $issuer
-     * @return boolean
-     */
-    private function is_ready_for_login_page(\core\oauth2\issuer $issuer) {
-        return $issuer->get('enabled') &&
-                $issuer->is_configured() &&
-                !empty($issuer->get('showonloginpage'));
-    }
-
-    /**
      * Return a list of identity providers to display on the login page.
      *
      * @param string|moodle_url $wantsurl The requested URL.
      * @return array List of arrays with keys url, iconurl and name.
      */
     public function loginpage_idp_list($wantsurl) {
-        $providers = \core\oauth2\api::get_all_issuers();
+        $providers = \core\oauth2\api::get_all_issuers(true);
         $result = [];
         if (empty($wantsurl)) {
             $wantsurl = '/';
         }
         foreach ($providers as $idp) {
-            if ($this->is_ready_for_login_page($idp)) {
+            if ($idp->is_available_for_login()) {
                 $params = ['id' => $idp->get('id'), 'wantsurl' => $wantsurl, 'sesskey' => sesskey()];
                 $url = new moodle_url('/auth/oauth2/login.php', $params);
                 $icon = $idp->get('image');
-                $result[] = ['url' => $url, 'iconurl' => $icon, 'name' => $idp->get('name')];
+                $result[] = ['url' => $url, 'iconurl' => $icon, 'name' => $idp->get_display_name()];
             }
         }
         return $result;
@@ -320,23 +310,35 @@ class auth extends \auth_plugin_base {
             return $userdata;
         }
 
+        $allfields = array_merge($this->userfields, $this->customfields);
+
         // Go through each field from the external data.
         foreach ($externaldata as $fieldname => $value) {
-            if (!in_array($fieldname, $this->userfields)) {
+            if (!in_array($fieldname, $allfields)) {
                 // Skip if this field doesn't belong to the list of fields that can be synced with the OAuth2 issuer.
                 continue;
             }
 
-            if (!property_exists($userdata, $fieldname)) {
-                // Just in case this field is on the list, but not part of the user data. This shouldn't happen though.
+            $userhasfield = property_exists($userdata, $fieldname);
+            // Find out if it is a profile field.
+            $isprofilefield = strpos($fieldname, 'profile_field_') === 0;
+            $profilefieldname = str_replace('profile_field_', '', $fieldname);
+            $userhasprofilefield = $isprofilefield && array_key_exists($profilefieldname, $userdata->profile);
+
+            // Just in case this field is on the list, but not part of the user data. This shouldn't happen though.
+            if (!($userhasfield || $userhasprofilefield)) {
                 continue;
             }
 
             // Get the old value.
-            $oldvalue = (string)$userdata->$fieldname;
+            $oldvalue = $isprofilefield ? (string) $userdata->profile[$profilefieldname] : (string) $userdata->$fieldname;
 
             // Get the lock configuration of the field.
-            $lockvalue = $this->config->{'field_lock_' . $fieldname};
+            if (!empty($this->config->{'field_lock_' . $fieldname})) {
+                $lockvalue = $this->config->{'field_lock_' . $fieldname};
+            } else {
+                $lockvalue = 'unlocked';
+            }
 
             // We should update fields that meet the following criteria:
             // - Lock value set to 'unlocked'; or 'unlockedifempty', given the current value is empty.
@@ -409,6 +411,7 @@ class auth extends \auth_plugin_base {
     public function complete_login(client $client, $redirecturl) {
         global $CFG, $SESSION, $PAGE;
 
+        $rawuserinfo = $client->get_raw_userinfo();
         $userinfo = $client->get_userinfo();
 
         if (!$userinfo) {
@@ -535,6 +538,9 @@ class auth extends \auth_plugin_base {
                     exit();
                 } else {
                     \auth_oauth2\api::link_login($userinfo, $issuer, $moodleuser->id, true);
+                    // We dont have profile loaded on $moodleuser, so load it.
+                    require_once($CFG->dirroot.'/user/profile/lib.php');
+                    profile_load_custom_fields($moodleuser);
                     $userinfo = $this->update_user($userinfo, $moodleuser);
                     // No redirect, we will complete this login.
                 }
@@ -609,7 +615,11 @@ class auth extends \auth_plugin_base {
         // We used to call authenticate_user - but that won't work if the current user has a different default authentication
         // method. Since we now ALWAYS link a login - if we get to here we can directly allow the user in.
         $user = (object) $userinfo;
-        complete_user_login($user);
+
+        // Add extra loggedin info.
+        $this->set_extrauserinfo((array)$rawuserinfo);
+
+        complete_user_login($user, $this->get_extrauserinfo());
         $this->update_picture($user);
         redirect($redirecturl);
     }

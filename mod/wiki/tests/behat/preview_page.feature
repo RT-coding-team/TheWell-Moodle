@@ -20,7 +20,6 @@ Feature: Edited wiki pages may be previewed before saving
       | activity      | wiki                  |
       | course        | C1                    |
       | name          | Test wiki name        |
-      | intro         | Test wiki description |
       | wikimode      | collaborative         |
     And I am on the "Test wiki name" "wiki activity" page logged in as student1
     When I press "Create page"
@@ -32,7 +31,7 @@ Feature: Edited wiki pages may be previewed before saving
     And I should see "Student page contents to be previewed"
     And I press "Save"
     And I should see "Student page contents to be previewed"
-    And I follow "Edit"
+    And I select "Edit" from the "jump" singleselect
 
   @javascript
   Scenario: Page contents preview before saving with Javascript enabled

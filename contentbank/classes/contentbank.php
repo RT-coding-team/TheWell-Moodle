@@ -215,8 +215,7 @@ class contentbank {
 
         $records = $DB->get_records_select('contentbank_content', $sql, $params, 'name ASC');
         foreach ($records as $record) {
-            $contentclass = "\\$record->contenttype\\content";
-            $content = new $contentclass($record);
+            $content = $this->get_content_from_id($record->id);
             if ($content->is_view_allowed()) {
                 $contents[] = $content;
             }
@@ -225,11 +224,40 @@ class contentbank {
         return $contents;
     }
 
+
+    /**
+     * Return all the context where a user has all the given capabilities.
+     *
+     * @param  string $capability The capability the user needs to have.
+     * @param  int|null $userid Optional userid. $USER by default.
+     * @return array Array of the courses and course categories where the user has the given capability.
+     */
+    public function get_contexts_with_capabilities_by_user($capability = 'moodle/contentbank:access', $userid = null): array {
+        global $USER;
+
+        if (!$userid) {
+            $userid = $USER->id;
+        }
+
+        $categoriescache = \cache::make('core', 'contentbank_allowed_categories');
+        $coursescache = \cache::make('core', 'contentbank_allowed_courses');
+
+        $categories = $categoriescache->get($userid);
+        $courses = $coursescache->get($userid);
+
+        if ($categories === false || $courses === false) {
+            list($categories, $courses) = get_user_capability_contexts($capability, true, $userid, true,
+                'fullname, ctxlevel, ctxinstance, ctxid', 'name, ctxlevel, ctxinstance, ctxid', 'fullname', 'name');
+            $categoriescache->set($userid, $categories);
+            $coursescache->set($userid, $courses);
+        }
+
+        return [$categories, $courses];
+    }
+
     /**
      * Create content from a file information.
      *
-     * @throws file_exception If file operations fail
-     * @throws dml_exception if the content creation fails
      * @param \context $context Context where to upload the file and content.
      * @param int $userid Id of the user uploading the file.
      * @param stored_file $file The file to get information from
@@ -267,14 +295,10 @@ class contentbank {
         $result = true;
         $records = $DB->get_records('contentbank_content', ['contextid' => $context->id]);
         foreach ($records as $record) {
-            $contenttypeclass = "\\$record->contenttype\\contenttype";
-            if (class_exists($contenttypeclass)) {
-                $contenttype = new $contenttypeclass($context);
-                $contentclass = "\\$record->contenttype\\content";
-                $content = new $contentclass($record);
-                if (!$contenttype->delete_content($content)) {
-                    $result = false;
-                }
+            $content = $this->get_content_from_id($record->id);
+            $contenttype = $content->get_content_type_instance();
+            if (!$contenttype->delete_content($content)) {
+                $result = false;
             }
         }
         return $result;
@@ -293,14 +317,10 @@ class contentbank {
         $result = true;
         $records = $DB->get_records('contentbank_content', ['contextid' => $from->id]);
         foreach ($records as $record) {
-            $contenttypeclass = "\\$record->contenttype\\contenttype";
-            if (class_exists($contenttypeclass)) {
-                $contenttype = new $contenttypeclass($from);
-                $contentclass = "\\$record->contenttype\\content";
-                $content = new $contentclass($record);
-                if (!$contenttype->move_content($content, $to)) {
-                    $result = false;
-                }
+            $content = $this->get_content_from_id($record->id);
+            $contenttype = $content->get_content_type_instance();
+            if (!$contenttype->move_content($content, $to)) {
+                $result = false;
             }
         }
         return $result;

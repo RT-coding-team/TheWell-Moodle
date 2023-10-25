@@ -71,6 +71,7 @@ $string['browse'] = 'Preview';
 $string['browsed'] = 'Browsed';
 $string['browsemode'] = 'Preview mode';
 $string['browserepository'] = 'Browse repository';
+$string['cachedef_elements'] = 'Element cache';
 $string['calculatedweight'] = 'Calculated weight';
 $string['calendarend'] = '{$a} closes';
 $string['calendarstart'] = '{$a} opens';
@@ -81,12 +82,16 @@ $string['collapsetocwinsize'] = 'Collapse TOC when window size below';
 $string['collapsetocwinsizedesc'] = 'This setting lets you specify the window size below which the TOC should automatically collapse.';
 $string['compatibilitysettings'] = 'Compatibility settings';
 $string['completed'] = 'Completed';
+$string['completiondetail:completionstatuspassed'] = 'Pass the activity';
+$string['completiondetail:completionstatuscompleted'] = 'Complete the activity';
+$string['completiondetail:completionstatuscompletedorpassed'] = 'Complete or pass the activity';
+$string['completiondetail:completionscore'] = 'Receive a score of {$a} or more';
+$string['completiondetail:allscos'] = 'Do all parts of this activity';
 $string['completionscorerequired'] = 'Require minimum score';
 $string['completionscorerequireddesc'] = 'Minimum score of {$a} is required for completion';
-$string['completionscorerequired_help'] = 'Enabling this setting will require a user to have at least the minimum score entered to be marked complete in this SCORM activity, as well as any other Activity Completion requirements.';
 $string['completionstatus_passed'] = 'Passed';
 $string['completionstatus_completed'] = 'Completed';
-$string['completionstatusallscos'] = 'Require all scos to return completion status';
+$string['completionstatusallscos'] = 'All SCOs must return completion status';
 $string['completionstatusallscos_help'] = 'Some SCORM packages contain multiple components or "scos" - when this is enabled all scos within the package must return the relevant lesson_status for this activity to be flagged complete.';
 $string['completionstatusrequired'] = 'Require status';
 $string['completionstatusrequireddesc'] = 'Student must achieve at least one of the following statuses: {$a}';
@@ -109,8 +114,6 @@ $string['details'] = 'Track details';
 $string['directories'] = 'Show the directory links';
 $string['disabled'] = 'Disabled';
 $string['display'] = 'Display package';
-$string['displayactivityname'] = 'Display activity name';
-$string['displayactivityname_help'] = 'Whether or not to display the activity name above the SCORM player.';
 $string['displayattemptstatus'] = 'Display attempt status';
 $string['displayattemptstatus_help'] = 'This preference allows a summary of the users attempts to show in the course overview block in Dashboard and/or the SCORM entry page.';
 $string['displayattemptstatusdesc'] = 'Whether a summary of the user\'s attempts is shown in the course overview block in Dashboard and/or the SCORM entry page.';
@@ -208,8 +211,9 @@ $string['indicator:socialbreadth_help'] = 'This indicator is based on the social
 $string['indicator:socialbreadthdef'] = 'SCORM social';
 $string['indicator:socialbreadthdef_help'] = 'The participant has reached this percentage of the social engagement offered by the SCORM activities during this analysis interval (Levels = No participation, Participant alone)';
 $string['indicator:socialbreadthdef_link'] = 'Learning_analytics_indicators#Social_breadth';
-$string['info'] = 'Info';
+
 $string['interactions'] = 'Interactions';
+$string['largetrackupgrade'] = 'This next upgrade step may take some time to complete, your site has {$a} SCORM track records that need to be migrated to the new table structure, please be patient as a progress bar is not able to be displayed.';
 $string['masteryoverride'] = 'Mastery score overrides status';
 $string['masteryoverride_help'] = 'If enabled and a mastery score is provided, when LMSFinish is called and a raw score has been set, status will be recalculated using the raw score and mastery score and any status provided by the SCORM (including "incomplete") will be overridden.';
 $string['masteryoverridedesc'] = 'This preference sets the default for the mastery score override setting';
@@ -351,7 +355,7 @@ $string['privacy:metadata:attempt'] = 'The attempt number';
 $string['privacy:metadata:scoes_track:element'] = 'The name of the element to be tracked';
 $string['privacy:metadata:scoes_track:value'] = 'The value of the given element';
 $string['privacy:metadata:scorm_aicc_session'] = 'The session information of the AICC HACP';
-$string['privacy:metadata:scorm_scoes_track'] = 'The tracked data of the SCOes belonging to the activity';
+$string['privacy:metadata:scorm_attempt'] = 'The SCORM attempts made by a user';
 $string['privacy:metadata:timemodified'] = 'The time when the tracked element was last modified';
 $string['privacy:metadata:userid'] = 'The ID of the user who accessed the SCORM activity';
 $string['protectpackagedownloads'] = 'Protect package downloads';
@@ -451,5 +455,10 @@ $string['width'] = 'Width';
 $string['window'] = 'Window';
 $string['youmustselectastatus'] = 'You must select a status to require';
 
-// Deprecated since Moodle 3.8.
-$string['duedate'] = 'Due date';
+// Deprecated since Moodle 4.0.
+$string['info'] = 'Info';
+$string['displayactivityname'] = 'Display activity name';
+$string['displayactivityname_help'] = 'Whether or not to display the activity name above the SCORM player.';
+
+// Deprecated since Moodle 4.3.
+$string['completionscorerequired_help'] = 'Enabling this setting will require a user to have at least the minimum score entered to be marked complete in this SCORM activity, as well as any other Activity Completion requirements.';

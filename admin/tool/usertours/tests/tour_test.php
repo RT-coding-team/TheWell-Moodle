@@ -14,21 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Tests for tour.
- *
- * @package    tool_usertours
- * @copyright  2016 Andrew Nicols <andrew@nicols.co.uk>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace tool_usertours;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->libdir . '/formslib.php');
 
-use tool_usertours\tour;
-
 /**
  * Tests for tour.
  *
@@ -36,7 +28,7 @@ use tool_usertours\tour;
  * @copyright  2016 Andrew Nicols <andrew@nicols.co.uk>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class tour_testcase extends advanced_testcase {
+class tour_test extends \advanced_testcase {
 
     /**
      * @var moodle_database
@@ -193,7 +185,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_persist_non_dirty() {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods(['to_record'])
+            ->onlyMethods(['to_record'])
             ->getMock()
             ;
 
@@ -223,7 +215,7 @@ class tour_testcase extends advanced_testcase {
 
         // Mock the tour.
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'to_record',
                     'reload',
                 ])
@@ -272,7 +264,7 @@ class tour_testcase extends advanced_testcase {
 
         // Mock the tour.
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'to_record',
                     'reload',
                 ])
@@ -312,7 +304,7 @@ class tour_testcase extends advanced_testcase {
 
         // Mock the tour.
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'to_record',
                     'reload',
                 ])
@@ -360,7 +352,7 @@ class tour_testcase extends advanced_testcase {
 
         // Mock the tour.
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'to_record',
                     'reload',
                 ])
@@ -518,7 +510,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_remove_non_persisted() {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_steps',
                 ])
             ->getMock()
@@ -544,7 +536,7 @@ class tour_testcase extends advanced_testcase {
         $id = rand(1, 100);
 
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_steps',
                 ])
             ->getMock()
@@ -556,7 +548,7 @@ class tour_testcase extends advanced_testcase {
         $rcp->setValue($tour, $id);
 
         $step = $this->getMockBuilder(\tool_usertours\step::class)
-            ->setMethods([
+            ->onlyMethods([
                     'remove',
                 ])
             ->getMock()
@@ -683,7 +675,7 @@ class tour_testcase extends advanced_testcase {
         $this->setAdminUser();
 
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_id',
                     'get_config',
                     'is_enabled',
@@ -781,7 +773,7 @@ class tour_testcase extends advanced_testcase {
         $this->setAdminUser();
 
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_config',
                     'set_config',
                     'get_id',
@@ -828,7 +820,7 @@ class tour_testcase extends advanced_testcase {
             set_user_preference(\tool_usertours\tour::TOUR_REQUESTED_BY_USER . $id, $userpref);
         }
 
-        $this->assertRegExp(
+        $this->assertMatchesRegularExpression(
                 '/' . $expectation . '/',
                 $tour->get_tour_key()
             );
@@ -839,7 +831,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_requested_user_reset() {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_id',
                 ])
             ->getMock()
@@ -863,7 +855,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_mark_user_completed() {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods([
+            ->onlyMethods([
                     'get_id',
                 ])
             ->getMock()
@@ -1039,7 +1031,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_get_filter_values($fullconfig, $filtername, $expectedvalues) {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods(['get_config'])
+            ->onlyMethods(['get_config'])
             ->getMock();
 
         $tour->expects($this->once())
@@ -1097,7 +1089,7 @@ class tour_testcase extends advanced_testcase {
      */
     public function test_set_filter_values_merge($currentvalues, $filtername, $newvalues, $expectedvalues) {
         $tour = $this->getMockBuilder(tour::class)
-            ->setMethods(['get_config', 'set_config'])
+            ->onlyMethods(['get_config', 'set_config'])
             ->getMock();
 
         $tour->expects($this->once())

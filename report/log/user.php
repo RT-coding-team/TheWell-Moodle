@@ -59,7 +59,7 @@ if ($USER->id != $user->id and has_capability('moodle/user:viewuseractivitiesrep
 list($all, $today) = report_log_can_access_user_report($user, $course);
 
 if (!$today && !$all) {
-    print_error('nocapability', 'report_log');
+    throw new \moodle_exception('nocapability', 'report_log');
 }
 
 if ($mode === 'today') {
@@ -79,6 +79,7 @@ $PAGE->set_url('/report/log/user.php', array('id' => $user->id, 'course' => $cou
 $PAGE->navigation->extend_for_user($user);
 $PAGE->navigation->set_userid_for_parent_checks($user->id); // see MDL-25805 for reasons and for full commit reference for reversal when fixed.
 $PAGE->set_title("$course->shortname: $stractivityreport");
+$PAGE->navbar->add(get_string('alllogs'));
 
 // Create the appropriate breadcrumb.
 $navigationnode = array(
@@ -110,6 +111,11 @@ if ($courseid != SITEID) {
             'usercontext' => $personalcontext,
         );
     echo $OUTPUT->context_header($userheading, 2);
+    if ($mode === 'today') {
+        echo $OUTPUT->heading(get_string('todaylogs', 'moodle'), 2, 'main mt-4 mb-4');
+    } else {
+        echo $OUTPUT->heading(get_string('alllogs', 'moodle'), 2, 'main mt-4 mb-4');
+    }
 }
 
 // Time to filter records from.
@@ -130,10 +136,6 @@ if (!empty($reportlog->selectedlogreader)) {
 }
 
 echo $output->reader_selector($reportlog);
-
-if ($mode === 'all') {
-    $reportlog->selecteddate = 0;
-}
 
 // Print the graphic chart accordingly to the mode (all, today).
 echo '<div class="graph">';

@@ -26,6 +26,7 @@
 // NOTE: no MOODLE_INTERNAL test here, this file may be required by behat before including /config.php.
 
 use Behat\Mink\Exception\ElementNotFoundException as ElementNotFoundException;
+use Behat\Gherkin\Node\TableNode as TableNode;
 
 require_once(__DIR__ . '/../../../lib/behat/behat_base.php');
 
@@ -47,13 +48,55 @@ class behat_blocks extends behat_base {
      */
     public function i_add_the_block($blockname) {
         $addblock = get_string('addblock');
-        $this->execute('behat_navigation::i_select_from_flat_navigation_drawer', $addblock);
+        $this->execute('behat_general::i_click_on_in_the', [$addblock, 'link_exact', '.add_block_button', 'css_element']);
 
         if (!$this->running_javascript()) {
             $this->execute('behat_general::i_click_on_in_the', [$blockname, 'link_exact', '#region-main', 'css_element']);
         } else {
             $this->execute('behat_general::i_click_on_in_the', [$blockname, 'link_exact', $addblock, 'dialogue']);
         }
+    }
+
+    /**
+     * Adds the selected block to the specified region
+     *
+     * Editing mode must be previously enabled.
+     *
+     * @Given /^I add the "(?P<block_name_string>(?:[^"]|\\")*)" block to the "(?P<region_string>(?:[^"]|\\")*)" region$/
+     * @param string $blockname
+     * @param string $region
+     */
+    public function i_add_the_block_to_the_region(string $blockname, string $region) {
+        if (!$this->running_javascript()) {
+            throw new coding_exception('Adding block to specific region is not possible with Javascript disabled');
+        }
+        if ($region === "default") {
+            $region = "";
+        }
+        $csselement = 'a[data-key="addblock"][data-blockregion='.behat_context_helper::escape($region).']';
+        $addblock = get_string('addblock');
+        $this->execute('behat_general::i_click_on', [$csselement, 'css_element']);
+        $this->execute('behat_general::i_click_on_in_the', [$blockname, 'link_exact', $addblock, 'dialogue']);
+    }
+
+    /**
+     * Adds the selected block to the specified region and fills configuration form.
+     *
+     * Editing mode must be previously enabled.
+     *
+     * @Given /^I add the "(?P<block_name_string>(?:[^"]|\\")*)" block to the (?P<region_string>(?:[^"]|\\")*) region with:$/
+     * @param string $blockname
+     * @param string $region
+     * @param TableNode $data
+     */
+    public function i_add_the_block_to_the_region_with(string $blockname, string $region, TableNode $data) {
+        $blocklabel = get_string('textellipsis', 'moodle', $blockname);
+        $this->execute('behat_blocks::i_add_the_block_to_the_region', [$blocklabel, $region]);
+        $this->wait_for_pending_js();
+        $dialogname = get_string('addblock', 'core_block', $blockname);
+        $this->execute('behat_forms::i_set_the_following_fields_in_container_to_these_values',
+            [$dialogname, "dialogue", $data]);
+        $this->execute('behat_general::i_click_on_in_the', ["Save changes", 'button', $dialogname, 'dialogue']);
     }
 
     /**
@@ -121,7 +164,8 @@ class behat_blocks extends behat_base {
      */
     public function the_add_block_selector_should_contain_block($blockname) {
         $addblock = get_string('addblock');
-        $this->execute('behat_navigation::i_select_from_flat_navigation_drawer', $addblock);
+        $this->execute('behat_general::i_click_on', [$addblock, 'link_exact']);
+
 
         $cancelstr = get_string('cancel');
         if (!$this->running_javascript()) {
@@ -141,7 +185,8 @@ class behat_blocks extends behat_base {
      */
     public function the_add_block_selector_should_not_contain_block($blockname) {
         $addblock = get_string('addblock');
-        $this->execute('behat_navigation::i_select_from_flat_navigation_drawer', $addblock);
+        $this->execute('behat_general::i_click_on', [$addblock, 'link_exact']);
+
 
         $cancelstr = get_string('cancel');
         if (!$this->running_javascript()) {

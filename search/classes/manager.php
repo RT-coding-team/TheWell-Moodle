@@ -264,12 +264,44 @@ class manager {
     }
 
     /**
+     * Tests if global search is configured to be equivalent to the front page course search.
+     *
+     * @return bool
+     */
+    public static function can_replace_course_search(): bool {
+        global $CFG;
+
+        // Assume we can replace front page search.
+        $canreplace = true;
+
+        // Global search must be enabled.
+        if (!static::is_global_search_enabled()) {
+            $canreplace = false;
+        }
+
+        // Users must be able to search the details of all courses that they can see,
+        // even if they do not have access to them.
+        if (empty($CFG->searchincludeallcourses)) {
+            $canreplace = false;
+        }
+
+        // Course search must be enabled.
+        if ($canreplace) {
+            $areaid = static::generate_areaid('core_course', 'course');
+            $enabledareas = static::get_search_areas_list(true);
+            $canreplace = isset($enabledareas[$areaid]);
+        }
+
+        return $canreplace;
+    }
+
+    /**
      * Returns the search URL for course search
      *
      * @return moodle_url
      */
     public static function get_course_search_url() {
-        if (self::is_global_search_enabled()) {
+        if (self::can_replace_course_search()) {
             $searchurl = '/search/index.php';
         } else {
             $searchurl = '/course/search.php';
@@ -480,7 +512,7 @@ class manager {
 
             // Sort categories by order.
             uasort($categories, function($category1, $category2) {
-                return $category1->get_order() > $category2->get_order();
+                return $category1->get_order() <=> $category2->get_order();
             });
 
             static::$searchareacategories = $categories;
@@ -585,6 +617,8 @@ class manager {
         static::$allsearchareas = null;
         static::$instance = null;
         static::$searchareacategories = null;
+        static::$coursedeleting = [];
+        static::$phpunitfaketime = null;
 
         base_block::clear_static();
         engine::clear_users_cache();
@@ -1057,6 +1091,68 @@ class manager {
     }
 
     /**
+     * Search for top ranked result.
+     * @param \stdClass $formdata search query data
+     * @return array|document[]
+     */
+    public function search_top(\stdClass $formdata): array {
+        global $USER;
+
+        // Return if the config value is set to 0.
+        $maxtopresult = get_config('core', 'searchmaxtopresults');
+        if (empty($maxtopresult)) {
+            return [];
+        }
+
+        // Only process if 'searchenablecategories' is set.
+        if (self::is_search_area_categories_enabled() && !empty($formdata->cat)) {
+            $cat = self::get_search_area_category_by_name($formdata->cat);
+            $formdata->areaids = array_keys($cat->get_areas());
+        } else {
+            return [];
+        }
+        $docs = $this->search($formdata);
+
+        // Look for course, teacher and course content.
+        $coursedocs = [];
+        $courseteacherdocs = [];
+        $coursecontentdocs = [];
+        $otherdocs = [];
+        foreach ($docs as $doc) {
+            if ($doc->get('areaid') === 'core_course-course' && stripos($doc->get('title'), $formdata->q) !== false) {
+                $coursedocs[] = $doc;
+            } else if (strpos($doc->get('areaid'), 'course_teacher') !== false
+                && stripos($doc->get('content'), $formdata->q) !== false) {
+                $courseteacherdocs[] = $doc;
+            } else if (strpos($doc->get('areaid'), 'mod_') !== false) {
+                $coursecontentdocs[] = $doc;
+            } else {
+                $otherdocs[] = $doc;
+            }
+        }
+
+        // Swap current courses to top.
+        $enroledcourses = $this->get_my_courses(false);
+        // Move current courses of the user to top.
+        foreach ($enroledcourses as $course) {
+            $completion = new \completion_info($course);
+            if (!$completion->is_course_complete($USER->id)) {
+                foreach ($coursedocs as $index => $doc) {
+                    $areaid = $doc->get('areaid');
+                    if ($areaid == 'core_course-course' && $course->id == $doc->get('courseid')) {
+                        unset($coursedocs[$index]);
+                        array_unshift($coursedocs, $doc);
+                    }
+                }
+            }
+        }
+
+        $maxtopresult = get_config('core', 'searchmaxtopresults');
+        $result = array_merge($coursedocs, $courseteacherdocs, $coursecontentdocs, $otherdocs);
+        return array_slice($result, 0, $maxtopresult);
+    }
+
+    /**
      * Build a list of course ids to limit the search based on submitted form data.
      *
      * @param \stdClass $formdata Submitted search form data.
@@ -1193,15 +1289,8 @@ class manager {
                 if ($batches !== $numdocs + $numdocsignored) {
                     $batchinfo = ' (' . $batches . ' batch' . ($batches === 1 ? '' : 'es') . ')';
                 }
-            } else if (count($result) === 5) {
-                // Backward compatibility for engines that don't return a batch count.
-                [$numrecords, $numdocs, $numdocsignored, $lastindexeddoc, $partial] = $result;
-                // Deprecated since Moodle 3.10 MDL-68690.
-                // TODO: MDL-68776 This will be deleted in Moodle 4.2.
-                debugging('engine::add_documents() should return $batches (5-value return is deprecated)',
-                        DEBUG_DEVELOPER);
             } else {
-                throw new coding_exception('engine::add_documents() should return $partial (4-value return is deprecated)');
+                throw new \coding_exception('engine::add_documents() should return 6 values');
             }
 
             if ($numdocs > 0) {
@@ -1358,19 +1447,8 @@ class manager {
                 if ($batches !== $numdocs + $numdocsignored) {
                     $batchinfo = ' (' . $batches . ' batch' . ($batches === 1 ? '' : 'es') . ')';
                 }
-            } else if (count($result) === 5) {
-                // Backward compatibility for engines that don't return a batch count.
-                [$numrecords, $numdocs, $numdocsignored, $lastindexeddoc, $partial] = $result;
-                // Deprecated since Moodle 3.10 MDL-68690.
-                // TODO: MDL-68776 This will be deleted in Moodle 4.2 (as should the below bit).
-                debugging('engine::add_documents() should return $batches (5-value return is deprecated)',
-                        DEBUG_DEVELOPER);
             } else {
-                // Backward compatibility for engines that don't support partial adding.
-                list($numrecords, $numdocs, $numdocsignored, $lastindexeddoc) = $result;
-                debugging('engine::add_documents() should return $partial (4-value return is deprecated)',
-                        DEBUG_DEVELOPER);
-                $partial = false;
+                throw new \coding_exception('engine::add_documents() should return 6 values');
             }
 
             if ($numdocs > 0) {

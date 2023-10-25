@@ -301,33 +301,6 @@ function theme_set_designer_mod($state) {
 }
 
 /**
- * Checks if the given device has a theme defined in config.php.
- *
- * @return bool
- */
-function theme_is_device_locked($device) {
-    global $CFG;
-    $themeconfigname = core_useragent::get_device_type_cfg_var_name($device);
-    return isset($CFG->config_php_settings[$themeconfigname]);
-}
-
-/**
- * Returns the theme named defined in config.php for the given device.
- *
- * @return string or null
- */
-function theme_get_locked_theme_for_device($device) {
-    global $CFG;
-
-    if (!theme_is_device_locked($device)) {
-        return null;
-    }
-
-    $themeconfigname = core_useragent::get_device_type_cfg_var_name($device);
-    return $CFG->config_php_settings[$themeconfigname];
-}
-
-/**
  * This class represents the configuration variables of a Moodle theme.
  *
  * All the variables with access: public below (with a few exceptions that are marked)
@@ -678,6 +651,49 @@ class theme_config {
     public $precompiledcsscallback = null;
 
     /**
+     * Whether the theme uses course index.
+     * @var bool
+     */
+    public $usescourseindex = false;
+
+    /**
+     * Configuration for the page activity header
+     * @var array
+     */
+    public $activityheaderconfig = [];
+
+    /**
+     * For backward compatibility with old themes.
+     * BLOCK_ADDBLOCK_POSITION_DEFAULT, BLOCK_ADDBLOCK_POSITION_FLATNAV.
+     * @var int
+     */
+    public $addblockposition;
+
+    /**
+     * editor_scss file(s) provided by this theme.
+     * @var array
+     */
+    public $editor_scss;
+
+    /**
+     * Name of the class extending \core\output\icon_system.
+     * @var string
+     */
+    public $iconsystem;
+
+    /**
+     * Theme defines its own editing mode switch.
+     * @var bool
+     */
+    public $haseditswitch = false;
+
+    /**
+     * Allows a theme to customise primary navigation by specifying the list of items to remove.
+     * @var array
+     */
+    public $removedprimarynavitems = [];
+
+    /**
      * Load the config.php file for a particular theme, and return an instance
      * of this class. (That is, this is a factory method.)
      *
@@ -747,14 +763,17 @@ class theme_config {
             $baseconfig = $config;
         }
 
-        $configurable = array(
+        // Ensure that each of the configurable properties defined below are also defined at the class level.
+        $configurable = [
             'parents', 'sheets', 'parents_exclude_sheets', 'plugins_exclude_sheets', 'usefallback',
             'javascripts', 'javascripts_footer', 'parents_exclude_javascripts',
             'layouts', 'enablecourseajax', 'requiredblocks',
             'rendererfactory', 'csspostprocess', 'editor_sheets', 'editor_scss', 'rarrow', 'larrow', 'uarrow', 'darrow',
             'hidefromselector', 'doctype', 'yuicssmodules', 'blockrtlmanipulations', 'blockrendermethod',
             'scss', 'extrascsscallback', 'prescsscallback', 'csstreepostprocessor', 'addblockposition',
-            'iconsystem', 'precompiledcsscallback');
+            'iconsystem', 'precompiledcsscallback', 'haseditswitch', 'usescourseindex', 'activityheaderconfig',
+            'removedprimarynavitems',
+        ];
 
         foreach ($config as $key=>$value) {
             if (in_array($key, $configurable)) {
@@ -911,6 +930,11 @@ class theme_config {
     public function editor_css_url($encoded=true) {
         global $CFG;
         $rev = theme_get_revision();
+        $type = 'editor';
+        if (right_to_left()) {
+            $type .= '-rtl';
+        }
+
         if ($rev > -1) {
             $themesubrevision = theme_get_sub_revision_for_theme($this->name);
 
@@ -922,13 +946,19 @@ class theme_config {
 
             $url = new moodle_url("/theme/styles.php");
             if (!empty($CFG->slasharguments)) {
-                $url->set_slashargument('/'.$this->name.'/'.$rev.'/editor', 'noparam', true);
+                $url->set_slashargument("/{$this->name}/{$rev}/{$type}", 'noparam', true);
             } else {
-                $url->params(array('theme'=>$this->name,'rev'=>$rev, 'type'=>'editor'));
+                $url->params([
+                    'theme' => $this->name,
+                    'rev' => $rev,
+                    'type' => $type,
+                ]);
             }
         } else {
-            $params = array('theme'=>$this->name, 'type'=>'editor');
-            $url = new moodle_url('/theme/styles_debug.php', $params);
+            $url = new moodle_url('/theme/styles_debug.php', [
+                'theme' => $this->name,
+                'type' => $type,
+            ]);
         }
         return $url;
     }
@@ -943,12 +973,25 @@ class theme_config {
 
         // First editor plugins.
         $plugins = core_component::get_plugin_list('editor');
-        foreach ($plugins as $plugin=>$fulldir) {
+        foreach ($plugins as $plugin => $fulldir) {
             $sheetfile = "$fulldir/editor_styles.css";
             if (is_readable($sheetfile)) {
                 $files['plugin_'.$plugin] = $sheetfile;
             }
+
+            $subplugintypes = core_component::get_subplugins("editor_{$plugin}") ?? [];
+            // Fetch sheets for any editor subplugins.
+            foreach ($subplugintypes as $plugintype => $subplugins) {
+                foreach ($subplugins as $subplugin) {
+                    $plugindir = core_component::get_plugin_directory($plugintype, $subplugin);
+                    $sheetfile = "{$plugindir}/editor_styles.css";
+                    if (is_readable($sheetfile)) {
+                        $files["{$plugintype}_{$subplugin}"] = $sheetfile;
+                    }
+                }
+            }
         }
+
         // Then parent themes - base first, the immediate parent last.
         foreach (array_reverse($this->parent_configs) as $parent_config) {
             if (empty($parent_config->editor_sheets)) {
@@ -1555,13 +1598,16 @@ class theme_config {
 
         // Getting all the candidate functions.
         $candidates = array();
-        foreach ($this->parent_configs as $parent_config) {
+        foreach (array_reverse($this->parent_configs) as $parent_config) {
             if (!isset($parent_config->extrascsscallback)) {
                 continue;
             }
             $candidates[] = $parent_config->extrascsscallback;
         }
-        $candidates[] = $this->extrascsscallback;
+
+        if (isset($this->extrascsscallback)) {
+            $candidates[] = $this->extrascsscallback;
+        }
 
         // Calling the functions.
         foreach ($candidates as $function) {
@@ -1585,13 +1631,16 @@ class theme_config {
 
         // Getting all the candidate functions.
         $candidates = array();
-        foreach ($this->parent_configs as $parent_config) {
+        foreach (array_reverse($this->parent_configs) as $parent_config) {
             if (!isset($parent_config->prescsscallback)) {
                 continue;
             }
             $candidates[] = $parent_config->prescsscallback;
         }
-        $candidates[] = $this->prescsscallback;
+
+        if (isset($this->prescsscallback)) {
+            $candidates[] = $this->prescsscallback;
+        }
 
         // Calling the functions.
         foreach ($candidates as $function) {
@@ -1816,7 +1865,7 @@ class theme_config {
         // Now resolve all theme settings or do any other postprocessing.
         // This needs to be done before calling core parser, since the parser strips [[settings]] tags.
         $csspostprocess = $this->csspostprocess;
-        if (function_exists($csspostprocess)) {
+        if ($csspostprocess && function_exists($csspostprocess)) {
             $css = $csspostprocess($css, $this);
         }
 
@@ -2044,8 +2093,7 @@ class theme_config {
      *
      * @param string $image name of image, may contain relative path
      * @param string $component
-     * @param bool $svg|null Should SVG images also be looked for? If null, resorts to $CFG->svgicons if that is set; falls back to
-     * auto-detection of browser support otherwise
+     * @param bool $svg|null Should SVG images also be looked for? If null, falls back to auto-detection of browser support
      * @return string full file path
      */
     public function resolve_image_location($image, $component, $svg = false) {
@@ -2089,24 +2137,45 @@ class theme_config {
 
         } else {
             if (strpos($component, '_') === false) {
-                $component = 'mod_'.$component;
+                $component = "mod_{$component}";
             }
             list($type, $plugin) = explode('_', $component, 2);
 
-            if ($imagefile = $this->image_exists("$this->dir/pix_plugins/$type/$plugin/$image", $svg)) {
-                return $imagefile;
-            }
-            foreach (array_reverse($this->parent_configs) as $parent_config) { // base first, the immediate parent last
-                if ($imagefile = $this->image_exists("$parent_config->dir/pix_plugins/$type/$plugin/$image", $svg)) {
-                    return $imagefile;
+            // In Moodle 4.0 we introduced a new image format.
+            // Support that image format here.
+            $candidates = [$image];
+
+            if ($type === 'mod') {
+                if ($image === 'icon' || $image === 'monologo') {
+                    $candidates = ['monologo', 'icon'];
+                    if ($image === 'icon') {
+                        debugging(
+                            "The 'icon' image for activity modules has been replaced with a new 'monologo'. " .
+                                "Please update your calling code to fetch the new icon where possible. " .
+                                "Called for component {$component}.",
+                            DEBUG_DEVELOPER
+                        );
+                    }
                 }
             }
-            if ($imagefile = $this->image_exists("$CFG->dataroot/pix_plugins/$type/$plugin/$image", $svg)) {
-                return $imagefile;
-            }
-            $dir = core_component::get_plugin_directory($type, $plugin);
-            if ($imagefile = $this->image_exists("$dir/pix/$image", $svg)) {
-                return $imagefile;
+            foreach ($candidates as $image) {
+                if ($imagefile = $this->image_exists("$this->dir/pix_plugins/$type/$plugin/$image", $svg)) {
+                    return $imagefile;
+                }
+
+                // Base first, the immediate parent last.
+                foreach (array_reverse($this->parent_configs) as $parentconfig) {
+                    if ($imagefile = $this->image_exists("$parentconfig->dir/pix_plugins/$type/$plugin/$image", $svg)) {
+                        return $imagefile;
+                    }
+                }
+                if ($imagefile = $this->image_exists("$CFG->dataroot/pix_plugins/$type/$plugin/$image", $svg)) {
+                    return $imagefile;
+                }
+                $dir = core_component::get_plugin_directory($type, $plugin);
+                if ($imagefile = $this->image_exists("$dir/pix/$image", $svg)) {
+                    return $imagefile;
+                }
             }
             return null;
         }
@@ -2181,16 +2250,10 @@ class theme_config {
      * @return bool
      */
     public function use_svg_icons() {
-        global $CFG;
         if ($this->usesvg === null) {
-
-            if (!isset($CFG->svgicons)) {
-                $this->usesvg = core_useragent::supports_svg();
-            } else {
-                // Force them on/off depending upon the setting.
-                $this->usesvg = (bool)$CFG->svgicons;
-            }
+            $this->usesvg = core_useragent::supports_svg();
         }
+
         return $this->usesvg;
     }
 
@@ -2451,22 +2514,22 @@ class theme_config {
      * @return string
      */
     protected function get_region_name($region, $theme) {
-        $regionstring = get_string('region-' . $region, 'theme_' . $theme);
-        // A name exists in this theme, so use it
-        if (substr($regionstring, 0, 1) != '[') {
-            return $regionstring;
+
+        $stringman = get_string_manager();
+
+        // Check if the name is defined in the theme.
+        if ($stringman->string_exists('region-' . $region, 'theme_' . $theme)) {
+            return get_string('region-' . $region, 'theme_' . $theme);
         }
 
-        // Otherwise, try to find one elsewhere
-        // Check parents, if any
+        // Check the theme parents.
         foreach ($this->parents as $parentthemename) {
-            $regionstring = get_string('region-' . $region, 'theme_' . $parentthemename);
-            if (substr($regionstring, 0, 1) != '[') {
-                return $regionstring;
+            if ($stringman->string_exists('region-' . $region, 'theme_' . $parentthemename)) {
+                return get_string('region-' . $region, 'theme_' . $parentthemename);
             }
         }
 
-        // Last resort, try the boost theme for names
+        // Last resort, try the boost theme for names.
         return get_string('region-' . $region, 'theme_boost');
     }
 

@@ -32,7 +32,7 @@ $id = required_param('id', PARAM_INT);   // course
 $PAGE->set_url('/mod/lesson/index.php', array('id'=>$id));
 
 if (!$course = $DB->get_record("course", array("id" => $id))) {
-    print_error('invalidcourseid');
+    throw new \moodle_exception('invalidcourseid');
 }
 
 require_login($course);
@@ -72,7 +72,7 @@ $usesections = course_format_uses_sections($course->format);
 
 $timenow = time();
 $strname  = get_string("name");
-$strgrade  = get_string("grade");
+$strgrade  = get_string("gradenoun");
 $strdeadline  = get_string("deadline", "lesson");
 $strnodeadline = get_string("nodeadline", "lesson");
 $table = new html_table();

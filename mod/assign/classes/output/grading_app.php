@@ -57,19 +57,21 @@ class grading_app implements templatable, renderable {
     public $assignment = null;
 
     /**
+     * @var array - List of user records with extra fields.
+     */
+    public $participants = [];
+
+    /**
      * Constructor for this renderable.
      *
      * @param int $userid The user we will open the grading app too.
      * @param int $groupid If groups are enabled this is the current course group.
-     * @param assign $assignment The assignment class
+     * @param \assign $assignment The assignment class
      */
     public function __construct($userid, $groupid, $assignment) {
         $this->userid = $userid;
         $this->groupid = $groupid;
         $this->assignment = $assignment;
-        user_preference_allow_ajax_update('assign_filter', PARAM_ALPHA);
-        user_preference_allow_ajax_update('assign_workflowfilter', PARAM_ALPHA);
-        user_preference_allow_ajax_update('assign_markerfilter', PARAM_ALPHANUMEXT);
         $this->participants = $assignment->list_participants_with_filter_status_and_group($groupid);
         if (!$this->userid && count($this->participants)) {
             $this->userid = reset($this->participants)->id;
@@ -168,7 +170,8 @@ class grading_app implements templatable, renderable {
         $export->rarrow = $output->rarrow();
         $export->larrow = $output->larrow();
         // List of identity fields to display (the user info will not contain any fields the user cannot view anyway).
-        $export->showuseridentity = $CFG->showuseridentity;
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $export->showuseridentity = implode(',', \core_user\fields::get_identity_fields(null, false));
         $export->currentuserid = $USER->id;
         $helpicon = new \help_icon('sendstudentnotifications', 'assign');
         $export->helpicon = $helpicon->export_for_template($output);

@@ -1,4 +1,4 @@
-FROM php:7.4-fpm
+FROM php:8.2-fpm
 
 # Set working directory
 WORKDIR /var/www/html
@@ -24,11 +24,12 @@ RUN apt-get update && apt-get install -y \
     libmcrypt-dev \
     libonig-dev \
     libwebp-dev \
-    nano
+    nano \
+    exif
 
 RUN pecl install mcrypt-1.0.6 \
     docker-php-ext-enable mcrypt-1.0.6
-
+RUN pecl install channel://pecl.php.net/xmlrpc-1.0.0RC3  xmlrpc
 
 # Enable psql in PHP
 # https://github.com/docker-library/php/issues/221
@@ -37,12 +38,13 @@ RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql \
     && docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install gd \
     && docker-php-ext-install mbstring \
-    && docker-php-ext-enable gd
+    && docker-php-ext-enable gd \
+    && docker-php-ext-install exif
 
 # Install Extensions
 RUN docker-php-ext-install zip
 RUN docker-php-ext-install intl
-RUN docker-php-ext-install xmlrpc
+RUN docker-php-ext-enable xmlrpc
 RUN docker-php-ext-install soap
 
 CMD ["php-fpm"]

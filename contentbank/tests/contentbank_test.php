@@ -28,9 +28,12 @@ namespace core_contentbank;
 defined('MOODLE_INTERNAL') || die();
 
 use advanced_testcase;
+use context_block;
 use context_course;
 use context_coursecat;
+use context_module;
 use context_system;
+use context_user;
 use Exception;
 
 global $CFG;
@@ -46,7 +49,7 @@ require_once($CFG->dirroot . '/contentbank/tests/fixtures/testable_content.php')
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @coversDefaultClass \core_contentbank\contentbank
  */
-class core_contentbank_testcase extends advanced_testcase {
+class contentbank_test extends advanced_testcase {
 
     /**
      * Setup to ensure that fixtures are loaded.
@@ -206,9 +209,10 @@ class core_contentbank_testcase extends advanced_testcase {
      */
     public function test_search_contents(?string $search, string $where, int $expectedresult, array $contexts = [],
             array $contenttypes = null): void {
-        global $DB;
+        global $DB, $CFG;
 
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         // Create users.
         $managerroleid = $DB->get_field('role', 'id', ['shortname' => 'manager']);
@@ -230,11 +234,12 @@ class core_contentbank_testcase extends advanced_testcase {
         }
 
         // Add some content to the content bank.
+        $filepath = $CFG->dirroot . '/h5p/tests/fixtures/filltheblanks.h5p';
         $generator = $this->getDataGenerator()->get_plugin_generator('core_contentbank');
         foreach ($contexts as $context) {
             $contextinstance = $existingcontexts[$context];
             $records = $generator->generate_contentbank_data('contenttype_h5p', 3,
-                $manager->id, $contextinstance, false);
+                $manager->id, $contextinstance, false, $filepath);
         }
 
         // Search for some content.
@@ -357,12 +362,12 @@ class core_contentbank_testcase extends advanced_testcase {
      * @covers ::create_content_from_file
      */
     public function test_create_content_from_file() {
-        global $USER;
+        global $USER, $CFG;
 
         $this->resetAfterTest();
         $this->setAdminUser();
         $systemcontext = \context_system::instance();
-        $name = 'dummy_h5p.h5p';
+        $name = 'greeting-card.h5p';
 
         // Create a dummy H5P file.
         $dummyh5p = array(
@@ -374,8 +379,8 @@ class core_contentbank_testcase extends advanced_testcase {
             'filename' => $name,
             'userid' => $USER->id
         );
-        $fs = get_file_storage();
-        $dummyh5pfile = $fs->create_file_from_string($dummyh5p, 'Dummy H5Pcontent');
+        $path = $CFG->dirroot . '/h5p/tests/fixtures/' . $name;
+        $dummyh5pfile = \core_h5p\helper::create_fake_stored_file_from_path($path);
 
         $cb = new contentbank();
         $content = $cb->create_content_from_file($systemcontext, $USER->id, $dummyh5pfile);
@@ -558,7 +563,7 @@ class core_contentbank_testcase extends advanced_testcase {
             // Mock core_plugin_manager class and the method get_plugins_of_type.
             $pluginmanager = $this->getMockBuilder(\core_plugin_manager::class)
                 ->disableOriginalConstructor()
-                ->setMethods(['get_plugins_of_type'])
+                ->onlyMethods(['get_plugins_of_type'])
                 ->getMock();
 
             // Replace protected singletoninstance reference (core_plugin_manager property) with mock object.
@@ -635,72 +640,35 @@ class core_contentbank_testcase extends advanced_testcase {
     /**
      * Test the behaviour of is_context_allowed().
      *
-     * @dataProvider context_provider
-     * @param  \Closure $getcontext Get the context to check.
-     * @param  bool $expectedresult Expected result.
-     *
      * @covers ::is_context_allowed
      */
-    public function test_is_context_allowed(\Closure $getcontext, bool $expectedresult): void {
+    public function test_is_context_allowed(): void {
         $this->resetAfterTest();
 
         $cb = new contentbank();
-        $context = $getcontext();
-        $this->assertEquals($expectedresult, $cb->is_context_allowed($context));
-    }
 
-    /**
-     * Data provider for test_is_context_allowed().
-     *
-     * @return array
-     */
-    public function context_provider(): array {
+        // System context.
+        $this->assertTrue($cb->is_context_allowed(context_system::instance()));
 
-        return [
-            'System context' => [
-                function (): \context {
-                    return \context_system::instance();
-                },
-                true,
-            ],
-            'User context' => [
-                function (): \context {
-                    $user = $this->getDataGenerator()->create_user();
-                    return \context_user::instance($user->id);
-                },
-                false,
-            ],
-            'Course category context' => [
-                function (): \context {
-                    $coursecat = $this->getDataGenerator()->create_category();
-                    return \context_coursecat::instance($coursecat->id);
-                },
-                true,
-            ],
-            'Course context' => [
-                function (): \context {
-                    $course = $this->getDataGenerator()->create_course();
-                    return \context_course::instance($course->id);
-                },
-                true,
-            ],
-            'Module context' => [
-                function (): \context {
-                    $course = $this->getDataGenerator()->create_course();
-                    $module = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
-                    return \context_module::instance($module->cmid);
-                },
-                false,
-            ],
-            'Block context' => [
-                function (): \context {
-                    $course = $this->getDataGenerator()->create_course();
-                    $coursecontext = context_course::instance($course->id);
-                    $block = $this->getDataGenerator()->create_block('online_users', ['parentcontextid' => $coursecontext->id]);
-                    return \context_block::instance($block->id);
-                },
-                false,
-            ],
-        ];
+        // User context.
+        $user = $this->getDataGenerator()->create_user();
+        $this->assertFalse($cb->is_context_allowed(context_user::instance($user->id)));
+
+        // Category context.
+        $category = $this->getDataGenerator()->create_category();
+        $this->assertTrue($cb->is_context_allowed(context_coursecat::instance($category->id)));
+
+        // Course context.
+        $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $coursecontext = context_course::instance($course->id);
+        $this->assertTrue($cb->is_context_allowed($coursecontext));
+
+        // Module context.
+        $module = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
+        $this->assertFalse($cb->is_context_allowed(context_module::instance($module->cmid)));
+
+        // Block context.
+        $block = $this->getDataGenerator()->create_block('online_users', ['parentcontextid' => $coursecontext->id]);
+        $this->assertFalse($cb->is_context_allowed(context_block::instance($block->id)));
     }
 }

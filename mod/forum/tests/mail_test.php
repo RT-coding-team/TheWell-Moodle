@@ -14,14 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * The forum module mail generation tests.
- *
- * @package    mod_forum
- * @category   external
- * @copyright  2013 Andrew Nicols
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace mod_forum;
+
+use mod_forum_tests_generator_trait;
+use mod_forum_tests_cron_trait;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -30,7 +26,16 @@ require_once($CFG->dirroot . '/mod/forum/lib.php');
 require_once(__DIR__ . '/cron_trait.php');
 require_once(__DIR__ . '/generator_trait.php');
 
-class mod_forum_mail_testcase extends advanced_testcase {
+/**
+ * The forum module mail generation tests.
+ *
+ * @package    mod_forum
+ * @category   test
+ * @copyright  2013 Andrew Nicols
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ *
+ */
+class mail_test extends \advanced_testcase {
     // Make use of the cron tester trait.
     use mod_forum_tests_cron_trait;
 
@@ -46,6 +51,9 @@ class mod_forum_mail_testcase extends advanced_testcase {
      * @var \phpunit_mailer_sink
      */
     protected $mailsink;
+
+    /** @var \phpunit_event_sink */
+    protected $eventsink;
 
     public function setUp(): void {
         global $CFG;
@@ -240,7 +248,7 @@ class mod_forum_mail_testcase extends advanced_testcase {
 
         // A user with the manageactivities capability within the course can subscribe.
         $roleids = $DB->get_records_menu('role', null, '', 'shortname, id');
-        assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleids['student'], context_course::instance($course->id));
+        assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleids['student'], \context_course::instance($course->id));
 
         // Suscribe the recipient only.
         \mod_forum\subscriptions::subscribe_user($recipient->id, $forum);
@@ -289,7 +297,7 @@ class mod_forum_mail_testcase extends advanced_testcase {
 
         // A user with the manageactivities capability within the course can subscribe.
         $roleids = $DB->get_records_menu('role', null, '', 'shortname, id');
-        assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleids['student'], context_course::instance($course->id));
+        assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleids['student'], \context_course::instance($course->id));
 
         // Run cron and check that the expected number of users received the notification.
         list($discussion, $post) = $this->helper_post_to_forum($forum, $author);
@@ -865,8 +873,7 @@ class mod_forum_mail_testcase extends advanced_testcase {
         $this->helper_spoof_message_inbound_setup();
 
         $author->emailstop = '0';
-        set_user_preference('message_provider_mod_forum_posts_loggedoff', 'email', $author);
-        set_user_preference('message_provider_mod_forum_posts_loggedin', 'email', $author);
+        set_user_preference('message_provider_mod_forum_posts_enabled', 'email', $author);
 
         // Run cron and check that the expected number of users received the notification.
         // Clear the mailsink, and close the messagesink.
@@ -888,7 +895,7 @@ class mod_forum_mail_testcase extends advanced_testcase {
         $this->assertEquals(2, count($messages));
 
         foreach ($messages as $message) {
-            $this->assertRegExp('/Reply-To: moodlemoodle123\+[^@]*@example.com/', $message->header);
+            $this->assertMatchesRegularExpression('/Reply-To: moodlemoodle123\+[^@]*@example.com/', $message->header);
         }
     }
 
@@ -1016,8 +1023,8 @@ class mod_forum_mail_testcase extends advanced_testcase {
                     'contents' => array(
                         '~{$a',
                         '~&(amp|lt|gt|quot|\#039);(?!course)',
-                        'Attachment example.txt:' . PHP_EOL .
-                            'https://www.example.com/moodle/pluginfile.php/\d*/mod_forum/attachment/\d*/example.txt' . PHP_EOL,
+                        'Attachment example.txt:' . '\r*\n' .
+                            'https://www.example.com/moodle/pluginfile.php/\d*/mod_forum/attachment/\d*/example.txt' . '\r*\n',
                         'Hello Moodle', 'Moodle Forum', 'Welcome.*Moodle', 'Love Moodle', '1\d1'
                     ),
                 ),
@@ -1075,12 +1082,12 @@ class mod_forum_mail_testcase extends advanced_testcase {
         $newcase['expectations'][0]['contents'] = array(
             '~{$a',
             '~&(amp|lt|gt|quot|\#039);(?!course)',
-            'Attachment example.txt:' . PHP_EOL .
-            'https://www.example.com/moodle/pluginfile.php/\d*/mod_forum/attachment/\d*/example.txt' .  PHP_EOL ,
+            'Attachment example.txt:' . '\r*\n' .
+            'https://www.example.com/moodle/pluginfile.php/\d*/mod_forum/attachment/\d*/example.txt' .  '\r*\n' ,
             'Text and image', 'Moodle Forum',
-            'Welcome to Moodle, *' . PHP_EOL . '.*'
+            'Welcome to Moodle, *' . '\r*\n' . '.*'
                 .'https://www.example.com/moodle/pluginfile.php/\d+/mod_forum/post/\d+/'
-                .'Screen%20Shot%202016-03-22%20at%205\.54\.36%20AM%20%281%29\.png *' . PHP_EOL . '.*!',
+                .'Screen%20Shot%202016-03-22%20at%205\.54\.36%20AM%20%281%29\.png *' . '\r*\n' . '.*!',
             'Love Moodle', '1\d1');
         $textcases['Text mail with text+image message i.e. @@PLUGINFILE@@ token handling'] = array('data' => $newcase);
 
@@ -1188,7 +1195,7 @@ class mod_forum_mail_testcase extends advanced_testcase {
                     $fs = get_file_storage();
                     foreach ($attachments as $attachment) {
                         $filerecord = array(
-                            'contextid' => context_module::instance($forum->cmid)->id,
+                            'contextid' => \context_module::instance($forum->cmid)->id,
                             'component' => 'mod_forum',
                             'filearea'  => 'attachment',
                             'itemid'    => $post->id,
@@ -1255,10 +1262,10 @@ class mod_forum_mail_testcase extends advanced_testcase {
                 }
                 foreach ($foundexpectation['contents'] as $content) {
                     if (strpos($content, '~') !== 0) {
-                        $this->assertRegexp('#' . $content . '#m', $mail->body);
+                        $this->assertMatchesRegularExpression('#' . $content . '#m', $mail->body);
                     } else {
                         preg_match('#' . substr($content, 1) . '#m', $mail->body, $matches);
-                        $this->assertNotRegexp('#' . substr($content, 1) . '#m', $mail->body);
+                        $this->assertDoesNotMatchRegularExpression('#' . substr($content, 1) . '#m', $mail->body);
                     }
                 }
             }

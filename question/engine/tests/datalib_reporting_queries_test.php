@@ -14,6 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace core_question;
+
+use quiz_statistics\tests\statistics_helper;
+use mod_quiz\quiz_attempt;
+use mod_quiz\quiz_settings;
+use qubaid_list;
+use question_bank;
+use question_engine;
+use question_engine_data_mapper;
+use question_state;
+
+defined('MOODLE_INTERNAL') || die();
+
+global $CFG;
+require_once(__DIR__ . '/../lib.php');
+require_once(__DIR__ . '/helpers.php');
+
 /**
  * Unit tests for the parts of {@link question_engine_data_mapper} related to reporting.
  *
@@ -22,22 +39,7 @@
  * @copyright 2013 The Open University
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-
-defined('MOODLE_INTERNAL') || die();
-
-global $CFG;
-require_once(__DIR__ . '/../lib.php');
-require_once(__DIR__ . '/helpers.php');
-
-
-/**
- * Unit tests for the parts of {@link question_engine_data_mapper} related to reporting.
- *
- * @copyright 2013 The Open University
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-class question_engine_data_mapper_reporting_testcase extends qbehaviour_walkthrough_test_base {
+class datalib_reporting_queries_test extends \qbehaviour_walkthrough_test_base {
 
     /** @var question_engine_data_mapper */
     protected $dm;
@@ -101,7 +103,7 @@ class question_engine_data_mapper_reporting_testcase extends qbehaviour_walkthro
 
         // Create the second usage.
         $this->quba = question_engine::make_questions_usage_by_activity('unit_test',
-                context_system::instance());
+                \context_system::instance());
 
         $q = question_bank::load_question($this->sa->id);
         $this->start_attempt_at_question($q, 'interactive', 5);
@@ -332,5 +334,49 @@ class question_engine_data_mapper_reporting_testcase extends qbehaviour_walkthro
             'sequencenumber' => 1,
             'state'          => (string) question_state::$gaveup,
         ), $state);
+    }
+
+    /**
+     * Test that a Quiz with only description questions wont break \quiz_statistics\task\recalculate.
+     *
+     * @covers \quiz_statistics\task\recalculate::execute
+     */
+    public function test_quiz_with_description_questions_recalculate_statistics(): void {
+        $this->resetAfterTest();
+
+        // Create course with quiz module.
+        $course = $this->getDataGenerator()->create_course();
+        $quizgenerator = $this->getDataGenerator()->get_plugin_generator('mod_quiz');
+        $layout = '1';
+        $quiz = $quizgenerator->create_instance([
+            'course' => $course->id,
+            'grade' => 0.0, 'sumgrades' => 1,
+            'layout' => $layout
+        ]);
+
+        // Add question of type description to quiz.
+        $questiongenerator = $this->getDataGenerator()->get_plugin_generator('core_question');
+        $cat = $questiongenerator->create_question_category();
+        $question = $questiongenerator->create_question('description', null, ['category' => $cat->id]);
+        quiz_add_quiz_question($question->id, $quiz);
+
+        // Create attempt.
+        $user = $this->getDataGenerator()->create_user();
+        $quizobj = quiz_settings::create($quiz->id, $user->id);
+        $quba = question_engine::make_questions_usage_by_activity('mod_quiz', $quizobj->get_context());
+        $quba->set_preferred_behaviour($quizobj->get_quiz()->preferredbehaviour);
+        $timenow = time();
+        $attempt = quiz_create_attempt($quizobj, 1, null, $timenow, false, $user->id);
+        quiz_start_new_attempt($quizobj, $quba, $attempt, 1, $timenow);
+        quiz_attempt_save_started($quizobj, $quba, $attempt);
+
+        // Submit attempt.
+        $attemptobj = quiz_attempt::create($attempt->id);
+        $attemptobj->process_submitted_actions($timenow, false);
+        $attemptobj->process_finish($timenow, false);
+
+        // Calculate the statistics.
+        $this->expectOutputRegex('~.*Calculations completed.*~');
+        statistics_helper::run_pending_recalculation_tasks();
     }
 }

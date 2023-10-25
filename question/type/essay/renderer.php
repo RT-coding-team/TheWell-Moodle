@@ -36,9 +36,12 @@ defined('MOODLE_INTERNAL') || die();
 class qtype_essay_renderer extends qtype_renderer {
     public function formulation_and_controls(question_attempt $qa,
             question_display_options $options) {
-
+        global $CFG;
         $question = $qa->get_question();
+
+        /** @var qtype_essay_format_renderer_base $responseoutput */
         $responseoutput = $question->get_format_renderer($this->page);
+        $responseoutput->set_displayoptions($options);
 
         // Answer field.
         $step = $qa->get_last_step_with_qt_var('answer');
@@ -55,6 +58,19 @@ class qtype_essay_renderer extends qtype_renderer {
         } else {
             $answer = $responseoutput->response_area_read_only('answer', $qa,
                     $step, $question->responsefieldlines, $options->context);
+            $answer .= html_writer::nonempty_tag('p', $question->get_word_count_message_for_review($step->get_qt_data()));
+
+            if (!empty($CFG->enableplagiarism)) {
+                require_once($CFG->libdir . '/plagiarismlib.php');
+
+                $answer .= plagiarism_get_links([
+                    'context' => $options->context->id,
+                    'component' => $qa->get_question()->qtype->plugin_name(),
+                    'area' => $qa->get_usage_id(),
+                    'itemid' => $qa->get_slot(),
+                    'userid' => $step->get_user_id(),
+                    'content' => $qa->get_response_summary()]);
+            }
         }
 
         $files = '';
@@ -73,6 +89,12 @@ class qtype_essay_renderer extends qtype_renderer {
 
         $result .= html_writer::start_tag('div', array('class' => 'ablock'));
         $result .= html_writer::tag('div', $answer, array('class' => 'answer'));
+
+        // If there is a response and min/max word limit is set in the form then check the response word count.
+        if ($qa->get_state() == question_state::$invalid) {
+            $result .= html_writer::nonempty_tag('div',
+                $question->get_validation_error($step->get_qt_data()), ['class' => 'validationerror']);
+        }
         $result .= html_writer::tag('div', $files, array('class' => 'attachments'));
         $result .= html_writer::end_tag('div');
 
@@ -86,19 +108,34 @@ class qtype_essay_renderer extends qtype_renderer {
      *      not be displayed. Used to get the context.
      */
     public function files_read_only(question_attempt $qa, question_display_options $options) {
+        global $CFG;
         $files = $qa->get_last_qt_files('attachments', $options->context->id);
         $filelist = [];
+
+        $step = $qa->get_last_step_with_qt_var('attachments');
 
         foreach ($files as $file) {
             $out = html_writer::link($qa->get_response_file_url($file),
                 $this->output->pix_icon(file_file_icon($file), get_mimetype_description($file),
                     'moodle', array('class' => 'icon')) . ' ' . s($file->get_filename()));
+            if (!empty($CFG->enableplagiarism)) {
+                require_once($CFG->libdir . '/plagiarismlib.php');
+
+                $out .= plagiarism_get_links([
+                    'context' => $options->context->id,
+                    'component' => $qa->get_question()->qtype->plugin_name(),
+                    'area' => $qa->get_usage_id(),
+                    'itemid' => $qa->get_slot(),
+                    'userid' => $step->get_user_id(),
+                    'file' => $file]);
+            }
             $filelist[] = html_writer::tag('li', $out, ['class' => 'mb-2']);
         }
 
         $labelbyid = $qa->get_qt_field_name('attachments') . '_label';
 
-        $output = html_writer::tag('h4', get_string('answerfiles', 'qtype_essay'), ['id' => $labelbyid, 'class' => 'sr-only']);
+        $fileslabel = $options->add_question_identifier_to_label(get_string('answerfiles', 'qtype_essay'));
+        $output = html_writer::tag('h4', $fileslabel, ['id' => $labelbyid, 'class' => 'sr-only']);
         $output .= html_writer::tag('ul', implode($filelist), [
             'aria-labelledby' => $labelbyid,
             'class' => 'list-unstyled m-0',
@@ -149,7 +186,8 @@ class qtype_essay_renderer extends qtype_renderer {
         }
 
         $output = html_writer::start_tag('fieldset');
-        $output .= html_writer::tag('legend', get_string('answerfiles', 'qtype_essay'), ['class' => 'sr-only']);
+        $fileslabel = $options->add_question_identifier_to_label(get_string('answerfiles', 'qtype_essay'));
+        $output .= html_writer::tag('legend', $fileslabel, ['class' => 'sr-only']);
         $output .= $filesrenderer->render($fm);
         $output .= html_writer::empty_tag('input', [
             'type' => 'hidden',
@@ -183,6 +221,19 @@ class qtype_essay_renderer extends qtype_renderer {
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 abstract class qtype_essay_format_renderer_base extends plugin_renderer_base {
+
+    /** @var question_display_options Question display options instance for any necessary information for rendering the question. */
+    protected $displayoptions;
+
+    /**
+     * Question number setter.
+     *
+     * @param question_display_options $displayoptions
+     */
+    public function set_displayoptions(question_display_options $displayoptions): void {
+        $this->displayoptions = $displayoptions;
+    }
+
     /**
      * Render the students respone when the question is in read-only mode.
      * @param string $name the variable name this input edits.
@@ -220,7 +271,7 @@ abstract class qtype_essay_format_renderer_base extends plugin_renderer_base {
  * @copyright  2013 Binghamton University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qtype_essay_format_noinline_renderer extends plugin_renderer_base {
+class qtype_essay_format_noinline_renderer extends qtype_essay_format_renderer_base {
 
     protected function class_name() {
         return 'qtype_essay_noinline';
@@ -243,7 +294,7 @@ class qtype_essay_format_noinline_renderer extends plugin_renderer_base {
  * @copyright  2011 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qtype_essay_format_editor_renderer extends plugin_renderer_base {
+class qtype_essay_format_editor_renderer extends qtype_essay_format_renderer_base {
     protected function class_name() {
         return 'qtype_essay_editor';
     }
@@ -251,7 +302,8 @@ class qtype_essay_format_editor_renderer extends plugin_renderer_base {
     public function response_area_read_only($name, $qa, $step, $lines, $context) {
         $labelbyid = $qa->get_qt_field_name($name) . '_label';
 
-        $output = html_writer::tag('h4', get_string('answertext', 'qtype_essay'), ['id' => $labelbyid, 'class' => 'sr-only']);
+        $responselabel = $this->displayoptions->add_question_identifier_to_label(get_string('answertext', 'qtype_essay'));
+        $output = html_writer::tag('h4', $responselabel, ['id' => $labelbyid, 'class' => 'sr-only']);
         $output .= html_writer::tag('div', $this->prepare_response($name, $qa, $step, $context), [
             'role' => 'textbox',
             'aria-readonly' => 'true',
@@ -287,7 +339,8 @@ class qtype_essay_format_editor_renderer extends plugin_renderer_base {
         $editor->use_editor($id, $this->get_editor_options($context),
                 $this->get_filepicker_options($context, $draftitemid));
 
-        $output = html_writer::tag('label', get_string('answertext', 'qtype_essay'), [
+        $responselabel = $this->displayoptions->add_question_identifier_to_label(get_string('answertext', 'qtype_essay'));
+        $output = html_writer::tag('label', $responselabel, [
             'class' => 'sr-only',
             'for' => $id,
         ]);
@@ -481,7 +534,7 @@ class qtype_essay_format_editorfilepicker_renderer extends qtype_essay_format_ed
  * @copyright  2011 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qtype_essay_format_plain_renderer extends plugin_renderer_base {
+class qtype_essay_format_plain_renderer extends qtype_essay_format_renderer_base {
     /**
      * @return string the HTML for the textarea.
      */
@@ -499,7 +552,8 @@ class qtype_essay_format_plain_renderer extends plugin_renderer_base {
     public function response_area_read_only($name, $qa, $step, $lines, $context) {
         $id = $qa->get_qt_field_name($name) . '_id';
 
-        $output = html_writer::tag('label', get_string('answertext', 'qtype_essay'), ['class' => 'sr-only', 'for' => $id]);
+        $responselabel = $this->displayoptions->add_question_identifier_to_label(get_string('answertext', 'qtype_essay'));
+        $output = html_writer::tag('label', $responselabel, ['class' => 'sr-only', 'for' => $id]);
         $output .= $this->textarea($step->get_qt_var($name), $lines, ['id' => $id, 'readonly' => 'readonly']);
         return $output;
     }
@@ -508,7 +562,8 @@ class qtype_essay_format_plain_renderer extends plugin_renderer_base {
         $inputname = $qa->get_qt_field_name($name);
         $id = $inputname . '_id';
 
-        $output = html_writer::tag('label', get_string('answertext', 'qtype_essay'), ['class' => 'sr-only', 'for' => $id]);
+        $responselabel = $this->displayoptions->add_question_identifier_to_label(get_string('answertext', 'qtype_essay'));
+        $output = html_writer::tag('label', $responselabel, ['class' => 'sr-only', 'for' => $id]);
         $output .= $this->textarea($step->get_qt_var($name), $lines, ['name' => $inputname, 'id' => $id]);
         $output .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => $inputname . 'format', 'value' => FORMAT_PLAIN]);
 

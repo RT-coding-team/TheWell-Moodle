@@ -351,7 +351,13 @@ class S3
 	public static function freeSigningKey()
 	{
 		if (self::$__signingKeyResource !== false)
-			openssl_free_key(self::$__signingKeyResource);
+		{
+			// TODO: Remove this block once PHP 8.0 becomes required.
+			if (PHP_MAJOR_VERSION < 8) {
+				openssl_free_key(self::$__signingKeyResource);
+			}
+			self::$__signingKeyResource = null;
+		}
 	}
 
 
@@ -2014,6 +2020,13 @@ final class S3Request
 	 */
 	public $response;
 
+	/**
+	 * Filename or resource to write to.
+	 *
+	 * @var string
+	 * @access public
+	 */
+	public $file;
 
 	/**
 	* Constructor

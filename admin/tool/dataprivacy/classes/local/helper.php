@@ -136,6 +136,7 @@ class helper {
     public static function get_request_statuses() {
         return [
             api::DATAREQUEST_STATUS_PENDING => get_string('statuspending', 'tool_dataprivacy'),
+            api::DATAREQUEST_STATUS_PREPROCESSING => get_string('statuspreprocessing', 'tool_dataprivacy'),
             api::DATAREQUEST_STATUS_AWAITING_APPROVAL => get_string('statusawaitingapproval', 'tool_dataprivacy'),
             api::DATAREQUEST_STATUS_APPROVED => get_string('statusapproved', 'tool_dataprivacy'),
             api::DATAREQUEST_STATUS_PROCESSING => get_string('statusprocessing', 'tool_dataprivacy'),
@@ -187,7 +188,8 @@ class helper {
         global $DB;
 
         // Get users that the user has role assignments to.
-        $allusernames = get_all_user_name_fields(true, 'u');
+        $userfieldsapi = \core_user\fields::for_name();
+        $allusernames = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
         $sql = "SELECT u.id, $allusernames
                   FROM {role_assignments} ra, {context} c, {user} u
                  WHERE ra.userid = :userid

@@ -40,7 +40,7 @@ $show        = optional_param('show', 0, PARAM_INT);
 require_login();
 
 if (empty($CFG->enablebadges)) {
-    print_error('badgesdisabled', 'badges');
+    throw new \moodle_exception('badgesdisabled', 'badges');
 }
 
 $url = new moodle_url('/badges/mybadges.php');
@@ -91,9 +91,6 @@ $title = get_string('badges', 'badges');
 $PAGE->set_title($title);
 $PAGE->set_heading(fullname($USER));
 $PAGE->set_pagelayout('standard');
-
-// Include JS files for backpack support.
-badges_setup_backpack_js();
 
 $output = $PAGE->get_renderer('core', 'badges');
 $badges = badges_get_user_badges($USER->id);

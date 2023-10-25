@@ -61,13 +61,14 @@ class report extends \mod_scorm\report {
         $params = array_merge($params, ['scoid' => $scoid]);
 
         // Construct the SQL.
-        $sql = "SELECT DISTINCT " . $DB->sql_concat('st.userid', '\'#\'', 'COALESCE(st.attempt, 0)') . " AS uniqueid,
-                       st.userid AS userid,
-                       st.scormid AS scormid,
-                       st.attempt AS attempt,
-                       st.scoid AS scoid
-                  FROM {scorm_scoes_track} st
-                 WHERE st.userid IN ({$allowedlist}) AND st.scoid = :scoid";
+        $sql = "SELECT DISTINCT " . $DB->sql_concat('a.userid', '\'#\'', 'COALESCE(a.attempt, 0)') . " AS uniqueid,
+                       a.userid AS userid,
+                       a.scormid AS scormid,
+                       a.attempt AS attempt,
+                       v.scoid AS scoid
+                  FROM {scorm_attempt} a
+                  JOIN {scorm_scoes_value} v ON v.attemptid = a.id
+                 WHERE a.userid IN ({$allowedlist}) AND v.scoid = :scoid";
         $attempts = $DB->get_records_sql($sql, $params);
 
         $usergrades = [];
@@ -134,6 +135,10 @@ class report extends \mod_scorm\report {
         global $DB, $OUTPUT, $PAGE;
 
         $contextmodule = context_module::instance($cm->id);
+
+        $actionbar = new \mod_scorm\output\actionbar($cm->id, false, 0);
+        $renderer = $PAGE->get_renderer('mod_scorm');
+        echo $renderer->report_actionbar($actionbar);
 
         if ($groupmode = groups_get_activity_groupmode($cm)) {   // Groups are being used.
             groups_print_activity_menu($cm, new moodle_url($PAGE->url));

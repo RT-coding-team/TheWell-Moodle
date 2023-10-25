@@ -283,7 +283,10 @@ class assign_feedback_editpdf extends assign_feedback_plugin {
                     foreach ($nondraftannotations as $ndannotation) {
                         foreach ($draftannotations as $dannotation) {
                             foreach ($ndannotation as $key => $value) {
-                                if ($key != 'id' && $value != $dannotation->{$key}) {
+                                // As the $draft was included in the class annotation,
+                                // it is necessary to omit it in the condition below as well,
+                                // otherwise, an error would be raised.
+                                if ($key != 'id' && $key != 'draft' && $value != $dannotation->{$key}) {
                                     continue 2;
                                 }
                             }
@@ -305,7 +308,10 @@ class assign_feedback_editpdf extends assign_feedback_plugin {
                     foreach ($nondraftcomments as $ndcomment) {
                         foreach ($draftcomments as $dcomment) {
                             foreach ($ndcomment as $key => $value) {
-                                if ($key != 'id' && $value != $dcomment->{$key}) {
+                                // As the $draft was included in the class comment,
+                                // it is necessary to omit it in the condition below as well,
+                                // otherwise, an error would be raised.
+                                if ($key != 'id' && $key != 'draft' && $value != $dcomment->{$key}) {
                                     continue 2;
                                 }
                             }
@@ -405,6 +411,7 @@ class assign_feedback_editpdf extends assign_feedback_plugin {
             list($gradeids, $params) = $DB->get_in_or_equal(array_keys($grades), SQL_PARAMS_NAMED);
             $DB->delete_records_select('assignfeedback_editpdf_annot', 'gradeid ' . $gradeids, $params);
             $DB->delete_records_select('assignfeedback_editpdf_cmnt', 'gradeid ' . $gradeids, $params);
+            $DB->delete_records_select('assignfeedback_editpdf_rot', 'gradeid ' . $gradeids, $params);
         }
         return true;
     }
@@ -436,7 +443,28 @@ class assign_feedback_editpdf extends assign_feedback_plugin {
      * @return array - An array of fileareas (keys) and descriptions (values)
      */
     public function get_file_areas() {
-        return array(document_services::FINAL_PDF_FILEAREA => $this->get_name());
+        return [
+            document_services::FINAL_PDF_FILEAREA => $this->get_name(),
+            document_services::COMBINED_PDF_FILEAREA => $this->get_name(),
+            document_services::PARTIAL_PDF_FILEAREA => $this->get_name(),
+            document_services::IMPORT_HTML_FILEAREA => $this->get_name(),
+            document_services::PAGE_IMAGE_FILEAREA => $this->get_name(),
+            document_services::PAGE_IMAGE_READONLY_FILEAREA => $this->get_name(),
+            document_services::STAMPS_FILEAREA => $this->get_name(),
+            document_services::TMP_JPG_TO_PDF_FILEAREA => $this->get_name(),
+            document_services::TMP_ROTATED_JPG_FILEAREA => $this->get_name()
+        ];
+    }
+
+    /**
+     * Get all file areas for user data related to this plugin.
+     *
+     * @return array - An array of user data fileareas (keys) and descriptions (values)
+     */
+    public function get_user_data_file_areas(): array {
+        return [
+            document_services::FINAL_PDF_FILEAREA => $this->get_name(),
+        ];
     }
 
     /**

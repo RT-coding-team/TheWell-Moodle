@@ -14,15 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Unit tests for core\content\exportable_items\exportable_textarea.
- *
- * @package     core
- * @category    test
- * @copyright   2020 Andrew Nicols <andrew@nicols.co.uk>
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 declare(strict_types=1);
 
 namespace core\content\export\exportable_items;
@@ -38,7 +29,11 @@ use stdClass;
 /**
  * Unit tests for the `exportable_textarea` export item class.
  *
- * @coversDefaultClass \core\content\exportable_items\exportable_textarea
+ * @package     core
+ * @category    test
+ * @copyright   2020 Andrew Nicols <andrew@nicols.co.uk>
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers      \core\content\exportable_items\exportable_textarea
  */
 class exportable_textarea_test extends advanced_testcase {
 
@@ -309,7 +304,7 @@ EOF;
     ): void {
         $archive = $this->getMockBuilder(zipwriter::class)
             ->setConstructorArgs([$this->getMockBuilder(\ZipStream\ZipStream::class)->getmock()])
-            ->setMethods([
+            ->onlyMethods([
                 'is_file_in_archive',
                 'add_file_from_string',
                 'add_file_from_stored_file',
@@ -357,7 +352,7 @@ EOF;
     ): void {
         $archive = $this->getMockBuilder(zipwriter::class)
             ->setConstructorArgs([$this->getMockBuilder(\ZipStream\ZipStream::class)->getmock()])
-            ->setMethods([
+            ->onlyMethods([
                 'add_file_from_stored_file',
                 'add_file_from_string',
                 'add_file_from_template',

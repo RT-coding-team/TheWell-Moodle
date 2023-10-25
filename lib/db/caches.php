@@ -77,6 +77,19 @@ $definitions = array(
         'simpledata' => true,
     ),
 
+    // Hook callbacks cache.
+    // There is a static cache in hook manager, data is fetched once per page on first hook execution.
+    // This cache needs to be invalidated during upgrades when code changes and when callbacks
+    // overrides are updated.
+    'hookcallbacks' => array(
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'staticacceleration' => false,
+        // WARNING: Manual cache purge may be required when overriding hook callbacks.
+        'canuselocalstore' => true,
+    ),
+
     // Cache for question definitions. This is used by the question_bank class.
     // Users probably do not need to know about this cache. They will just call
     // question_bank::load_question.
@@ -119,6 +132,14 @@ $definitions = array(
         'staticaccelerationsize' => 2, // The original cache used 1, we've increased that to two.
     ),
 
+    // Whether a course currently has hidden groups.
+    'coursehiddengroups' => array(
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true, // The course id the groupings exist for.
+        'simpledata' => true, // Booleans.
+        'staticacceleration' => true, // Likely there will be a couple of calls to this.
+    ),
+
     // Used to cache calendar subscriptions.
     'calendar_subscriptions' => array(
         'mode' => cache_store::MODE_APPLICATION,
@@ -139,13 +160,13 @@ $definitions = array(
         'ttl' => 900,
     ),
 
-    // Cache the capabilities list DB table. See get_all_capabilities in accesslib.
+    // Cache the capabilities list DB table. See get_all_capabilities and get_deprecated_capability_info in accesslib.
     'capabilities' => array(
         'mode' => cache_store::MODE_APPLICATION,
         'simplekeys' => true,
         'simpledata' => true,
         'staticacceleration' => true,
-        'staticaccelerationsize' => 1,
+        'staticaccelerationsize' => 2, // Should be main capabilities and deprecated capabilities.
         'ttl' => 3600, // Just in case.
     ),
 
@@ -197,6 +218,13 @@ $definitions = array(
             'changesincoursecat',
         ),
     ),
+    // Used to store state of sections in course (collapsed or not).
+    'coursesectionspreferences' => [
+        'mode' => cache_store::MODE_REQUEST,
+        'simplekeys' => true,
+        'simpledata' => false,
+        'staticacceleration' => true,
+    ],
     // Cache course contacts for the courses.
     'coursecontacts' => array(
         'mode' => cache_store::MODE_APPLICATION,
@@ -204,6 +232,12 @@ $definitions = array(
         'simplekeys' => true,
         'ttl' => 3600,
     ),
+    // Course reactive state cache.
+    'courseeditorstate' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
+        'simpledata' => true,
+    ],
     // Used to store data for repositories to avoid repetitive DB queries within one request.
     'repositories' => array(
         'mode' => cache_store::MODE_REQUEST,
@@ -214,12 +248,21 @@ $definitions = array(
         'simplekeys' => true,
         'ttl' => 3600,
     ),
-    // Accumulated information about course modules and sections used to print course view page (user-independed).
-    // Used in function get_fast_modinfo(), reset in function rebuild_course_cache().
+    // Accumulated information about course modules and sections used to print course view page (user-independent).
+    // Used in functions:
+    // - course_modinfo::build_course_section_cache()
+    // - course_modinfo::inner_build_course_cache()
+    // - get_array_of_activities()
+    // Reset/update in functions:
+    // - rebuild_course_cache()
+    // - course_modinfo::purge_module_cache()
+    // - course_modinfo::purge_section_cache()
+    // - remove_course_contents().
     'coursemodinfo' => array(
         'mode' => cache_store::MODE_APPLICATION,
         'simplekeys' => true,
         'canuselocalstore' => true,
+        'requirelockingbeforewrite' => true
     ),
     // This is the session user selections cache.
     // It's a special cache that is used to record user selections that should persist for the lifetime of the session.
@@ -284,6 +327,7 @@ $definitions = array(
         'mode' => cache_store::MODE_APPLICATION,
         'simplekeys' => true,
         'simpledata' => true,
+        'canuselocalstore' => true,
         'staticacceleration' => true,
         'staticaccelerationsize' => 5
     ),
@@ -455,6 +499,13 @@ $definitions = array(
         'simpledata' => true,
     ],
 
+    // File cache for H5P Library ids.
+    'h5p_libraries' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'canuselocalstore' => true
+    ],
+
     // File cache for H5P Library files.
     'h5p_library_files' => [
         'mode' => cache_store::MODE_APPLICATION,
@@ -483,5 +534,69 @@ $definitions = array(
         'simplekeys'             => true,
         'staticacceleration'     => true,
         'staticaccelerationsize' => 100
+    ],
+
+    // Course image cache.
+    'course_image' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'staticacceleration' => true,
+        'datasource' => '\core_course\cache\course_image',
+    ],
+
+    // Cache the course categories where the user has access the content bank.
+    'contentbank_allowed_categories' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'invalidationevents' => [
+            'changesincoursecat',
+            'changesincategoryenrolment',
+        ],
+    ],
+
+    // Cache the courses where the user has access the content bank.
+    'contentbank_allowed_courses' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'invalidationevents' => [
+            'changesincoursecat',
+            'changesincategoryenrolment',
+            'changesincourse',
+        ],
+    ],
+
+    // Users allowed reports according to audience.
+    'reportbuilder_allowed_reports' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'staticacceleration' => true,
+        'ttl' => 1800,
+    ],
+
+    // Cache image dimensions.
+    'file_imageinfo' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'staticacceleration' => true,
+        'canuselocalstore' => true,
+        'staticaccelerationsize' => 100,
+    ],
+
+    // Cache if a user has the capability to share to MoodleNet.
+    'moodlenet_usercanshare' => [
+        'mode' => cache_store::MODE_SESSION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'ttl' => 1800,
+        'invalidationevents' => [
+            'changesincoursecat',
+            'changesincategoryenrolment',
+            'changesincourse',
+        ],
     ],
 );

@@ -75,7 +75,7 @@ function url_fix_submitted_url($url) {
  *
  * This function does not include any XSS protection.
  *
- * @param string $url
+ * @param stdClass $url
  * @param object $cm
  * @param object $course
  * @param object $config
@@ -172,37 +172,22 @@ function url_print_header($url, $cm, $course) {
 }
 
 /**
- * Print url heading.
+ * Get url introduction.
+ *
  * @param object $url
  * @param object $cm
- * @param object $course
- * @param bool $notused This variable is no longer used.
- * @return void
- */
-function url_print_heading($url, $cm, $course, $notused = false) {
-    global $OUTPUT;
-    echo $OUTPUT->heading(format_string($url->name), 2);
-}
-
-/**
- * Print url introduction.
- * @param object $url
- * @param object $cm
- * @param object $course
  * @param bool $ignoresettings print even if not specified in modedit
- * @return void
+ * @return string
  */
-function url_print_intro($url, $cm, $course, $ignoresettings=false) {
-    global $OUTPUT;
-
+function url_get_intro(object $url, object $cm, bool $ignoresettings = false): string {
     $options = empty($url->displayoptions) ? [] : (array) unserialize_array($url->displayoptions);
     if ($ignoresettings or !empty($options['printintro'])) {
         if (trim(strip_tags($url->intro))) {
-            echo $OUTPUT->box_start('mod_introbox', 'urlintro');
-            echo format_module_intro('url', $url, $cm->id);
-            echo $OUTPUT->box_end();
+            return format_module_intro('url', $url, $cm->id);
         }
     }
+
+    return '';
 }
 
 /**
@@ -219,9 +204,11 @@ function url_display_frame($url, $cm, $course) {
 
     if ($frame === 'top') {
         $PAGE->set_pagelayout('frametop');
+        $PAGE->activityheader->set_attrs([
+            'description' => url_get_intro($url, $cm),
+            'title' => format_string($url->name)
+        ]);
         url_print_header($url, $cm, $course);
-        url_print_heading($url, $cm, $course);
-        url_print_intro($url, $cm, $course);
         echo $OUTPUT->footer();
         die;
 
@@ -263,35 +250,33 @@ EOF;
  * @param object $url
  * @param object $cm
  * @param object $course
- * @return does not return
  */
 function url_print_workaround($url, $cm, $course) {
-    global $OUTPUT;
+    global $OUTPUT, $PAGE, $USER;
 
+    $PAGE->activityheader->set_description(url_get_intro($url, $cm, true));
     url_print_header($url, $cm, $course);
-    url_print_heading($url, $cm, $course, true);
-    url_print_intro($url, $cm, $course, true);
 
-    $fullurl = url_get_full_url($url, $cm, $course);
+    $fullurl = new moodle_url(url_get_full_url($url, $cm, $course));
 
     $display = url_get_final_display_type($url);
     if ($display == RESOURCELIB_DISPLAY_POPUP) {
-        $jsfullurl = addslashes_js($fullurl);
+        $jsfullurl = addslashes_js($fullurl->out(false));
         $options = empty($url->displayoptions) ? [] : (array) unserialize_array($url->displayoptions);
         $width  = empty($options['popupwidth'])  ? 620 : $options['popupwidth'];
         $height = empty($options['popupheight']) ? 450 : $options['popupheight'];
         $wh = "width=$width,height=$height,toolbar=no,location=no,menubar=no,copyhistory=no,status=no,directories=no,scrollbars=yes,resizable=yes";
-        $extra = "onclick=\"window.open('$jsfullurl', '', '$wh'); return false;\"";
+        $attributes = ['onclick' => "window.open('$jsfullurl', '', '$wh'); return false;"];
 
     } else if ($display == RESOURCELIB_DISPLAY_NEW) {
-        $extra = "onclick=\"this.target='_blank';\"";
+        $attributes = ['onclick' => "this.target='_blank';"];
 
     } else {
-        $extra = '';
+        $attributes = [];
     }
 
     echo '<div class="urlworkaround">';
-    print_string('clicktoopen', 'url', "<a href=\"$fullurl\" $extra>$fullurl</a>");
+    print_string('clicktoopen', 'url', html_writer::link($fullurl, format_string($cm->name), $attributes));
     echo '</div>';
 
     echo $OUTPUT->footer();
@@ -303,18 +288,17 @@ function url_print_workaround($url, $cm, $course) {
  * @param object $url
  * @param object $cm
  * @param object $course
- * @return does not return
  */
 function url_display_embed($url, $cm, $course) {
-    global $CFG, $PAGE, $OUTPUT;
+    global $PAGE, $OUTPUT;
 
     $mimetype = resourcelib_guess_url_mimetype($url->externalurl);
     $fullurl  = url_get_full_url($url, $cm, $course);
     $title    = $url->name;
 
-    $link = html_writer::tag('a', $fullurl, array('href'=>str_replace('&amp;', '&', $fullurl)));
-    $clicktoopen = get_string('clicktoopen', 'url', $link);
     $moodleurl = new moodle_url($fullurl);
+    $link = html_writer::link($moodleurl, format_string($cm->name));
+    $clicktoopen = get_string('clicktoopen', 'url', $link);
 
     $extension = resourcelib_get_extension($url->externalurl);
 
@@ -336,12 +320,10 @@ function url_display_embed($url, $cm, $course) {
         $code = resourcelib_embed_general($fullurl, $title, $clicktoopen, $mimetype);
     }
 
+    $PAGE->activityheader->set_description(url_get_intro($url, $cm));
     url_print_header($url, $cm, $course);
-    url_print_heading($url, $cm, $course);
 
     echo $code;
-
-    url_print_intro($url, $cm, $course);
 
     echo $OUTPUT->footer();
     die;
@@ -434,7 +416,6 @@ function url_get_variable_options($config) {
         'userlastname'    => get_string('lastname'),
         'userfullname'    => get_string('fullnameuser'),
         'useremail'       => get_string('email'),
-        'usericq'         => get_string('icqnumber'),
         'userphone1'      => get_string('phone1'),
         'userphone2'      => get_string('phone2'),
         'userinstitution' => get_string('institution'),
@@ -442,7 +423,6 @@ function url_get_variable_options($config) {
         'useraddress'     => get_string('address'),
         'usercity'        => get_string('city'),
         'usertimezone'    => get_string('timezone'),
-        'userurl'         => get_string('webpage'),
     );
 
     if ($config->rolesinparams) {
@@ -497,7 +477,6 @@ function url_get_variable_values($url, $cm, $course, $config) {
         $values['userlastname']    = $USER->lastname;
         $values['userfullname']    = fullname($USER);
         $values['useremail']       = $USER->email;
-        $values['usericq']         = $USER->icq;
         $values['userphone1']      = $USER->phone1;
         $values['userphone2']      = $USER->phone2;
         $values['userinstitution'] = $USER->institution;
@@ -506,7 +485,6 @@ function url_get_variable_values($url, $cm, $course, $config) {
         $values['usercity']        = $USER->city;
         $now = new DateTime('now', core_date::get_user_timezone_object());
         $values['usertimezone']    = $now->getOffset() / 3600.0; // Value in hours for BC.
-        $values['userurl']         = $USER->url;
     }
 
     // weak imitation of Single-Sign-On, for backwards compatibility only
@@ -549,12 +527,16 @@ function url_get_encrypted_parameter($url, $config) {
 /**
  * Optimised mimetype detection from general URL
  * @param $fullurl
- * @param int $size of the icon.
+ * @param null $unused This parameter has been deprecated since 4.3 and should not be used anymore.
  * @return string|null mimetype or null when the filetype is not relevant.
  */
-function url_guess_icon($fullurl, $size = null) {
+function url_guess_icon($fullurl, $unused = null) {
     global $CFG;
     require_once("$CFG->libdir/filelib.php");
+
+    if ($unused !== null) {
+        debugging('Deprecated argument passed to ' . __FUNCTION__, DEBUG_DEVELOPER);
+    }
 
     if (substr_count($fullurl, '/') < 3 or substr($fullurl, -1) === '/') {
         // Most probably default directory - index.php, index.html, etc. Return null because
@@ -572,12 +554,13 @@ function url_guess_icon($fullurl, $size = null) {
         return null;
     }
 
-    $icon = file_extension_icon($fullurl, $size);
-    $htmlicon = file_extension_icon('.htm', $size);
-    $unknownicon = file_extension_icon('', $size);
+    $icon = file_extension_icon($fullurl);
+    $htmlicon = file_extension_icon('.htm');
+    $unknownicon = file_extension_icon('');
+    $phpicon = file_extension_icon('.php'); // Exception for php files.
 
     // We do not want to return those icon types, the module icon is more appropriate.
-    if ($icon === $unknownicon || $icon === $htmlicon) {
+    if ($icon === $unknownicon || $icon === $htmlicon || $icon === $phpicon) {
         return null;
     }
 

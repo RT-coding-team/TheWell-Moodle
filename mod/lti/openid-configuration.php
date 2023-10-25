@@ -33,7 +33,7 @@ require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/mod/lti/locallib.php');
 require_once($CFG->libdir.'/weblib.php');
 
-$scopes = registration_helper::lti_get_service_scopes();
+$scopes = registration_helper::get()->lti_get_service_scopes();
 $scopes[] = 'openid';
 $conf = [
     'issuer' => $CFG->wwwroot,
@@ -51,8 +51,8 @@ $conf = [
     'https://purl.imsglobal.org/spec/lti-platform-configuration' => [
         'product_family_code' => 'moodle',
         'version' => $CFG->release,
-        'messages_supported' => ['LtiResourceLinkRequest', 'LtiDeepLinkingRequest'],
-        'placements' => ['AddContentMenu'],
+        'messages_supported' => [['type' => 'LtiResourceLinkRequest'],
+            ['type' => 'LtiDeepLinkingRequest', 'placements' => ['ContentArea']]],
         'variables' => array_keys(lti_get_capabilities())
     ]
 ];

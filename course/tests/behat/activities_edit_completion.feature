@@ -1,4 +1,4 @@
-@core @core_course
+@core @core_course @core_completion
 Feature: Edit completion settings of an activity
   In order to edit completion settings without accidentally breaking user data
   As a teacher
@@ -15,7 +15,7 @@ Feature: Edit completion settings of an activity
   Scenario: Completion is not locked when the activity has not yet been viewed
     Given I am on the TestPage "Page Activity editing" page logged in as admin
     When I expand all fieldsets
-    Then I should see "Completion tracking"
+    Then I should see "Completion conditions"
     And I should not see "Completion options locked"
 
   Scenario: Completion is locked after the activity has been viewed
@@ -29,13 +29,14 @@ Feature: Edit completion settings of an activity
     Given I am on the TestPage "Page Activity" page logged in as admin
     When I am on the TestPage "Page Activity editing" page
     And I expand all fieldsets
-    And I press "Unlock completion options"
-    Then I should see "Completion options unlocked"
-    And I set the field "Completion tracking" to "Students can manually mark the activity as completed"
-    And I press "Save and display"
-    And I navigate to "Edit settings" in current page administration
+    And I press "Unlock completion settings"
     And I expand all fieldsets
-    Then the field "Completion tracking" matches value "Students can manually mark the activity as completed"
+    Then I should see "Completion options unlocked"
+    And I set the field "Students must manually mark the activity as done" to "1"
+    And I press "Save and display"
+    And I navigate to "Settings" in current page administration
+    And I expand all fieldsets
+    Then the field "Students must manually mark the activity as done" matches value "1"
 
   @javascript
   Scenario: Even when completion is locked, the user can still set the date
@@ -45,6 +46,6 @@ Feature: Edit completion settings of an activity
     When I click on "id_completionexpected_enabled" "checkbox"
     And I set the field "id_completionexpected_year" to "2013"
     And I press "Save and display"
-    And I navigate to "Edit settings" in current page administration
+    And I navigate to "Settings" in current page administration
     And I expand all fieldsets
     Then the field "id_completionexpected_year" matches value "2013"

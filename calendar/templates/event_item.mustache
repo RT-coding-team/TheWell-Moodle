@@ -41,7 +41,8 @@
         "icon": {
             "key": "i/courseevent",
             "component": "core",
-            "alttext": "Some course event"
+            "alttext": "Some course event",
+            "iconurl": "#"
         },
         "editurl": "#",
         "url": "#"
@@ -63,18 +64,27 @@
             <div class="commands float-sm-right">
                 {{#canedit}}
                     {{#candelete}}
-                        <a href="{{deleteurl}}" data-action="delete">
-                            {{#pix}}t/delete, core, {{#str}}delete{{/str}}{{/pix}}
+                        <a href="{{deleteurl}}" data-action="delete" aria-label="{{#str}}delete{{/str}}" title="{{#str}}delete{{/str}}">
+                            {{#pix}}t/delete, core{{/pix}}
                         </a>
                     {{/candelete}}
                     {{^isactionevent}}
-                        <a href="{{editurl}}" data-action="edit">
-                            {{#pix}}t/edit, core, {{#str}}edit{{/str}}{{/pix}}
+                        <a href="{{editurl}}" data-action="edit" aria-label="{{#str}}edit{{/str}}" title="{{#str}}edit{{/str}}">
+                            {{#pix}}t/edit, core{{/pix}}
                         </a>
                     {{/isactionevent}}
                 {{/canedit}}
             </div>
-            {{#icon}}<div class="d-inline-block mt-1 align-top">{{#pix}} {{key}}, {{component}}, {{alttext}} {{/pix}}</div>{{/icon}}
+            {{#icon}}
+                <div class="d-inline-block mt-1 align-top">
+                    {{#iconurl}}
+                        <img alt="{{alttext}}" title="{{alttext}}" src="{{{iconurl}}}" class="icon {{iconclass}}">
+                    {{/iconurl}}
+                    {{^iconurl}}
+                        {{#pix}} {{key}}, {{component}}, {{alttext}} {{/pix}}
+                    {{/iconurl}}
+                </div>
+            {{/icon}}
             <div class="d-inline-block">
                 <h3 class="name d-inline-block">{{{name}}}</h3>
             </div>

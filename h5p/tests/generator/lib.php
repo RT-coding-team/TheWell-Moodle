@@ -14,21 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Generator for the core_h5p subsystem.
- *
- * @package    core_h5p
- * @category   test
- * @copyright  2019 Victor Deniz <victor@moodle.com>
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 use core_h5p\local\library\autoloader;
 use core_h5p\core;
 use core_h5p\player;
 use core_h5p\factory;
-
-defined('MOODLE_INTERNAL') || die();
+use core_xapi\local\statement\item_activity;
 
 /**
  * Generator for the core_h5p subsystem.
@@ -169,15 +159,16 @@ class core_h5p_generator extends \component_generator_base {
      * Populate H5P database tables with relevant data to simulate the process of adding H5P content.
      *
      * @param bool $createlibraryfiles Whether to create and store library files on the filesystem
+     * @param array|null $filerecord The file associated to the H5P entry.
      * @return stdClass An object representing the added H5P records
      */
-    public function generate_h5p_data(bool $createlibraryfiles = false): stdClass {
+    public function generate_h5p_data(bool $createlibraryfiles = false, ?array $filerecord = null): stdClass {
         // Create libraries.
         $mainlib = $libraries[] = $this->create_library_record('MainLibrary', 'Main Lib', 1, 0, 1, '', null,
             'http://tutorial.org', 'http://example.org');
         $lib1 = $libraries[] = $this->create_library_record('Library1', 'Lib1', 2, 0, 1, '', null, null,  'http://example.org');
         $lib2 = $libraries[] = $this->create_library_record('Library2', 'Lib2', 2, 1, 1, '', null, 'http://tutorial.org');
-        $lib3 = $libraries[] = $this->create_library_record('Library3', 'Lib3', 3, 2);
+        $lib3 = $libraries[] = $this->create_library_record('Library3', 'Lib3', 3, 2, 1, '', null, null, null, true, 0);
         $lib4 = $libraries[] = $this->create_library_record('Library4', 'Lib4', 1, 1);
         $lib5 = $libraries[] = $this->create_library_record('Library5', 'Lib5', 1, 3);
 
@@ -189,7 +180,7 @@ class core_h5p_generator extends \component_generator_base {
         }
 
         // Create h5p content.
-        $h5p = $this->create_h5p_record($mainlib->id);
+        $h5p = $this->create_h5p_record($mainlib->id, null, null, $filerecord);
         // Create h5p content library dependencies.
         $this->create_contents_libraries_record($h5p, $mainlib->id);
         $this->create_contents_libraries_record($h5p, $lib1->id);
@@ -251,20 +242,22 @@ class core_h5p_generator extends \component_generator_base {
      * @param string $addto The plugin configuration data
      * @param string $tutorial The tutorial URL
      * @param string $examlpe The example URL
+     * @param bool $enabled Whether the library is enabled or not
+     * @param int $runnable Whether the library is runnable (1) or not (0)
      * @return stdClass An object representing the added library record
      */
     public function create_library_record(string $machinename, string $title, int $majorversion = 1,
             int $minorversion = 0, int $patchversion = 1, string $semantics = '', string $addto = null,
-            string $tutorial = null, string $example = null): stdClass {
+            string $tutorial = null, string $example = null, bool $enabled = true, int $runnable = 1): stdClass {
         global $DB;
 
-        $content = array(
+        $content = [
             'machinename' => $machinename,
             'title' => $title,
             'majorversion' => $majorversion,
             'minorversion' => $minorversion,
             'patchversion' => $patchversion,
-            'runnable' => 1,
+            'runnable' => $runnable,
             'fullscreen' => 1,
             'preloadedjs' => 'js/example.js',
             'preloadedcss' => 'css/example.css',
@@ -272,8 +265,9 @@ class core_h5p_generator extends \component_generator_base {
             'semantics' => $semantics,
             'addto' => $addto,
             'tutorial' => $tutorial,
-            'example' => $example
-        );
+            'example' => $example,
+            'enabled' => $enabled,
+        ];
 
         $libraryid = $DB->insert_record('h5p_libraries', $content);
 
@@ -286,9 +280,11 @@ class core_h5p_generator extends \component_generator_base {
      * @param int $mainlibid The ID of the content's main library
      * @param string $jsoncontent The content in json format
      * @param string $filtered The filtered content parameters
+     * @param array|null $filerecord The file associated to the H5P entry.
      * @return int The ID of the added record
      */
-    public function create_h5p_record(int $mainlibid, string $jsoncontent = null, string $filtered = null): int {
+    public function create_h5p_record(int $mainlibid, string $jsoncontent = null, string $filtered = null,
+            ?array $filerecord = null): int {
         global $DB;
 
         if (!$jsoncontent) {
@@ -309,18 +305,46 @@ class core_h5p_generator extends \component_generator_base {
             );
         }
 
+        // Load the H5P file into DB.
+        $pathnamehash = sha1('pathname');
+        $contenthash = sha1('content');
+        if ($filerecord) {
+            $fs = get_file_storage();
+            if (!$fs->get_file(
+                    $filerecord['contextid'],
+                    $filerecord['component'],
+                    $filerecord['filearea'],
+                    $filerecord['itemid'],
+                    $filerecord['filepath'],
+                    $filerecord['filename'])) {
+                $file = $fs->create_file_from_string($filerecord, $jsoncontent);
+                $pathnamehash = $file->get_pathnamehash();
+                $contenthash = $file->get_contenthash();
+                if (array_key_exists('addxapistate', $filerecord) && $filerecord['addxapistate']) {
+                    // Save some xAPI state associated to this H5P content.
+                    $params = [
+                        'component' => $filerecord['component'],
+                        'activity' => item_activity::create_from_id($filerecord['contextid']),
+                    ];
+                    global $CFG;
+                    require_once($CFG->dirroot.'/lib/xapi/tests/helper.php');
+                    \core_xapi\test_helper::create_state($params, true);
+                }
+            }
+        }
+
         return $DB->insert_record(
             'h5p',
-            array(
+            [
                 'jsoncontent' => $jsoncontent,
                 'displayoptions' => 8,
                 'mainlibraryid' => $mainlibid,
                 'timecreated' => time(),
                 'timemodified' => time(),
                 'filtered' => $filtered,
-                'pathnamehash' => sha1('pathname'),
-                'contenthash' => sha1('content')
-            )
+                'pathnamehash' => $pathnamehash,
+                'contenthash' => $contenthash,
+            ]
         );
     }
 
@@ -376,6 +400,8 @@ class core_h5p_generator extends \component_generator_base {
      * @param array $typestonotinstall H5P content types that should not be installed
      * @param core $core h5p_test_core instance required to use the exttests URL
      * @return array Data of the content types not installed.
+     *
+     * @throws invalid_response_exception If request to get the latest content types fails (usually due to a transient error)
      */
     public function create_content_types(array $typestonotinstall, core $core): array {
         global $DB;
@@ -383,12 +409,15 @@ class core_h5p_generator extends \component_generator_base {
         autoloader::register();
 
         // Get info of latest content types versions.
-        $contenttypes = $core->get_latest_content_types()->contentTypes;
+        $response = $core->get_latest_content_types();
+        if (!empty($response->error)) {
+            throw new invalid_response_exception($response->error);
+        }
 
         $installedtypes = 0;
 
         // Fake installation of all other H5P content types.
-        foreach ($contenttypes as $contenttype) {
+        foreach ($response->contentTypes as $contenttype) {
             // Don't install pending content types.
             if (in_array($contenttype->id, $typestonotinstall)) {
                 continue;

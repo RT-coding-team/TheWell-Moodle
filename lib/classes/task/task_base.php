@@ -24,6 +24,10 @@
  */
 namespace core\task;
 
+use core_component;
+use core_plugin_manager;
+use core\check\result;
+
 /**
  * Abstract class for common properties of scheduled_task and adhoc_task.
  *
@@ -38,7 +42,7 @@ abstract class task_base {
     /** @var \core\lock\lock $cronlock - The lock controlling the entire cron process. */
     private $cronlock = null;
 
-    /** @var $string $component - The component this task belongs to. */
+    /** @var string $component - The component this task belongs to. */
     private $component = '';
 
     /** @var bool $blocking - Does this task block the entire cron process. */
@@ -58,6 +62,13 @@ abstract class task_base {
 
     /** @var int $pid - PHP process ID that is running the task */
     private $pid = null;
+
+    /**
+     * Get a descriptive name for the task (shown to admins)
+     *
+     * @return string
+     */
+    abstract public function get_name();
 
     /**
      * Set the current lock for this task.
@@ -230,4 +241,57 @@ abstract class task_base {
     public function get_pid() {
         return $this->pid;
     }
+
+    /**
+     * Informs whether the task's component is enabled.
+     * @return bool true when enabled. false otherwise.
+     */
+    public function is_component_enabled(): bool {
+        $component = $this->get_component();
+
+        // An entire core component type cannot be explicitly disabled.
+        [$componenttype] = core_component::normalize_component($component);
+        if ($componenttype === 'core') {
+            return true;
+        } else {
+            $plugininfo = core_plugin_manager::instance()->get_plugin_info($component);
+            return $plugininfo && ($plugininfo->is_enabled() !== false);
+        }
+    }
+
+    /**
+     * Returns task runtime
+     * @return int
+     */
+    public function get_runtime() {
+        return time() - $this->timestarted;
+    }
+
+    /**
+     * Returns if the task has been running for too long
+     * @return result
+     */
+    public function get_runtime_result() {
+        global $CFG;
+        $runtime = $this->get_runtime();
+        $runtimeerror = $CFG->taskruntimeerror;
+        $runtimewarn = $CFG->taskruntimewarn;
+
+        $status = result::OK;
+        $details = '';
+
+        if ($runtime > $runtimewarn) {
+            $status = result::WARNING;
+            $details = get_string('slowtask', 'tool_task', format_time($runtimewarn));
+        }
+
+        if ($runtime > $runtimeerror) {
+            $status = result::ERROR;
+            $details = get_string('slowtask', 'tool_task', format_time($runtimeerror));
+        }
+
+        // This result is aggregated with other running tasks checks before display.
+        return new result($status, '', $details);
+    }
+
 }

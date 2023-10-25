@@ -47,7 +47,6 @@ class filter_tidy extends moodle_text_filter {
                  'show-body-only' => true,
                  'tidy-mark' => false,
                  'drop-proprietary-attributes' => true,
-                 'drop-font-tags' => true,
                  'drop-empty-paras' => true,
                  'indent' => true,
                  'quiet' => true,

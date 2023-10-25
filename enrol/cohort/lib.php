@@ -30,6 +30,12 @@ defined('MOODLE_INTERNAL') || die();
 define('COHORT_CREATE_GROUP', -1);
 
 /**
+ * COHORT_NOGROUP constant for using no group for a cohort.
+ */
+define('COHORT_NOGROUP', 0);
+
+
+/**
  * Cohort enrolment plugin implementation.
  * @author Petr Skoda
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -105,21 +111,30 @@ class enrol_cohort_plugin extends enrol_plugin {
     public function add_instance($course, array $fields = null) {
         global $CFG;
 
-        if (!empty($fields['customint2']) && $fields['customint2'] == COHORT_CREATE_GROUP) {
-            // Create a new group for the cohort if requested.
-            $context = context_course::instance($course->id);
-            require_capability('moodle/course:managegroups', $context);
-            $groupid = enrol_cohort_create_new_group($course->id, $fields['customint1']);
-            $fields['customint2'] = $groupid;
+        // Allows multiple cohorts to be set on creation.
+        if (!empty($fields['customint1'])) {
+            $fields2 = $fields;
+            if (!is_array($fields['customint1'])) {
+                $fields['customint1'] = array($fields['customint1']);
+            }
+            foreach ($fields['customint1'] as $cid) {
+                $fields2['customint1'] = $cid;
+                if (!empty($fields['customint2']) && $fields['customint2'] == COHORT_CREATE_GROUP) {
+                    // Create a new group for the cohort if requested.
+                    $context = context_course::instance($course->id);
+                    require_capability('moodle/course:managegroups', $context);
+                    $groupid = enrol_cohort_create_new_group($course->id, $cid);
+                    $fields2['customint2'] = $groupid;
+                }
+                $result = parent::add_instance($course, $fields2);
+            }
+        } else {
+            $result = parent::add_instance($course, $fields);
         }
-
-        $result = parent::add_instance($course, $fields);
-
         require_once("$CFG->dirroot/enrol/cohort/locallib.php");
         $trace = new null_progress_trace();
         enrol_cohort_sync($trace, $course->id);
         $trace->finished();
-
         return $result;
     }
 
@@ -417,15 +432,11 @@ class enrol_cohort_plugin extends enrol_plugin {
      * @return bool
      */
     public function edit_instance_form($instance, MoodleQuickForm $mform, $coursecontext) {
-        global $DB;
-
-        $mform->addElement('text', 'name', get_string('custominstancename', 'enrol'));
-        $mform->setType('name', PARAM_TEXT);
 
         $options = $this->get_status_options();
         $mform->addElement('select', 'status', get_string('status', 'enrol_cohort'), $options);
 
-        $options = ['contextid' => $coursecontext->id, 'multiple' => false];
+        $options = ['contextid' => $coursecontext->id, 'multiple' => true];
         $mform->addElement('cohort', 'customint1', get_string('cohort', 'cohort'), $options);
 
         if ($instance->id) {
@@ -456,32 +467,172 @@ class enrol_cohort_plugin extends enrol_plugin {
     public function edit_instance_validation($data, $files, $instance, $context) {
         global $DB;
         $errors = array();
-
+        // Allows multiple cohorts to be selected.
+        list($sql1, $params1) = $DB->get_in_or_equal($data['customint1'], SQL_PARAMS_NAMED);
         $params = array(
             'roleid' => $data['roleid'],
-            'customint1' => $data['customint1'],
             'courseid' => $data['courseid'],
             'id' => $data['id']
         );
-        $sql = "roleid = :roleid AND customint1 = :customint1 AND courseid = :courseid AND enrol = 'cohort' AND id <> :id";
+        $params = array_merge($params, $params1);
+        $sql = "roleid = :roleid AND customint1 $sql1 AND courseid = :courseid AND enrol = 'cohort' AND id <> :id";
         if ($DB->record_exists_select('enrol', $sql, $params)) {
-            $errors['roleid'] = get_string('instanceexists', 'enrol_cohort');
+            $errors['customint1'] = get_string('instanceexists', 'enrol_cohort');
         }
         $validstatus = array_keys($this->get_status_options());
         $validcohorts = array_keys($this->get_cohort_options($instance, $context));
         $validroles = array_keys($this->get_role_options($instance, $context));
         $validgroups = array_keys($this->get_group_options($context));
         $tovalidate = array(
-            'name' => PARAM_TEXT,
             'status' => $validstatus,
-            'customint1' => $validcohorts,
             'roleid' => $validroles,
             'customint2' => $validgroups
         );
         $typeerrors = $this->validate_param_types($data, $tovalidate);
-        $errors = array_merge($errors, $typeerrors);
+        // When creating a new cohort enrolment, we allow multiple cohorts in just one go.
+        // When editing an existing enrolment, changing the cohort is no allowed, so cohort is a single value.
+        if (is_array($data['customint1'])) {
+            $cohorts = $data['customint1'];
+        } else {
+            $cohorts = [$data['customint1']];
+        }
 
+        $errors = array_merge($errors, $typeerrors);
+        // Check that the cohorts passed are valid.
+        if (!empty(array_diff($cohorts, $validcohorts))) {
+            $errors['customint1'] = get_string('invaliddata', 'error');
+        }
         return $errors;
+    }
+
+    /**
+     * Check if data is valid for a given enrolment plugin
+     *
+     * @param array $enrolmentdata enrolment data to validate.
+     * @param int|null $courseid Course ID.
+     * @return array Errors
+     */
+    public function validate_enrol_plugin_data(array $enrolmentdata, ?int $courseid = null) : array {
+        global $DB;
+
+        $errors = [];
+        if (!enrol_is_enabled('cohort')) {
+            $errors['plugindisabled'] =
+                new lang_string('plugindisabled', 'enrol_cohort');
+        }
+
+        if (isset($enrolmentdata['addtogroup'])) {
+            $addtogroup = $enrolmentdata['addtogroup'];
+            if (($addtogroup == - COHORT_CREATE_GROUP) || $addtogroup == COHORT_NOGROUP) {
+                if (isset($enrolmentdata['groupname'])) {
+                    $errors['erroraddtogroupgroupname'] =
+                        new lang_string('erroraddtogroupgroupname', 'group');
+                }
+            } else {
+                $errors['erroraddtogroup'] =
+                    new lang_string('erroraddtogroup', 'group');
+            }
+        }
+
+        if ($courseid) {
+            $enrolmentdata = $this->fill_enrol_custom_fields($enrolmentdata, $courseid);
+            $error = $this->validate_plugin_data_context($enrolmentdata, $courseid);
+            if ($error) {
+                $errors['contextnotallowed'] = $error;
+            }
+
+            if (isset($enrolmentdata['groupname']) && $enrolmentdata['groupname']) {
+                $groupname = $enrolmentdata['groupname'];
+                if (!groups_get_group_by_name($courseid, $groupname)) {
+                    $errors['errorinvalidgroup'] =
+                        new lang_string('errorinvalidgroup', 'group', $groupname);
+                }
+            }
+        }
+
+        if (!isset($enrolmentdata['cohortname'])) {
+            $errors['missingmandatoryfields'] =
+                new lang_string('missingmandatoryfields', 'tool_uploadcourse',
+                    'cohortname');
+        } else {
+            $cohortname = $enrolmentdata['cohortname'];
+            // Cohort name is not unique.
+            $cohortid = $DB->get_field('cohort', 'MIN(id)', ['name' => $cohortname]);
+
+            if (!$cohortid) {
+                $errors['unknowncohort'] =
+                    new lang_string('unknowncohort', 'cohort', $cohortname);
+            }
+        }
+        return $errors;
+    }
+
+    /**
+     * Fill custom fields data for a given enrolment plugin.
+     *
+     * @param array $enrolmentdata enrolment data.
+     * @param int $courseid Course ID.
+     * @return array Updated enrolment data with custom fields info.
+     */
+    public function fill_enrol_custom_fields(array $enrolmentdata, int $courseid) : array {
+        global $DB;
+
+        // Cohort name is not unique.
+        $enrolmentdata['customint1'] =
+            $DB->get_field('cohort', 'MIN(id)', ['name' => $enrolmentdata['cohortname']]);
+
+        if (isset($enrolmentdata['addtogroup'])) {
+            if ($enrolmentdata['addtogroup'] == COHORT_NOGROUP) {
+                $enrolmentdata['customint2'] = COHORT_NOGROUP;
+            } else if ($enrolmentdata['addtogroup'] == - COHORT_CREATE_GROUP) {
+                $enrolmentdata['customint2'] = COHORT_CREATE_GROUP;
+            }
+        } else if (isset($enrolmentdata['groupname'])) {
+            $enrolmentdata['customint2'] = groups_get_group_by_name($courseid, $enrolmentdata['groupname']);
+        }
+        return $enrolmentdata;
+    }
+
+    /**
+     * Check if plugin custom data is allowed in relevant context.
+     *
+     * @param array $enrolmentdata enrolment data to validate.
+     * @param int|null $courseid Course ID.
+     * @return lang_string|null Error
+     */
+    public function validate_plugin_data_context(array $enrolmentdata, ?int $courseid = null) : ?lang_string {
+        $error = null;
+        $cohortid = $enrolmentdata['customint1'];
+        $coursecontext = \context_course::instance($courseid);
+        if (!cohort_get_cohort($cohortid, $coursecontext)) {
+            $error = new lang_string('contextcohortnotallowed', 'cohort', $enrolmentdata['cohortname']);
+        }
+        return $error;
+    }
+
+    /**
+     * Add new instance of enrol plugin with custom settings,
+     * called when adding new instance manually or when adding new course.
+     * Used for example on course upload.
+     *
+     * Not all plugins support this.
+     *
+     * @param stdClass $course Course object
+     * @param array|null $fields instance fields
+     * @return int|null id of new instance or null if not supported
+     */
+    public function add_custom_instance(stdClass $course, ?array $fields = null): ?int {
+        return $this->add_instance($course, $fields);
+    }
+
+
+    /**
+     * Check if enrolment plugin is supported in csv course upload.
+     *
+     * @return bool
+     */
+    public function is_csv_upload_supported(): bool {
+        return true;
     }
 }
 

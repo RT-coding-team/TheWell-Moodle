@@ -77,10 +77,10 @@ class model_config {
         // Model config in JSON.
         $modeldata = $this->export_model_data();
 
-        $exporttmpdir = make_request_directory('analyticsexport');
+        $exporttmpdir = make_request_directory();
         $jsonfilepath = $exporttmpdir . DIRECTORY_SEPARATOR . 'model-config.json';
         if (!file_put_contents($jsonfilepath, json_encode($modeldata))) {
-            print_error('errornoexportconfig', 'analytics');
+            throw new \moodle_exception('errornoexportconfig', 'analytics');
         }
         $zipfiles[self::CONFIG_FILE_NAME] = $jsonfilepath;
 
@@ -256,7 +256,7 @@ class model_config {
      */
     public function extract_import_contents(string $zipfilepath) : array {
 
-        $importtempdir = make_request_directory('analyticsimport' . microtime(false));
+        $importtempdir = make_request_directory();
 
         $zip = new \zip_packer();
         $filelist = $zip->extract_to_pathname($zipfilepath, $importtempdir);

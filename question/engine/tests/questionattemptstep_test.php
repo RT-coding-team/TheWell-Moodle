@@ -14,15 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * This file contains tests for the question_attempt_step class.
- *
- * @package    moodlecore
- * @subpackage questionengine
- * @copyright  2009 The Open University
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace core_question;
 
+use question_attempt_step;
+use question_state;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -30,14 +25,15 @@ global $CFG;
 require_once(__DIR__ . '/../lib.php');
 require_once(__DIR__ . '/helpers.php');
 
-
 /**
  * Unit tests for the {@link question_attempt_step} class.
  *
+ * @package    core_question
+ * @category   test
  * @copyright  2009 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class question_attempt_step_test extends advanced_testcase {
+class questionattemptstep_test extends \advanced_testcase {
     public function test_initial_state_unprocessed() {
         $step = new question_attempt_step();
         $this->assertEquals(question_state::$unprocessed, $step->get_state());
@@ -127,5 +123,51 @@ class question_attempt_step_test extends advanced_testcase {
         $this->assertEquals(array(), $step->get_qt_data());
         $this->assertEquals(array(), $step->get_behaviour_data());
 
+    }
+
+    /**
+     * Test get_user function.
+     */
+    public function test_get_user() {
+        $this->resetAfterTest(true);
+        $student = $this->getDataGenerator()->create_user();
+
+        $step = new question_attempt_step(array(), 123, $student->id);
+        $step->add_full_user_object($student);
+
+        $this->assertEquals($student, $step->get_user());
+    }
+
+    /**
+     * Test get_user_fullname function.
+     */
+    public function test_get_user_fullname() {
+        $this->resetAfterTest(true);
+        $student = $this->getDataGenerator()->create_user();
+
+        $step = new question_attempt_step(array(), 123, $student->id);
+        $step->add_full_user_object($student);
+
+        $this->assertEquals(fullname($student), $step->get_user_fullname());
+    }
+
+    /**
+     * Test add_full_user_object function.
+     */
+    public function test_add_full_user_object() {
+        $this->resetAfterTest(true);
+        $student1 = $this->getDataGenerator()->create_user();
+        $student2 = $this->getDataGenerator()->create_user();
+
+        $step = new question_attempt_step(array(), 123, $student1->id);
+
+        // Add full user with the valid user.
+        $step->add_full_user_object($student1);
+        $this->assertEquals($student1, $step->get_user());
+
+        // Throw exception with the invalid user.
+        $this->expectException('coding_exception');
+        $this->expectExceptionMessage('Wrong user passed to add_full_user_object');
+        $step->add_full_user_object($student2);
     }
 }

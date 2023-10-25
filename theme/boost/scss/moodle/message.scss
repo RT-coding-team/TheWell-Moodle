@@ -1,12 +1,12 @@
 /** The message area **/
 @mixin setSelectedContact() {
-    background-color: #4f94cd;
-    color: #fff;
+    background-color: $message-selected-bg;
+    color: $message-selected-color;
     border: none;
 
     .information {
         .lastmessage {
-            color: #fff;
+            color: $message-selected-color;
         }
     }
     .picture {
@@ -30,7 +30,7 @@
         vertical-align: bottom;
     }
     .preference-table {
-        border: 1px solid #ddd;
+        border: 1px solid $message-preference-table-border-color;
 
         thead {
             th {
@@ -48,17 +48,17 @@
             }
         }
         tr {
+            th {
+                border-left: 1px solid $border-color;
+            }
             td {
                 &:not(:first-child) {
                     width: 150px;
                     text-align: center;
                 }
                 &:nth-child(even) {
-                    background-color: #f7f7f7;
+                    border: 1px solid $border-color;
                 }
-            }
-            th:nth-child(even) {
-                background-color: #f7f7f7;
             }
         }
         .preference-row {
@@ -73,61 +73,6 @@
                 text-align: center;
                 height: 30px;
                 line-height: 30px;
-            }
-            .preference-state {
-                margin: 0;
-                padding: 0;
-                display: inline-block;
-                vertical-align: middle;
-
-                input[type="checkbox"]:checked + .preference-state-status-container {
-                    background-color: #5cb85c;
-
-                    .on-text {
-                        display: inline-block;
-                    }
-                    .off-text {
-                        display: none;
-                    }
-                }
-                .preference-state-status-container {
-                    width: 30px;
-                    height: 30px;
-                    line-height: 30px;
-                    text-align: center;
-                    border-radius: 4px;
-                    background-color: #d9534f;
-                    color: #fff;
-                    cursor: pointer;
-
-                    .loading-icon {
-                        display: none;
-                    }
-                    .on-text {
-                        display: none;
-                    }
-                    .off-text {
-                        display: inline-block;
-                    }
-                }
-                &.loading {
-                    input[type="checkbox"]:checked + .preference-state-status-container {
-                        .on-text,
-                        .off-text {
-                            display: none;
-                        }
-                    }
-
-                    .preference-state-status-container {
-                        .on-text,
-                        .off-text {
-                            display: none;
-                        }
-                        .loading-icon {
-                            display: block;
-                        }
-                    }
-                }
             }
             &.loading {
                 .preference-name {
@@ -176,7 +121,7 @@
         width: 100%;
         height: 100%;
         text-align: center;
-        background-color: rgba(255, 255, 255, 0.5);
+        background-color: $message-loading-bg;
 
         .vertical-align {
             height: 100%;
@@ -223,7 +168,7 @@
     box-sizing: border-box;
     border-radius: 4px;
     margin-bottom: 30px;
-    border: 1px solid #e3e3e3;
+    border: 1px solid $message-notif-area-border-color;
 
     .control-area {
         box-sizing: border-box;
@@ -232,7 +177,7 @@
         height: 100%;
         overflow: auto;
         -webkit-overflow-scrolling: touch;
-        border-right: 1px solid #e3e3e3;
+        border-right: 1px solid $message-notif-area-border-color;
 
         .content {
             position: relative;
@@ -283,7 +228,7 @@
         .header {
             height: 50px;
             box-sizing: border-box;
-            border-bottom: 1px solid #e3e3e3;
+            border-bottom: 1px solid $message-notif-area-border-color;
             padding: 5px;
 
             .image-container {
@@ -308,7 +253,7 @@
                 font-size: 10px;
                 line-height: 10px;
                 margin: 0;
-                color: #666;
+                color: $message-notif-area-timestamp-color;
                 margin-left: 30px;
             }
 
@@ -390,8 +335,8 @@
                 height: 50px;
                 line-height: 50px;
                 box-sizing: border-box;
-                border-right: 1px solid #e3e3e3;
-                border-bottom: 1px solid #e3e3e3;
+                border-right: 1px solid $message-notif-area-border-color;
+                border-bottom: 1px solid $message-notif-area-border-color;
             }
 
             .header {
@@ -517,7 +462,7 @@ $message-day-color: color-yiq($message-app-bg) !default;
         cursor: pointer;
 
         &:hover {
-            filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.3));
+            filter: drop-shadow(2px 2px 2px $message-clickable-hover-shadow);
         }
     }
 
@@ -595,27 +540,30 @@ $message-day-color: color-yiq($message-app-bg) !default;
             }
         }
     }
-    .list-group .list-group-item {
-        border-left: 0;
-        border-right: 0;
-        &:hover {
-            color: $white;
-            background-color: $primary;
-            .badge-primary {
-                background-color: $white;
-                color: $primary;
+    .list-group {
+        border-radius: 0;
+        .list-group-item {
+            border-left: 0;
+            border-right: 0;
+            &:hover {
+                color: $white;
+                background-color: $primary;
+                .badge-primary {
+                    background-color: $white;
+                    color: $primary;
+                }
             }
-        }
-        &:first-child {
-            border-top: 0;
-        }
-        &:last-child {
-            border-bottom: 0;
-        }
-        &.list-group-item-action {
-            margin: 0.1rem;
-            width: auto;
-            text-align: inherit;
+            &:first-child {
+                border-top: 0;
+            }
+            &:last-child {
+                border-bottom: 0;
+            }
+            &.list-group-item-action {
+                margin: 0.1rem;
+                width: auto;
+                text-align: inherit;
+            }
         }
     }
     .last-message {
@@ -693,7 +641,7 @@ $message-day-color: color-yiq($message-app-bg) !default;
 }
 .dir-rtl {
     .message-drawer {
-        box-shadow: 2px 2px 4px rgba(0, 0, 0, .08);
+        box-shadow: 2px 2px 4px $message-drawer-shadow;
     }
 }
 

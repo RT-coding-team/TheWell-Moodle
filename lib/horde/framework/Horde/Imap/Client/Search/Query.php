@@ -595,7 +595,7 @@ class Horde_Imap_Client_Search_Query implements Serializable
      * Search for text in either the entire message, or just the body.
      *
      * @param string $text      The search text.
-     * @param string $bodyonly  If true, only search in the body of the
+     * @param boolean $bodyonly  If true, only search in the body of the
      *                          message. If false, also search in the headers.
      * @param boolean $not      If true, do a 'NOT' search of $text.
      * @param array $opts       Additional options:
@@ -859,12 +859,27 @@ class Horde_Imap_Client_Search_Query implements Serializable
 
     /* Serializable methods. */
 
+    public function serialize()
+    {
+        return serialize($this->__serialize());
+    }
+
+    public function unserialize($data)
+    {
+        $data = @unserialize($data);
+        if (!is_array($data)) {
+            throw new Exception('Cache version change.');
+        }
+
+        $this->__unserialize($data);
+    }
+
     /**
      * Serialization.
      *
      * @return string  Serialized data.
      */
-    public function serialize()
+    public function __serialize()
     {
         $data = array(
             // Serialized data ID.
@@ -876,7 +891,7 @@ class Horde_Imap_Client_Search_Query implements Serializable
             $data[] = $this->_charset;
         }
 
-        return serialize($data);
+        return $data;
     }
 
     /**
@@ -886,9 +901,8 @@ class Horde_Imap_Client_Search_Query implements Serializable
      *
      * @throws Exception
      */
-    public function unserialize($data)
+    public function __unserialize($data)
     {
-        $data = @unserialize($data);
         if (!is_array($data) ||
             !isset($data[0]) ||
             ($data[0] != self::VERSION)) {

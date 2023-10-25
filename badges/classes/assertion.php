@@ -27,7 +27,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Open Badges Assertions specification 1.0 {@link https://github.com/mozilla/openbadges/wiki/Assertions}
+ * Open Badges Assertions specification 1.0 {@link https://github.com/mozilla/openbadges-backpack/wiki/Assertions}
  *
  * Badge asserion is defined by three parts:
  * - Badge Assertion (information regarding a specific badge that was awarded to a badge earner)
@@ -161,6 +161,10 @@ class core_badges_assertion {
             if (!empty($this->_data->dateexpire)) {
                 $assertion['expires'] = $this->_data->dateexpire;
             }
+            $tags = $this->get_tags();
+            if (is_array($tags) && count($tags) > 0) {
+                $assertion['tags'] = $tags;
+            }
             $this->embed_data_badge_version2($assertion, OPEN_BADGES_V2_TYPE_ASSERTION);
         }
         return $assertion;
@@ -196,11 +200,18 @@ class core_badges_assertion {
                 }
             }
             $class['image'] = 'data:image/png;base64,' . $imagedata;
-            $class['criteria'] = $this->_url->out(false); // Currently issued badge URL.
+
+            $params = ['id' => $this->get_badge_id()];
+            $badgeurl = new moodle_url('/badges/badgeclass.php', $params);
+            $class['criteria'] = $badgeurl->out(false); // Currently badge URL.
             if ($issued) {
                 $params = ['id' => $this->get_badge_id(), 'obversion' => $this->_obversion];
                 $issuerurl = new moodle_url('/badges/issuer_json.php', $params);
                 $class['issuer'] = $issuerurl->out(false);
+            }
+            $tags = $this->get_tags();
+            if (is_array($tags) && count($tags) > 0) {
+                $class['tags'] = $tags;
             }
             $this->embed_data_badge_version2($class, OPEN_BADGES_V2_TYPE_BADGE);
             if (!$issued) {
@@ -281,13 +292,15 @@ class core_badges_assertion {
     public function get_criteria_badge_class() {
         $badge = new badge($this->_data->id);
         $narrative = $badge->markdown_badge_criteria();
+        $params = ['id' => $this->get_badge_id()];
+        $badgeurl = new moodle_url('/badges/badgeclass.php', $params);
         if (!empty($narrative)) {
-            $criteria = array();
-            $criteria['id'] = $this->_url->out(false);
+            $criteria = [];
+            $criteria['id'] = $badgeurl->out(false);
             $criteria['narrative'] = $narrative;
             return $criteria;
         } else {
-            return $this->_url->out(false);
+            return $badgeurl->out(false);
         }
     }
 
@@ -376,7 +389,7 @@ class core_badges_assertion {
                         $this->_data->imageauthorurl ||
                         $this->_data->imagecaption) {
                     $storage = get_file_storage();
-                    $imagefile = $storage->get_file($context->id, 'badges', 'badgeimage', $this->_data->id, '/', 'f1.png');
+                    $imagefile = $storage->get_file($context->id, 'badges', 'badgeimage', $this->_data->id, '/', 'f3.png');
                     if ($imagefile) {
                         $imagedata = base64_encode($imagefile->get_content());
                     } else {
@@ -398,5 +411,14 @@ class core_badges_assertion {
                 $json['type'] = OPEN_BADGES_V2_TYPE_ISSUER;
             }
         }
+    }
+
+    /**
+     * Get tags of the badge.
+     *
+     * @return array tags.
+     */
+    public function get_tags(): array {
+        return array_values(\core_tag_tag::get_item_tags_array('core_badges', 'badge', $this->get_badge_id()));
     }
 }

@@ -23,6 +23,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since      Moodle 3.0
  */
+namespace mod_lti;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -35,7 +36,7 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @since      Moodle 3.0
  */
-class mod_lti_lib_testcase extends advanced_testcase {
+class lib_test extends \advanced_testcase {
 
     /**
      * Prepares things before this test case is initialised
@@ -61,7 +62,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(array('enablecompletion' => 1));
         $lti = $this->getDataGenerator()->create_module('lti', array('course' => $course->id),
                                                             array('completion' => 2, 'completionview' => 1));
-        $context = context_module::instance($lti->cmid);
+        $context = \context_module::instance($lti->cmid);
         $cm = get_coursemodule_from_instance('lti', $lti->id);
 
         // Trigger and capture the event.
@@ -83,7 +84,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
         $this->assertNotEmpty($event->get_name());
 
         // Check completion status.
-        $completion = new completion_info($course);
+        $completion = new \completion_info($course);
         $completiondata = $completion->get_data($cm);
         $this->assertEquals(1, $completiondata->completionstate);
 
@@ -214,7 +215,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
             \core_completion\api::COMPLETION_EVENT_TYPE_DATE_COMPLETION_EXPECTED);
 
         // Mark the activity as completed.
-        $completion = new completion_info($course);
+        $completion = new \completion_info($course);
         $completion->set_module_viewed($cm);
 
         // Create an action factory.
@@ -248,7 +249,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
             \core_completion\api::COMPLETION_EVENT_TYPE_DATE_COMPLETION_EXPECTED);
 
         // Mark the activity as completed.
-        $completion = new completion_info($course);
+        $completion = new \completion_info($course);
         $completion->set_module_viewed($cm);
 
         // Now, log out.
@@ -290,7 +291,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
             \core_completion\api::COMPLETION_EVENT_TYPE_DATE_COMPLETION_EXPECTED);
 
         // Mark the activity as completed for $student1.
-        $completion = new completion_info($course);
+        $completion = new \completion_info($course);
         $completion->set_module_viewed($cm, $student1->id);
 
         // Now, log in as $student2.
@@ -315,7 +316,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
      * @return bool|calendar_event
      */
     private function create_action_event($courseid, $instanceid, $eventtype) {
-        $event = new stdClass();
+        $event = new \stdClass();
         $event->name = 'Calendar event';
         $event->modulename  = 'lti';
         $event->courseid = $courseid;
@@ -324,7 +325,7 @@ class mod_lti_lib_testcase extends advanced_testcase {
         $event->eventtype = $eventtype;
         $event->timestart = time();
 
-        return calendar_event::create($event);
+        return \calendar_event::create($event);
     }
 
     /**
@@ -400,53 +401,55 @@ class mod_lti_lib_testcase extends advanced_testcase {
             '1',
             'default module content item',
             new \core_course\local\entity\string_title('Content item title'),
-            new moodle_url(''),
+            new \moodle_url(''),
             'icon',
             'Description of the module',
             MOD_ARCHETYPE_OTHER,
-            'mod_lti'
+            'mod_lti',
+            MOD_PURPOSE_CONTENT
         );
 
         // The lti_get_lti_types_by_course method (used by the callbacks) assumes the global user.
         $this->setUser($teacher);
 
-        // Teacher in course1 should be able to see the default module item ('external tool'),
-        // the site preconfigured tool and the tool created in course1.
+        // Teacher in course1 should be able to see the site preconfigured tool and the tool created in course1.
         $courseitems = lti_get_course_content_items($defaultmodulecontentitem, $teacher, $course);
-        $this->assertCount(3, $courseitems);
+        $this->assertCount(2, $courseitems);
         $ids = [];
         foreach ($courseitems as $item) {
             $ids[] = $item->get_id();
         }
-        $this->assertContains(1, $ids);
         $this->assertContains($sitetoolrecord->id + 1, $ids);
         $this->assertContains($course1toolrecord->id + 1, $ids);
         $this->assertNotContains($sitetoolrecordnonchooser->id + 1, $ids);
 
-        // The content items for teacher2 in course2 include the default module content item ('external tool'),
-        // the site preconfigured tool and the tool created in course2.
+        // The content items for teacher2 in course2 include the site preconfigured tool and the tool created in course2.
         $this->setUser($teacher2);
         $course2items = lti_get_course_content_items($defaultmodulecontentitem, $teacher2, $course2);
-        $this->assertCount(3, $course2items);
+        $this->assertCount(2, $course2items);
         $ids = [];
         foreach ($course2items as $item) {
             $ids[] = $item->get_id();
         }
-        $this->assertContains(1, $ids);
         $this->assertContains($sitetoolrecord->id + 1, $ids);
         $this->assertContains($course2toolrecord->id + 1, $ids);
         $this->assertNotContains($sitetoolrecordnonchooser->id + 1, $ids);
 
-        // When fetching all content items, we expect to see all items available in activity choosers (in any course),
-        // plus the default module content item ('external tool').
+        // Removing the capability to use preconfigured (site or course level) tools, should result in no content items.
+        $teacherrole = $DB->get_record('role', array('shortname' => 'editingteacher'));
+        assign_capability('mod/lti:addpreconfiguredinstance', CAP_PROHIBIT, $teacherrole->id,
+            \core\context\course::instance($course2->id));
+        $course2items = lti_get_course_content_items($defaultmodulecontentitem, $teacher2, $course2);
+        $this->assertCount(0, $course2items);
+
+        // When fetching all content items, we expect to see all items available in activity choosers (in any course).
         $this->setAdminUser();
         $allitems = mod_lti_get_all_content_items($defaultmodulecontentitem);
-        $this->assertCount(4, $allitems);
+        $this->assertCount(3, $allitems);
         $ids = [];
         foreach ($allitems as $item) {
             $ids[] = $item->get_id();
         }
-        $this->assertContains(1, $ids);
         $this->assertContains($sitetoolrecord->id + 1, $ids);
         $this->assertContains($course1toolrecord->id + 1, $ids);
         $this->assertContains($course2toolrecord->id + 1, $ids);

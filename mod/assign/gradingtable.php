@@ -64,6 +64,8 @@ class assign_grading_table extends table_sql implements renderable {
     private $plugincache = array();
     /** @var array $scale - A list of the keys and descriptions for the custom scale */
     private $scale = null;
+    /** @var bool true if the user has this capability. Otherwise false. */
+    private $hasviewblind;
 
     /**
      * overridden constructor keeps a reference to the assignment class that is displaying this table
@@ -82,7 +84,9 @@ class assign_grading_table extends table_sql implements renderable {
                                 $quickgrading,
                                 $downloadfilename = null) {
         global $CFG, $PAGE, $DB, $USER;
-        parent::__construct('mod_assign_grading');
+
+        parent::__construct('mod_assign_grading-' . $assignment->get_context()->id);
+
         $this->is_persistent(true);
         $this->assignment = $assignment;
 
@@ -132,9 +136,11 @@ class assign_grading_table extends table_sql implements renderable {
         $params['assignmentid3'] = (int)$this->assignment->get_instance()->id;
         $params['newstatus'] = ASSIGN_SUBMISSION_STATUS_NEW;
 
-        $extrauserfields = get_extra_user_fields($this->assignment->get_context());
-
-        $fields = user_picture::fields('u', $extrauserfields) . ', ';
+        // TODO Does not support custom user profile fields (MDL-70456).
+        $userfieldsapi = \core_user\fields::for_identity($this->assignment->get_context(), false)->with_userpic();
+        $userfields = $userfieldsapi->get_sql('u', false, '', '', false)->selects;
+        $extrauserfields = $userfieldsapi->get_required_fields([\core_user\fields::PURPOSE_IDENTITY]);
+        $fields = $userfields . ', ';
         $fields .= 'u.id as userid, ';
         $fields .= 's.status as status, ';
         $fields .= 's.id as submissionid, ';
@@ -325,6 +331,10 @@ class assign_grading_table extends table_sql implements renderable {
                 $userfilter = (int) array_pop(explode('=', $filter));
                 $where .= ' AND (u.id = :userid)';
                 $params['userid'] = $userfilter;
+            } else if ($filter == ASSIGN_FILTER_DRAFT) {
+                $where .= ' AND (s.timemodified IS NOT NULL AND
+                                 s.status = :draft) ';
+                $params['draft'] = ASSIGN_SUBMISSION_STATUS_DRAFT;
             }
         }
 
@@ -400,7 +410,7 @@ class assign_grading_table extends table_sql implements renderable {
 
             foreach ($extrauserfields as $extrafield) {
                 $columns[] = $extrafield;
-                $headers[] = get_user_field_name($extrafield);
+                $headers[] = \core_user\fields::get_display_name($extrafield);
             }
         } else {
             // Record ID.
@@ -441,7 +451,7 @@ class assign_grading_table extends table_sql implements renderable {
         }
         // Grade.
         $columns[] = 'grade';
-        $headers[] = get_string('grade');
+        $headers[] = get_string('gradenoun');
         if ($this->is_downloading()) {
             $gradetype = $this->assignment->get_instance()->grade;
             if ($gradetype > 0) {
@@ -630,7 +640,7 @@ class assign_grading_table extends table_sql implements renderable {
     public function col_workflowstatus(stdClass $row) {
         $o = '';
 
-        $gradingdisabled = $this->assignment->grading_disabled($row->id);
+        $gradingdisabled = $this->assignment->grading_disabled($row->id, true, $this->gradinginfo);
         // The function in the assignment keeps a static cache of this list of states.
         $workflowstates = $this->assignment->get_marking_workflow_states_for_current_user();
         $workflowstate = $row->workflowstate;
@@ -781,7 +791,7 @@ class assign_grading_table extends table_sql implements renderable {
         $group = false;
         $this->get_group_and_submission($row->id, $group, $submission, -1);
         if ($group) {
-            return $group->name;
+            return format_string($group->name, true, ['context' => $this->assignment->get_context()]);
         } else if ($this->assignment->get_instance()->preventsubmissionnotingroup) {
             $usergroups = $this->assignment->get_all_groups($row->id);
             if (count($usergroups) > 1) {
@@ -938,7 +948,7 @@ class assign_grading_table extends table_sql implements renderable {
      * @return string
      */
     public function col_gradecanbechanged(stdClass $row) {
-        $gradingdisabled = $this->assignment->grading_disabled($row->id);
+        $gradingdisabled = $this->assignment->grading_disabled($row->id, true, $this->gradinginfo);
         if ($gradingdisabled) {
             return get_string('no');
         } else {
@@ -973,7 +983,7 @@ class assign_grading_table extends table_sql implements renderable {
         $link = '';
         $separator = $this->output->spacer(array(), true);
         $grade = '';
-        $gradingdisabled = $this->assignment->grading_disabled($row->id);
+        $gradingdisabled = $this->assignment->grading_disabled($row->id, true, $this->gradinginfo);
 
         if (!$this->is_downloading() && $this->hasgrade) {
             $urlparams = array('id' => $this->assignment->get_course_module()->id,
@@ -990,7 +1000,7 @@ class assign_grading_table extends table_sql implements renderable {
             }
 
             $url = new moodle_url('/mod/assign/view.php', $urlparams);
-            $link = '<a href="' . $url . '" class="btn btn-primary">' . get_string('grade') . '</a>';
+            $link = '<a href="' . $url . '" class="btn btn-primary">' . get_string('gradeverb') . '</a>';
             $grade .= $link . $separator;
         }
 
@@ -1070,6 +1080,7 @@ class assign_grading_table extends table_sql implements renderable {
         $o = '';
 
         $instance = $this->assignment->get_instance($row->userid);
+        $timelimitenabled = get_config('assign', 'enabletimelimit');
 
         $due = $instance->duedate;
         if ($row->extensionduedate) {
@@ -1112,6 +1123,14 @@ class assign_grading_table extends table_sql implements renderable {
                 $latemessage = get_string('submittedlateshort',
                                           'assign',
                                           $usertime);
+                $o .= $this->output->container($latemessage, 'latesubmission');
+            } else if ($timelimitenabled && $instance->timelimit && !empty($submission->timestarted)
+                && ($timesubmitted - $submission->timestarted > $instance->timelimit)
+                && $status != ASSIGN_SUBMISSION_STATUS_NEW) {
+                $usertime = format_time($timesubmitted - $submission->timestarted - $instance->timelimit);
+                $latemessage = get_string('submittedlateshort',
+                    'assign',
+                    $usertime);
                 $o .= $this->output->container($latemessage, 'latesubmission');
             }
             if ($row->locked) {
@@ -1233,7 +1252,7 @@ class assign_grading_table extends table_sql implements renderable {
         $noimage = null;
 
         if (!$row->grade) {
-            $description = get_string('grade');
+            $description = get_string('gradeverb');
         } else {
             $description = get_string('updategrade', 'assign');
         }
@@ -1402,8 +1421,7 @@ class assign_grading_table extends table_sql implements renderable {
 
         $menu = new action_menu();
         $menu->set_owner_selector('.gradingtable-actionmenu');
-        $menu->set_alignment(action_menu::TL, action_menu::BL);
-        $menu->set_constraint('.gradingtable > .no-overflow');
+        $menu->set_boundary('window');
         $menu->set_menu_trigger(get_string('edit'));
         foreach ($actions as $action) {
             $menu->add($action);

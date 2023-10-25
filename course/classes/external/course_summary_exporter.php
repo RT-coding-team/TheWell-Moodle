@@ -64,7 +64,7 @@ class course_summary_exporter extends \core\external\exporter {
         if ($progress === 0 || $progress > 0) {
             $hasprogress = true;
         }
-        $progress = floor($progress);
+        $progress = floor($progress ?? 0);
         $coursecategory = \core_course_category::get($this->data->category, MUST_EXIST, true);
         return array(
             'fullnamedisplay' => get_course_display_name_for_list($this->data),
@@ -108,7 +108,19 @@ class course_summary_exporter extends \core\external\exporter {
             ),
             'visible' => array(
                 'type' => PARAM_BOOL,
-            )
+            ),
+            'showactivitydates' => [
+                'type' => PARAM_BOOL,
+                'null' => NULL_ALLOWED
+            ],
+            'showcompletionconditions' => [
+                'type' => PARAM_BOOL,
+                'null' => NULL_ALLOWED
+            ],
+            'pdfexportfont' => [
+                'type' => PARAM_TEXT,
+                'null' => NULL_ALLOWED
+            ],
         );
     }
 
@@ -165,24 +177,16 @@ class course_summary_exporter extends \core\external\exporter {
      * Get the course image if added to course.
      *
      * @param object $course
-     * @return string url of course image
+     * @return string|false url of course image or false if it's not exist.
      */
     public static function get_course_image($course) {
-        global $CFG;
-        $courseinlist = new \core_course_list_element($course);
-        foreach ($courseinlist->get_course_overviewfiles() as $file) {
-            if ($file->is_valid_image()) {
-                $pathcomponents = [
-                    '/pluginfile.php',
-                    $file->get_contextid(),
-                    $file->get_component(),
-                    $file->get_filearea() . $file->get_filepath() . $file->get_filename()
-                ];
-                $path = implode('/', $pathcomponents);
-                return (new moodle_url($path))->out();
-            }
+        $image = \cache::make('core', 'course_image')->get($course->id);
+
+        if (is_null($image)) {
+            $image = false;
         }
-        return false;
+
+        return $image;
     }
 
     /**

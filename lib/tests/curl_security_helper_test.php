@@ -14,15 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Unit tests for /lib/classes/curl/curl_security_helper.php.
- *
- * @package   core
- * @copyright 2016 Jake Dallimore <jrhdallimore@gmail.com>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die();
+namespace core;
 
 /**
  * cURL security test suite.
@@ -34,7 +26,7 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2016 Jake Dallimore <jrhdallimore@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class core_curl_security_helper_testcase extends advanced_testcase {
+class curl_security_helper_test extends \advanced_testcase {
     /**
      * Test for \core\files\curl_security_helper::url_is_blocked().
      *
@@ -48,18 +40,17 @@ class core_curl_security_helper_testcase extends advanced_testcase {
     public function test_curl_security_helper_url_is_blocked($dns, $url, $blockedhosts, $allowedports, $expected) {
         $this->resetAfterTest(true);
         $helper = $this->getMockBuilder('\core\files\curl_security_helper')
-                        ->setMethods(['get_host_list_by_name'])
-                        ->getMock();
+            ->onlyMethods(['get_host_list_by_name'])
+            ->getMock();
 
         // Override the get host list method to return hard coded values based on a mapping provided by $dns.
-        $helper->method('get_host_list_by_name')
-               ->will(
-                   $this->returnCallback(
-                       function($host) use ($dns) {
-                           return isset($dns[$host]) ? $dns[$host] : [];
-                       }
-                   )
-               );
+        $helper->method('get_host_list_by_name')->will(
+            $this->returnCallback(
+                function($host) use ($dns) {
+                    return isset($dns[$host]) ? $dns[$host] : [];
+                }
+            )
+        );
 
         set_config('curlsecurityblockedhosts', $blockedhosts);
         set_config('curlsecurityallowedport', $allowedports);
@@ -144,6 +135,11 @@ class core_curl_security_helper_testcase extends advanced_testcase {
             // Test when DNS resolution fails.
             [[], "http://example.com", "127.0.0.1", "", true],
 
+            // Test ensures that the default value of getremoteaddr() 0.0.0.0 will check against the provided blocked list.
+            [$simpledns, "http://0.0.0.0/x.png", "0.0.0.0", "", true],
+            // Test set using IPV4 with integer format.
+            [$simpledns, "http://2852039166/x.png", "169.254.169.254", "", true],
+
             // Test some freaky deaky Unicode domains. Should be blocked always.
             [$simpledns, "http://169。254。169。254/", "127.0.0.1", "", true],
             [$simpledns, "http://169。254。169。254/", "1.2.3.4", "", true],
@@ -207,7 +203,7 @@ class core_curl_security_helper_testcase extends advanced_testcase {
         $this->resetAfterTest(true);
         $helper = new \core\files\curl_security_helper();
         set_config('curlsecurityblockedhosts', $blockedhosts);
-        $this->assertEquals($expected, phpunit_util::call_internal_method($helper, 'host_is_blocked', [$host],
+        $this->assertEquals($expected, \phpunit_util::call_internal_method($helper, 'host_is_blocked', [$host],
                                                                           '\core\files\curl_security_helper'));
     }
 
@@ -261,7 +257,7 @@ class core_curl_security_helper_testcase extends advanced_testcase {
         $this->resetAfterTest(true);
         $helper = new \core\files\curl_security_helper();
         set_config('curlsecurityallowedport', $allowedports);
-        $this->assertEquals($expected, phpunit_util::call_internal_method($helper, 'port_is_blocked', [$port],
+        $this->assertEquals($expected, \phpunit_util::call_internal_method($helper, 'port_is_blocked', [$port],
                                                                           '\core\files\curl_security_helper'));
     }
 

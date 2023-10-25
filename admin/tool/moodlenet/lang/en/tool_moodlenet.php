@@ -25,6 +25,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+$string['autoenablenotification'] = '<p>In Moodle 4.0 onwards, the <a href="https://moodle.net/">MoodleNet</a> integration is enabled by default in Advanced features. Users with the capability to create and manage activities can browse MoodleNet via the activity chooser and import MoodleNet resources into their courses.</p><p>If desired, an alternative MoodleNet instance may be specified in the <a href="{$a->settingslink}">MoodleNet inbound settings</a>.</p>';
+$string['autoenablenotification_subject'] = 'Default MoodleNet setting changed.';
 $string['addingaresource'] = 'Adding content from MoodleNet';
 $string['aria:enterprofile'] = "Enter your MoodleNet profile ID";
 $string['aria:footermessage'] = "Browse for content on MoodleNet";
@@ -36,7 +38,7 @@ $string['defaultmoodlenet_desc'] = 'The URL of the MoodleNet instance available 
 $string['defaultmoodlenetname'] = "MoodleNet instance name";
 $string['defaultmoodlenetnamevalue'] = 'MoodleNet Central';
 $string['defaultmoodlenetname_desc'] = 'The name of the MoodleNet instance available via the activity chooser.';
-$string['enablemoodlenet'] = 'Enable MoodleNet integration';
+$string['enablemoodlenet'] = 'Enable MoodleNet integration (inbound)';
 $string['enablemoodlenet_desc'] = 'If enabled, a user with the capability to create and manage activities can browse MoodleNet via the activity chooser and import MoodleNet resources into their course. In addition, a user with the capability to restore backups can select a backup file on MoodleNet and restore it into Moodle.';
 $string['errorduringdownload'] = 'An error occurred while downloading the file: {$a}';
 $string['forminfo'] = 'Your MoodleNet profile ID will be automatically saved in your profile on this site.';
@@ -53,12 +55,11 @@ $string['missinginvalidpostdata'] = 'The resource information from MoodleNet is 
 If this happens repeatedly, please contact the site administrator.';
 $string['mnetprofile'] = 'MoodleNet profile';
 $string['mnetprofiledesc'] = '<p>Enter your MoodleNet profile details here to be redirected to your profile while visiting MoodleNet.</p>';
-$string['moodlenetsettings'] = 'MoodleNet settings';
+$string['moodlenetsettings'] = 'MoodleNet inbound settings';
 $string['moodlenetnotenabled'] = 'The MoodleNet integration must be enabled in Site administration / MoodleNet before resource imports can be processed.';
 $string['notification'] = 'You are about to import the content "{$a->name} ({$a->type})" into your site. Select the course in which it should be added, or <a href="{$a->cancellink}">cancel</a>.';
-$string['removedmnetprofilenotification'] = '<p>Due to some recent changes on the MoodleNet platform, users that have previously saved their MoodleNet profile on the site can no longer use this data to authenticate on the MoodleNet platform. The related data has now been removed as it is no longer useful.</p>
-<p>The users will need to reset this information on the site by linking their MoodleNet profile ID which can be found on their MoodleNet profile.</p>';
-$string['removedmnetprofilenotification_subject'] = 'Linked MoodleNet profiles removed.';
+$string['removedmnetprofilenotification'] = 'Due to recent changes on the MoodleNet platform, any users who previously saved their MoodleNet profile ID on the site will need to enter a MoodleNet profile ID in the new format in order to authenticate on the MoodleNet platform.';
+$string['removedmnetprofilenotification_subject'] = 'MoodleNet profile ID format change';
 $string['searchcourses'] = "Search courses";
 $string['selectpagetitle'] = 'Select page';
 $string['pluginname'] = 'MoodleNet';

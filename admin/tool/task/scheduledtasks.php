@@ -38,9 +38,11 @@ $mform = null;
 if ($taskname) {
     $task = \core\task\manager::get_scheduled_task($taskname);
     if (!$task) {
-        print_error('invaliddata');
+        throw new \moodle_exception('invaliddata');
     }
 }
+
+$PAGE->navbar->add(get_string('scheduledtasks', 'tool_task'), $PAGE->url);
 
 if ($action == 'edit') {
     $PAGE->navbar->add(get_string('edittaskschedule', 'tool_task', $task->get_name()));
@@ -51,9 +53,11 @@ if ($task) {
     $nexturl = new moodle_url($PAGE->url, ['lastchanged' => $taskname]);
 }
 
+$PAGE->set_primary_active_tab('siteadminnode');
+
 $renderer = $PAGE->get_renderer('tool_task');
 
-if ($mform && ($mform->is_cancelled() || !empty($CFG->preventscheduledtaskchanges))) {
+if ($mform && ($mform->is_cancelled() || !empty($CFG->preventscheduledtaskchanges) || $task->is_overridden())) {
     redirect($nexturl);
 } else if ($action == 'edit' && empty($CFG->preventscheduledtaskchanges)) {
 

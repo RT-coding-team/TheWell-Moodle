@@ -34,7 +34,7 @@ namespace core\event;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @coversDefaultClass \core\event\contentbank_content_created
  */
-class contentbank_content_created_testcase extends \advanced_testcase {
+class contentbank_content_created_test extends \advanced_testcase {
 
     /**
      * Setup to ensure that fixtures are loaded.
@@ -63,6 +63,7 @@ class contentbank_content_created_testcase extends \advanced_testcase {
         $sink = $this->redirectEvents();
 
         // Create a content bank content.
+        /** @var \core_contentbank_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('core_contentbank');
         $contents = $generator->generate_contentbank_data('contenttype_testable', 1);
         $content = array_shift($contents);

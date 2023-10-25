@@ -25,12 +25,14 @@ Feature: Edit quiz page - remove multiple questions
   @javascript
   Scenario: Delete selected question using select multiple items feature.
     Given the following "questions" exist:
-      | questioncategory | qtype     | name       | questiontext        |
-      | Test questions   | truefalse | Question A | This is question 01 |
-      | Test questions   | truefalse | Question B | This is question 02 |
-      | Test questions   | truefalse | Question C | This is question 03 |
+      | questioncategory | qtype       | name       | questiontext        |
+      | Test questions   | description | Info       | Some instructions   |
+      | Test questions   | truefalse   | Question A | This is question 01 |
+      | Test questions   | truefalse   | Question B | This is question 02 |
+      | Test questions   | truefalse   | Question C | This is question 03 |
     And quiz "Quiz 1" contains the following questions:
       | question   | page |
+      | Info       | 1    |
       | Question A | 1    |
       | Question B | 1    |
       | Question C | 2    |
@@ -41,7 +43,7 @@ Feature: Edit quiz page - remove multiple questions
     And I should see "Question B" on quiz page "1"
     And I should see "Question C" on quiz page "2"
     And I should see "Total of marks: 3.00"
-    And I should see "Questions: 3"
+    And I should see "Questions: 4"
     And I should see "This quiz is open"
 
     # Delete last question in last page. Page contains multiple questions. No reordering.
@@ -50,11 +52,12 @@ Feature: Edit quiz page - remove multiple questions
     And I click on "Delete selected" "button"
     And I click on "Yes" "button" in the "Confirm" "dialogue"
 
-    Then I should see "Question A" on quiz page "1"
-    And I should see "Question B" on quiz page "1"
-    And I should not see "Question C" on quiz page "2"
+    Then I should see "Info" on quiz page "1"
+    And I should see "Question A" on quiz page "1"
+    And I should not see "Question B" on quiz page "1"
+    And I should see "Question C" on quiz page "2"
     And I should see "Total of marks: 2.00"
-    And I should see "Questions: 2"
+    And I should see "Questions: 3"
 
   @javascript
   Scenario: Delete first selected question using select multiple items feature.
@@ -236,3 +239,57 @@ Feature: Edit quiz page - remove multiple questions
     And I click on "Delete selected" "button"
 
     Then I should see "Cannot remove questions"
+
+  @javascript
+  Scenario: Delete multiple random questions from sections.
+    Given the following "questions" exist:
+      | questioncategory | qtype     | name       | questiontext    |
+      | Test questions   | truefalse | Question A | First question  |
+      | Test questions   | truefalse | Question B | Second question |
+      | Test questions   | truefalse | Question C | Third question  |
+      | Test questions   | truefalse | Question D | Fourth question |
+      | Test questions   | truefalse | Question E | Fifth question  |
+      | Test questions   | truefalse | Question F | Sixth question  |
+    And I am on the "Quiz 1" "mod_quiz > Edit" page
+
+    When I open the "last" add to quiz menu
+    And I follow "a random question"
+    And I set the field "Number of random questions" to "3"
+    And I press "Add random question"
+    And I click on "Select multiple items" "button"
+    And I click on "selectquestion-1" "checkbox"
+    And I click on "selectquestion-2" "checkbox"
+    And I click on "Delete selected" "button"
+    And I click on "Yes" "button" in the "Confirm" "dialogue"
+    Then I should see "Random question based on filter condition" on quiz page "1"
+    And I should not see "Random question based on filter condition" on quiz page "2"
+    And I should not see "Random question based on filter condition" on quiz page "3"
+    And I should see "Total of marks: 1.00"
+    And I should see "Questions: 1"
+
+  @javascript
+  Scenario: Delete all random questions by checking select all.
+    Given the following "questions" exist:
+      | questioncategory | qtype     | name       | questiontext    |
+      | Test questions   | truefalse | Question A | First question  |
+      | Test questions   | truefalse | Question B | Second question |
+      | Test questions   | truefalse | Question C | Third question  |
+      | Test questions   | truefalse | Question D | Fourth question |
+      | Test questions   | truefalse | Question E | Fifth question  |
+      | Test questions   | truefalse | Question F | Sixth question  |
+    And I am on the "Quiz 1" "mod_quiz > Edit" page
+
+    # Delete all questions in page. Page contains multiple questions.
+    When I open the "last" add to quiz menu
+    And I follow "a random question"
+    And I set the field "Number of random questions" to "3"
+    And I press "Add random question"
+    And I click on "Select multiple items" "button"
+    And I press "Select all"
+    And I click on "Delete selected" "button"
+    And I click on "Yes" "button" in the "Confirm" "dialogue"
+    Then I should not see "Random question based on filter condition" on quiz page "1"
+    And I should not see "Random question based on filter condition" on quiz page "2"
+    And I should not see "Random question based on filter condition" on quiz page "3"
+    And I should see "Total of marks: 0.00"
+    And I should see "Questions: 0"

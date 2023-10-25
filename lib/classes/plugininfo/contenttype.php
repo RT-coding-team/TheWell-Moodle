@@ -23,8 +23,6 @@
  */
 namespace core\plugininfo;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Class for contentbank plugins
  *
@@ -34,6 +32,9 @@ defined('MOODLE_INTERNAL') || die();
  */
 class contenttype extends base {
 
+    public static function plugintype_supports_disabling(): bool {
+        return true;
+    }
 
     /**
      * Defines if there should be a way to uninstall the plugin via the administration UI.
@@ -62,6 +63,7 @@ class contenttype extends base {
      */
     public function load_settings(\part_of_admin_tree $adminroot, $parentnodename, $hassiteconfig) {
         global $CFG, $USER, $DB, $OUTPUT, $PAGE; // In case settings.php wants to refer to them.
+        /** @var \admin_root $ADMIN */
         $ADMIN = $adminroot; // May be used in settings.php.
         $plugininfo = $this; // Also can be used inside settings.php
         $contenttype = $this; // Also to be used inside settings.php.
@@ -101,7 +103,7 @@ class contenttype extends base {
      * @param string $type the name of the plugintype, eg. mod, auth or workshopform
      * @param string $typerootdir full path to the location of the plugin dir
      * @param string $typeclass the name of the actually called class
-     * @param core_plugin_manager $pluginman the plugin manager calling this method
+     * @param \core_plugin_manager $pluginman the plugin manager calling this method
      * @return array of plugintype classes, indexed by the plugin name
      */
     public static function get_plugins($type, $typerootdir, $typeclass, $pluginman) {
@@ -154,6 +156,29 @@ class contenttype extends base {
             }
         }
         return $enabled;
+    }
+
+    public static function enable_plugin(string $pluginname, int $enabled): bool {
+        $haschanged = false;
+
+        $plugin = 'contentbank_' . $pluginname;
+        $oldvalue = get_config($plugin, 'disabled');
+        $disabled = !$enabled;
+        // Only set value if there is no config setting or if the value is different from the previous one.
+        if ($oldvalue == false && $disabled) {
+            set_config('disabled', $disabled, $plugin);
+            $haschanged = true;
+        } else if ($oldvalue != false && !$disabled) {
+            unset_config('disabled', $plugin);
+            $haschanged = true;
+        }
+
+        if ($haschanged) {
+            add_to_config_log('disabled', $oldvalue, $disabled, $plugin);
+            \core_plugin_manager::reset_caches();
+        }
+
+        return $haschanged;
     }
 
     /**

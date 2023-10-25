@@ -15,7 +15,7 @@
     along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 }}
 {{!
-    @template calendar/event_filter_key
+    @template core_calendar/event_filter_key
 
     Key item for the event filter.
 
@@ -34,14 +34,14 @@
         <span class="calendar_event_{{eventtype}}">
             {{#pix}}i/hide, core, {{#str}}hideeventtype, calendar, {{name}}{{/str}}{{/pix}}
         </span>
-        {{> core_calendar/event_icon}}
+        <span>&nbsp;</span>
         <span class="eventname">{{#str}}hideeventtype, calendar, {{name}}{{/str}}</span>
     {{/hidden}}
     {{#hidden}}
         <span class="calendar_event_{{eventtype}}">
             {{#pix}}i/show, core, {{#str}}showeventtype, calendar, {{name}}{{/str}}{{/pix}}
         </span>
-        {{> core_calendar/event_icon}}
+        <span>&nbsp;</span>
         <span class="eventname">{{#str}}showeventtype, calendar, {{name}}{{/str}}</span>
     {{/hidden}}
 

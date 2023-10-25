@@ -84,11 +84,102 @@ class mod_feedback_generator extends testing_module_generator {
     }
 
     /**
+     * Create question.
+     *
+     * @param array $data Question data
+     * @return mixed Question instance
+     */
+    public function create_question(array $data) {
+        global $DB;
+
+        $questiontype = $data['questiontype'] ?? 'textfield';
+        $cm = get_coursemodule_from_id('feedback', $data['cmid']);
+        $feedback = $DB->get_record('feedback', ['id' => $cm->instance]);
+
+        unset($data['questiontype']);
+        unset($data['cmid']);
+
+        if (isset($data['values'])) {
+            $data['values'] = $this->format_item_values($questiontype, $data['values']);
+        }
+
+        return call_user_func([$this, "create_item_{$questiontype}"], $feedback, $data);
+    }
+
+    /**
+     * Create response.
+     *
+     * @param array $data Response data.
+     * @return stdClass feedback_completed response instance.
+     */
+    public function create_response(array $data): stdClass {
+        global $DB;
+
+        $userid = $data['userid'];
+        $responsenumber = null;
+        $cm = get_coursemodule_from_id('feedback', $data['cmid']);
+        $feedback = $DB->get_record('feedback', ['id' => $cm->instance]);
+        $answers = [];
+
+        if (isset($data['responsenumber']) && trim($data['responsenumber']) !== '') {
+            $responsenumber = $data['responsenumber'];
+        }
+
+        if (isset($data['anonymous']) && trim($data['anonymous']) !== '') {
+            $anonymous = filter_var(trim($data['anonymous']), FILTER_VALIDATE_BOOLEAN);
+            $feedback->anonymous = $anonymous ? FEEDBACK_ANONYMOUS_YES : FEEDBACK_ANONYMOUS_NO;
+        }
+
+        unset($data['cmid']);
+        unset($data['userid']);
+        unset($data['anonymous']);
+        unset($data['responsenumber']);
+
+        foreach ($data as $question => $response) {
+            $item = $DB->get_record('feedback_item', ['name' => trim($question)], '*', MUST_EXIST);
+
+            $answers["{$item->typ}_{$item->id}"] = $this->get_item_response_value($item, $response);
+        }
+
+        $feedbackcompletion = new mod_feedback_completion(
+            $feedback,
+            $cm,
+            $cm->course,
+            false,
+            null,
+            $feedback->anonymous === FEEDBACK_ANONYMOUS_YES ? null : $userid,
+            $userid
+        );
+
+        if (!$feedbackcompletion->can_complete()) {
+            throw new coding_exception("User {$userid} cannot complete this feedback activity.");
+        }
+
+        if (!$feedbackcompletion->is_open()) {
+            throw new coding_exception("This activity is not open.");
+        }
+
+        $feedbackcompletion->set_module_viewed();
+        $feedbackcompletion->save_response_tmp((object) $answers);
+        $feedbackcompletion->save_response();
+        $completed = $feedbackcompletion->get_completed();
+
+        if (!is_null($responsenumber)) {
+            $DB->update_record('feedback_completed', [
+                'id' => $completed->id,
+                'random_response' => $responsenumber,
+            ]);
+        }
+
+        return $completed;
+    }
+
+    /**
      * Create info question item.
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_info($feedback, $record = array()) {
         global $DB, $CFG;
@@ -104,7 +195,7 @@ class mod_feedback_generator extends testing_module_generator {
             'template' => 0,
             'name' => 'Feedback question item ' . $position,
             'label' => 'Feedback label ' . $position,
-            'presentation' => $itemobj::MODE_COURSE,
+            'presentation' => \feedback_item_info::MODE_COURSE,
             'typ' => 'info',
             'hasvalue' => 0,
             'position' => $position,
@@ -123,7 +214,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_label($feedback, $record = array()) {
         global $DB, $CFG;
@@ -166,7 +257,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_multichoice($feedback, $record = array()) {
         global $DB, $CFG;
@@ -213,7 +304,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_multichoicerated($feedback, $record = array()) {
         global $DB, $CFG;
@@ -262,7 +353,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_numeric($feedback, $record = array()) {
         global $DB, $CFG;
@@ -307,7 +398,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_textarea($feedback, $record = array()) {
         global $DB, $CFG;
@@ -346,7 +437,7 @@ class mod_feedback_generator extends testing_module_generator {
      *
      * @param object $feedback feedback record
      * @param array $record (optional) to override default values
-     * @return int
+     * @return stdClass
      */
     public function create_item_textfield($feedback, $record = array()) {
         global $DB, $CFG;
@@ -384,7 +475,7 @@ class mod_feedback_generator extends testing_module_generator {
      * Create pagebreak.
      *
      * @param object $feedback feedback record
-     * @return mixed false if there already is a pagebreak on last position or the id of the pagebreak-item
+     * @return int|false false if there already is a pagebreak on last position or the id of the pagebreak-item
      */
     public function create_item_pagebreak($feedback) {
         global $CFG;
@@ -392,5 +483,71 @@ class mod_feedback_generator extends testing_module_generator {
 
         return feedback_create_pagebreak($feedback->id);
     }
-}
 
+    /**
+     * Format feedback item values.
+     *
+     * This method will replace newline characters with the proper line separator for each question type.
+     *
+     * @param string $questiontype Question types
+     * @param string $values Values
+     * @return string Formatted values
+     */
+    protected function format_item_values(string $questiontype, string $values): string {
+        global $CFG;
+
+        if (!file_exists($CFG->dirroot.'/mod/feedback/item/'.$questiontype.'/lib.php')) {
+            throw new coding_exception("Question type '$questiontype' not found");
+        }
+
+        require_once($CFG->dirroot.'/mod/feedback/item/'.$questiontype.'/lib.php');
+
+        $questiontype = strtoupper($questiontype);
+
+        if (defined("FEEDBACK_{$questiontype}_LINE_SEP")) {
+            return implode(constant("FEEDBACK_{$questiontype}_LINE_SEP"), explode('\n', $values));
+        }
+
+        return $values;
+    }
+
+    /**
+     * Given a response to a feedback item, return its corresponding value.
+     *
+     * @param mixed $record Item record
+     * @param string $response Response name
+     * @return int|string Response value
+     */
+    protected function get_item_response_value($record, string $response) {
+        if (strpos($record->typ, 'multichoice') === 0) {
+            $item = feedback_get_item_class($record->typ);
+
+            return $this->get_choice_item_response_value($item, $record, $response);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Given a response to a feedback choice item, return its corresponding value.
+     *
+     * @param feedback_item_base $item Feedback item
+     * @param mixed $record Item record
+     * @param string $response Response
+     * @param int $offset Choice to start looking from
+     * @return int Response choice index
+     */
+    protected function get_choice_item_response_value(feedback_item_base $item, $record, string $response, int $offset = 1): int {
+        $printval = $item->get_printval($record, (object) ['value' => $offset]);
+
+        if (empty($printval)) {
+            throw new coding_exception("Value '$offset' not found");
+        }
+
+        if ($printval === $response) {
+            return $offset;
+        }
+
+        return $this->get_choice_item_response_value($item, $record, $response, $offset + 1);
+    }
+}

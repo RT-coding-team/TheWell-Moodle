@@ -16,36 +16,26 @@
 /**
  * This module is responsible for handle calendar day and upcoming view.
  *
- * @module     core_calendar/calendar
+ * @module     core_calendar/calendar_view
  * @copyright  2017 Simey Lameze <simey@moodle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define([
-        'jquery',
-        'core/str',
-        'core/notification',
-        'core_calendar/selectors',
-        'core_calendar/events',
-        'core_calendar/view_manager',
-        'core_calendar/repository',
-        'core/modal_factory',
-        'core_calendar/modal_event_form',
-        'core/modal_events',
-        'core_calendar/crud'
-    ],
-    function(
-        $,
-        Str,
-        Notification,
-        CalendarSelectors,
-        CalendarEvents,
-        CalendarViewManager,
-        CalendarRepository,
-        ModalFactory,
-        ModalEventForm,
-        ModalEvents,
-        CalendarCrud
-    ) {
+    'jquery',
+    'core/notification',
+    'core_calendar/selectors',
+    'core_calendar/events',
+    'core_calendar/view_manager',
+    'core_calendar/crud'
+],
+function(
+    $,
+    Notification,
+    CalendarSelectors,
+    CalendarEvents,
+    CalendarViewManager,
+    CalendarCrud
+) {
 
         var registerEventListeners = function(root, type) {
             var body = $('body');
@@ -73,9 +63,7 @@ define([
                         return root.find(CalendarSelectors.courseSelector).val(courseId);
                     })
                     .then(function() {
-                        window.history.pushState({}, '', '?view=upcoming&course=' + courseId);
-
-                        return;
+                        CalendarViewManager.updateUrl('?view=upcoming&course=' + courseId);
                     })
                     .fail(Notification.exception);
             });
@@ -87,6 +75,7 @@ define([
                 } else {
                     daysWithEvent.removeClass('hidden');
                 }
+                CalendarViewManager.foldDayEvents(root);
             });
 
             var eventFormPromise = CalendarCrud.registerEventFormModal(root);

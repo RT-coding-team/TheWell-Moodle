@@ -22,12 +22,12 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use mod_quiz\form\edit_override_form;
+use mod_quiz\quiz_settings;
 
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot.'/mod/quiz/lib.php');
 require_once($CFG->dirroot.'/mod/quiz/locallib.php');
-require_once($CFG->dirroot.'/mod/quiz/override_form.php');
-
 
 $cmid = optional_param('cmid', 0, PARAM_INT);
 $overrideid = optional_param('id', 0, PARAM_INT);
@@ -36,23 +36,16 @@ $reset = optional_param('reset', false, PARAM_BOOL);
 
 $override = null;
 if ($overrideid) {
-
-    if (! $override = $DB->get_record('quiz_overrides', array('id' => $overrideid))) {
-        print_error('invalidoverrideid', 'quiz');
-    }
-    if (! $quiz = $DB->get_record('quiz', array('id' => $override->quiz))) {
-        print_error('invalidcoursemodule');
-    }
-    list($course, $cm) = get_course_and_cm_from_instance($quiz, 'quiz');
-
-} else if ($cmid) {
-    list($course, $cm) = get_course_and_cm_from_cmid($cmid, 'quiz');
-    $quiz = $DB->get_record('quiz', array('id' => $cm->instance), '*', MUST_EXIST);
-
+    $override = $DB->get_record('quiz_overrides', ['id' => $overrideid], '*', MUST_EXIST);
+    $quizobj = quiz_settings::create($override->quiz);
 } else {
-    print_error('invalidcoursemodule');
+    $quizobj = quiz_settings::create_for_cmid($cmid);
 }
-$course = $DB->get_record('course', array('id'=>$cm->course), '*', MUST_EXIST);
+
+$quiz = $quizobj->get_quiz();
+$cm = $quizobj->get_cm();
+$course = $quizobj->get_course();
+$context = $quizobj->get_context();
 
 $url = new moodle_url('/mod/quiz/overrideedit.php');
 if ($action) {
@@ -66,9 +59,10 @@ if ($overrideid) {
 
 $PAGE->set_url($url);
 
-require_login($course, false, $cm);
+// Activate the secondary nav tab.
+$PAGE->set_secondary_active_tab("mod_quiz_useroverrides");
 
-$context = context_module::instance($cm->id);
+require_login($course, false, $cm);
 
 // Add or edit an override.
 require_capability('mod/quiz:manageoverrides', $context);
@@ -79,11 +73,11 @@ if ($overrideid) {
 
     if ($override->groupid) {
         if (!groups_group_visible($override->groupid, $course, $cm)) {
-            print_error('invalidoverrideid', 'quiz');
+            throw new \moodle_exception('invalidoverrideid', 'quiz');
         }
     } else {
         if (!groups_user_groups_visible($course, $override->userid, $cm)) {
-            print_error('invalidoverrideid', 'quiz');
+            throw new \moodle_exception('invalidoverrideid', 'quiz');
         }
     }
 } else {
@@ -92,7 +86,7 @@ if ($overrideid) {
 }
 
 // Merge quiz defaults with data.
-$keys = array('timeopen', 'timeclose', 'timelimit', 'attempts', 'password');
+$keys = ['timeopen', 'timeclose', 'timelimit', 'attempts', 'password'];
 foreach ($keys as $key) {
     if (!isset($data->{$key}) || $reset) {
         $data->{$key} = $quiz->{$key};
@@ -110,13 +104,13 @@ if ($action === 'duplicate') {
 // True if group-based override.
 $groupmode = !empty($data->groupid) || ($action === 'addgroup' && empty($overrideid));
 
-$overridelisturl = new moodle_url('/mod/quiz/overrides.php', array('cmid'=>$cm->id));
+$overridelisturl = new moodle_url('/mod/quiz/overrides.php', ['cmid' => $cm->id]);
 if (!$groupmode) {
     $overridelisturl->param('mode', 'user');
 }
 
 // Setup the form.
-$mform = new quiz_override_form($url, $cm, $quiz, $context, $groupmode, $override);
+$mform = new edit_override_form($url, $cm, $quiz, $context, $groupmode, $override);
 $mform->set_data($data);
 
 if ($mform->is_cancelled()) {
@@ -148,10 +142,10 @@ if ($mform->is_cancelled()) {
     }
 
     if ($userorgroupchanged) {
-        $conditions = array(
+        $conditions = [
                 'quiz' => $quiz->id,
-                'userid' => empty($fromform->userid)? null : $fromform->userid,
-                'groupid' => empty($fromform->groupid)? null : $fromform->groupid);
+                'userid' => empty($fromform->userid) ? null : $fromform->userid,
+                'groupid' => empty($fromform->groupid) ? null : $fromform->groupid];
         if ($oldoverride = $DB->get_record('quiz_overrides', $conditions)) {
             // There is an old override, so we merge any new settings on top of
             // the older override.
@@ -167,15 +161,17 @@ if ($mform->is_cancelled()) {
     }
 
     // Set the common parameters for one of the events we may be triggering.
-    $params = array(
+    $params = [
         'context' => $context,
-        'other' => array(
+        'other' => [
             'quizid' => $quiz->id
-        )
-    );
+        ]
+    ];
     if (!empty($override->id)) {
         $fromform->id = $override->id;
         $DB->update_record('quiz_overrides', $fromform);
+        $cachekey = $groupmode ? "{$fromform->quiz}_g_{$fromform->groupid}" : "{$fromform->quiz}_u_{$fromform->userid}";
+        cache::make('mod_quiz', 'overrides')->delete($cachekey);
 
         // Determine which override updated event to fire.
         $params['objectid'] = $override->id;
@@ -192,6 +188,8 @@ if ($mform->is_cancelled()) {
     } else {
         unset($fromform->id);
         $fromform->id = $DB->insert_record('quiz_overrides', $fromform);
+        $cachekey = $groupmode ? "{$fromform->quiz}_g_{$fromform->groupid}" : "{$fromform->quiz}_u_{$fromform->userid}";
+        cache::make('mod_quiz', 'overrides')->delete($cachekey);
 
         // Determine which override created event to fire.
         $params['objectid'] = $fromform->id;
@@ -207,7 +205,7 @@ if ($mform->is_cancelled()) {
         $event->trigger();
     }
 
-    quiz_update_open_attempts(array('quizid'=>$quiz->id));
+    quiz_update_open_attempts(['quizid' => $quiz->id]);
     if ($groupmode) {
         // Priorities may have shifted, so we need to update all of the calendar events for group overrides.
         quiz_update_events($quiz);
@@ -232,10 +230,15 @@ if ($mform->is_cancelled()) {
 $pagetitle = get_string('editoverride', 'quiz');
 $PAGE->navbar->add($pagetitle);
 $PAGE->set_pagelayout('admin');
+$PAGE->add_body_class('limitedwidth');
 $PAGE->set_title($pagetitle);
 $PAGE->set_heading($course->fullname);
+$PAGE->activityheader->set_attrs([
+    "title" => format_string($quiz->name, true, ['context' => $context]),
+    "description" => "",
+    "hidecompletion" => true
+]);
 echo $OUTPUT->header();
-echo $OUTPUT->heading(format_string($quiz->name, true, array('context' => $context)));
 
 $mform->display();
 

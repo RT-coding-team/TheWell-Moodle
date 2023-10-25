@@ -72,7 +72,7 @@ class qtype_calculatedmulti_edit_form extends question_edit_form {
         $answeroptions[] = $mform->createElement('text', 'answer',
                 $label, array('size' => 50));
         $answeroptions[] = $mform->createElement('select', 'fraction',
-                get_string('grade'), $gradeoptions);
+                get_string('gradenoun'), $gradeoptions);
         $repeated[] = $mform->createElement('group', 'answeroptions',
                  $label, $answeroptions, null, false);
 
@@ -131,12 +131,11 @@ class qtype_calculatedmulti_edit_form extends question_edit_form {
         $addfieldsname = 'updatecategory';
         $addstring = get_string('updatecategory', 'qtype_calculated');
         $mform->registerNoSubmitButton($addfieldsname);
-        $this->editasmultichoice = 1;
 
         $mform->insertElementBefore(
                 $mform->createElement('submit', $addfieldsname, $addstring), 'listcategory');
         $mform->registerNoSubmitButton('createoptionbutton');
-        $mform->addElement('hidden', 'multichoice', $this->editasmultichoice);
+        $mform->addElement('hidden', 'multichoice', 1);
         $mform->setType('multichoice', PARAM_INT);
 
         $menu = array(get_string('answersingleno', 'qtype_multichoice'),

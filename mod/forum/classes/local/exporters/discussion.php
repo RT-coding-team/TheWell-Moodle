@@ -174,13 +174,12 @@ class discussion extends exporter {
             // or if it's been deleted and the discussion record hasn't been updated.
             if ($group) {
                 $groupdata = [
-                    'name' => $group->name,
+                    'name' => format_string($group->name, true, ['context' => $this->related['context']]),
                     'urls' => [],
                 ];
 
                 // If not hiding the group picture, and the group has a picture then use it. Fallback to generic group image.
-                if (!$group->hidepicture &&
-                        ($url = get_group_picture_url($group, $forum->get_course_id(), true))) {
+                if ($url = get_group_picture_url($group, $forum->get_course_id(), true)) {
 
                     $groupdata['urls']['picture'] = $url;
                 } else {

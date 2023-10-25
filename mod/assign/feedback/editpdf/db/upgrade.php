@@ -34,86 +34,10 @@ function xmldb_assignfeedback_editpdf_upgrade($oldversion) {
 
     $dbman = $DB->get_manager();
 
-    // Automatically generated Moodle v3.5.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    if ($oldversion < 2018051401) {
-        $table = new xmldb_table('assignfeedback_editpdf_queue');
-        $field = new xmldb_field('attemptedconversions', XMLDB_TYPE_INTEGER, '10', null,
-            XMLDB_NOTNULL, null, 0, 'submissionattempt');
-
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
-
-        // Attempts are removed from the queue after being processed, a duplicate row won't achieve anything productive.
-        // So look for any duplicates and remove them so we can add a unique key.
-        $sql = "SELECT MIN(id) as minid, submissionid, submissionattempt
-                FROM {assignfeedback_editpdf_queue}
-                GROUP BY submissionid, submissionattempt
-                HAVING COUNT(id) > 1";
-
-        if ($duplicatedrows = $DB->get_recordset_sql($sql)) {
-            foreach ($duplicatedrows as $row) {
-                $DB->delete_records_select('assignfeedback_editpdf_queue',
-                    'submissionid = :submissionid AND submissionattempt = :submissionattempt AND id <> :minid', (array)$row);
-            }
-        }
-        $duplicatedrows->close();
-
-        // Define key submissionid-submissionattempt to be added to assignfeedback_editpdf_queue.
-        $table = new xmldb_table('assignfeedback_editpdf_queue');
-        $key = new xmldb_key('submissionid-submissionattempt', XMLDB_KEY_UNIQUE, ['submissionid', 'submissionattempt']);
-
-        $dbman->add_key($table, $key);
-
-        upgrade_plugin_savepoint(true, 2018051401, 'assignfeedback', 'editpdf');
-    }
-
-    // Automatically generated Moodle v3.6.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    if ($oldversion < 2019010800) {
-        // Define table assignfeedback_editpdf_rot to be created.
-        $table = new xmldb_table('assignfeedback_editpdf_rot');
-
-        // Adding fields to table assignfeedback_editpdf_rot.
-        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
-        $table->add_field('gradeid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('pageno', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('pathnamehash', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);
-        $table->add_field('isrotated', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('degree', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-
-        // Adding keys to table assignfeedback_editpdf_rot.
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
-        $table->add_key('gradeid', XMLDB_KEY_FOREIGN, ['gradeid'], 'assign_grades', ['id']);
-
-        // Adding indexes to table assignfeedback_editpdf_rot.
-        $table->add_index('gradeid_pageno', XMLDB_INDEX_UNIQUE, ['gradeid', 'pageno']);
-
-        // Conditionally launch create table for assignfeedback_editpdf_rot.
-        if (!$dbman->table_exists($table)) {
-            $dbman->create_table($table);
-        }
-
-        // Editpdf savepoint reached.
-        upgrade_plugin_savepoint(true, 2019010800, 'assignfeedback', 'editpdf');
-    }
-
-    // Automatically generated Moodle v3.7.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    // Automatically generated Moodle v3.8.0 release upgrade line.
-    // Put any upgrade step following this.
-
     // Automatically generated Moodle v3.9.0 release upgrade line.
     // Put any upgrade step following this.
 
-    // Automatically generated Moodle v3.10.0 release upgrade line.
-    // Put any upgrade step following this.
-
-    if ($oldversion < 2020110901) {
+    if ($oldversion < 2021060400) {
         // Remove submissions from the processing queue that have been processed.
         $sql = 'DELETE
                   FROM {assignfeedback_editpdf_queue}
@@ -128,8 +52,62 @@ function xmldb_assignfeedback_editpdf_upgrade($oldversion) {
         $DB->execute($sql);
 
         // Editpdf savepoint reached.
-        upgrade_plugin_savepoint(true, 2020110901, 'assignfeedback', 'editpdf');
+        upgrade_plugin_savepoint(true, 2021060400, 'assignfeedback', 'editpdf');
     }
+
+    // Automatically generated Moodle v4.0.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2022061000) {
+        $table = new xmldb_table('assignfeedback_editpdf_queue');
+        if ($dbman->table_exists($table)) {
+            // Convert not yet converted submissions into adhoc tasks.
+            $rs = $DB->get_recordset('assignfeedback_editpdf_queue');
+            foreach ($rs as $record) {
+                $data = [
+                    'submissionid' => $record->submissionid,
+                    'submissionattempt' => $record->submissionattempt,
+                ];
+                $task = new assignfeedback_editpdf\task\convert_submission;
+                $task->set_custom_data($data);
+                \core\task\manager::queue_adhoc_task($task, true);
+            }
+            $rs->close();
+
+            // Drop the table.
+            $dbman->drop_table($table);
+        }
+
+        // Editpdf savepoint reached.
+        upgrade_plugin_savepoint(true, 2022061000, 'assignfeedback', 'editpdf');
+    }
+
+    if ($oldversion < 2022082200) {
+        // Conversion records need to be removed in order for conversions to restart.
+        $DB->delete_records('file_conversion');
+
+        // Schedule an adhoc task to fix existing stale conversions.
+        $task = new \assignfeedback_editpdf\task\bump_submission_for_stale_conversions();
+        \core\task\manager::queue_adhoc_task($task);
+
+        upgrade_plugin_savepoint(true, 2022082200, 'assignfeedback', 'editpdf');
+    }
+
+    // Automatically generated Moodle v4.1.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    if ($oldversion < 2022112801) {
+        $task = new \assignfeedback_editpdf\task\remove_orphaned_editpdf_files();
+        \core\task\manager::queue_adhoc_task($task);
+
+        upgrade_plugin_savepoint(true, 2022112801, 'assignfeedback', 'editpdf');
+    }
+
+    // Automatically generated Moodle v4.2.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Automatically generated Moodle v4.3.0 release upgrade line.
+    // Put any upgrade step following this.
 
     return true;
 }

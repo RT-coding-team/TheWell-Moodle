@@ -27,7 +27,6 @@ define(['jquery',
         'core/custom_interaction_events',
         'core_message/notification_preference',
         'core_message/notification_processor_settings',
-        'core/modal_factory',
         ],
         function(
           $,
@@ -36,15 +35,14 @@ define(['jquery',
           CustomEvents,
           NotificationPreference,
           NotificationProcessorSettings,
-          ModalFactory
         ) {
 
     var SELECTORS = {
         DISABLE_NOTIFICATIONS: '[data-region="disable-notification-container"] [data-disable-notifications]',
         DISABLE_NOTIFICATIONS_CONTAINER: '[data-region="disable-notification-container"]',
-        PREFERENCE: '[data-state]',
+        PREFERENCE: '.preference-state',
         PREFERENCE_ROW: '[data-region="preference-row"]',
-        PREFERENCE_INPUT: '[data-state] input',
+        PREFERENCE_INPUT: '.preference-state input',
         PROCESSOR_SETTING: '[data-processor-setting]',
     };
 
@@ -156,9 +154,7 @@ define(['jquery',
             }
         }.bind(this));
 
-        var eventFormPromise = ModalFactory.create({
-            type: NotificationProcessorSettings.TYPE,
-        });
+        var eventFormPromise = NotificationProcessorSettings.create({});
 
         this.root.on(CustomEvents.events.activate, SELECTORS.PROCESSOR_SETTING, function(e, data) {
             var element = $(e.target).closest(SELECTORS.PROCESSOR_SETTING);
@@ -175,7 +171,7 @@ define(['jquery',
 
                 e.stopImmediatePropagation();
                 return;
-            }).fail(Notification.exception);
+            }).catch(Notification.exception);
         });
 
         CustomEvents.define(disabledNotificationsElement, [
