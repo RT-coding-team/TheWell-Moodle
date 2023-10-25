@@ -162,12 +162,30 @@ class core_renderer extends \core_renderer {
                 $heading = $this->page->cm->get_formatted_name();
                 $iconurl = $this->page->cm->get_icon_url();
                 $iconclass = $iconurl->get_param('filtericon') ? '' : 'nofilter';
+                /**
+                 * Allow plugins to change the icon
+                 * @author Johnathan Pulos <johnathan@missionaldigerati.org>
+                 */
+                $custom = call_coursemodule_modify_icon($this->page->course->id, $this->page->cm->id);
+                $purposeclass = plugin_supports('mod', $this->page->activityname, FEATURE_MOD_PURPOSE);
+
+                if ((!empty($custom))) {
+                    if (array_key_exists('url', $custom)) {
+                        $iconurl = $custom['url'];
+                    }
+                    if (array_key_exists('class', $custom)) {
+                        $iconclass = $custom['class'];
+                    }
+                    if (array_key_exists('purpose', $custom)) {
+                        $purposeclass = $custom['purpose'];
+                    }
+                }
                 $iconattrs = [
                     'class' => "icon activityicon $iconclass",
                     'aria-hidden' => 'true'
                 ];
                 $imagedata = html_writer::img($iconurl->out(false), '', $iconattrs);
-                $purposeclass = plugin_supports('mod', $this->page->activityname, FEATURE_MOD_PURPOSE);
+                
                 $purposeclass .= ' activityiconcontainer icon-size-6';
                 $purposeclass .= ' modicon_' . $this->page->activityname;
                 $imagedata = html_writer::tag('div', $imagedata, ['class' => $purposeclass]);

@@ -105,35 +105,14 @@ class cmname implements named_templatable, renderable {
             // Nothing to be displayed to the user.
             return [];
         }
-        $custom = call_coursemodule_modify_icon($mod->course, $mod->id);
-        $iconurl = $mod->get_icon_url();
-        $iconclass = $iconurl->get_param('filtericon') ? '' : 'nofilter';
-        $purpose = plugin_supports('mod', $mod->modname, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
 
-        if ((!empty($custom))) {
-            if (array_key_exists('url', $custom)) {
-                $iconurl = $custom['url'];
-            }
-            if (array_key_exists('class', $custom)) {
-                $iconclass = $custom['class'];
-            }
-            if (array_key_exists('purpose', $custom)) {
-                $purpose = $custom['purpose'];
-            }
-        }
         $data = [
             'url' => $mod->url,
-            'icon' => $iconurl,
-            'iconclass' => $iconclass,
             'modname' => $mod->modname,
             'textclasses' => $displayoptions['textclasses'] ?? '',
-            'purpose' => $purpose,
+            'activityicon' => $this->get_icon_data($output),
             'activityname' => $this->get_title_data($output),
         ];
-
-        if ($this->format->show_editor()) {
-            $data['pluginname'] = get_string('pluginname', 'mod_' . $mod->modname);
-        }
 
         return $data;
     }

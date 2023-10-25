@@ -75,9 +75,27 @@ class cmicon implements named_templatable, renderable {
             // Nothing to be displayed to the user.
             return [];
         }
-
+        /**
+         * Allow plugins to change the icon
+         * @author Johnathan Pulos <johnathan@missionaldigerati.org>
+         */
+        $custom = call_coursemodule_modify_icon($mod->course, $mod->id);
         $iconurl = $mod->get_icon_url();
         $iconclass = $iconurl->get_param('filtericon') ? '' : 'nofilter';
+        $purpose = plugin_supports('mod', $mod->modname, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER);
+
+        if ((!empty($custom))) {
+            if (array_key_exists('url', $custom)) {
+                $iconurl = $custom['url'];
+            }
+            if (array_key_exists('class', $custom)) {
+                $iconclass = $custom['class'];
+            }
+            if (array_key_exists('purpose', $custom)) {
+                $purpose = $custom['purpose'];
+            }
+        }
+
         $data = [
             'uservisible' => $mod->uservisible,
             'url' => $mod->url,
@@ -86,7 +104,7 @@ class cmicon implements named_templatable, renderable {
             'modname' => $mod->modname,
             'pluginname' => get_string('pluginname', 'mod_' . $mod->modname),
             'showtooltip' => $this->format->show_editor(),
-            'purpose' => plugin_supports('mod', $mod->modname, FEATURE_MOD_PURPOSE, MOD_PURPOSE_OTHER),
+            'purpose' => $purpose,
         ];
 
         return $data;
