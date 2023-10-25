@@ -27,3 +27,11 @@ This is the Moodle branch to be deployed for The Well or Raspberry Pi but can al
 # Course Restoration Enhancements
 * Courses may be restored by inserting a USB (USB port 0) stick with .mbz course restore files.  All files in the root directory of the USB stick will be automatically restored.  
 * URL (todo)
+
+## Docker Command
+
+The docker command to setup on your local machine is:
+
+```
+ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+```
