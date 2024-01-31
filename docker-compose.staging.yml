@@ -10,7 +10,7 @@ services:
     env_file:
       - ../Moodle-Secrets/staging.env
     volumes: 
-      - psql_db_staging:/var/lib/postgresql/data
+      - ../moodledb/Staging/:/var/lib/postgresql/data
 
   moodle_site:
     container_name: twc-moodle-site-staging
@@ -35,7 +35,3 @@ networks:
   twc-moodle-staging-network:
     name: twc-moodle-staging-network
     driver: bridge
-
-volumes:
-  psql_db_staging:
-    driver: local

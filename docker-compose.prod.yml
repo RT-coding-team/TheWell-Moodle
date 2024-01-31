@@ -10,7 +10,7 @@ services:
     env_file:
       - ../Moodle-Secrets/production.env
     volumes: 
-      - psql_db_production:/var/lib/postgresql/data
+      - ../moodledata/Production/:/var/lib/postgresql/data
 
   moodle_site:
     container_name: twc-moodle-site-production
@@ -19,7 +19,7 @@ services:
     env_file:
       - ../Moodle-Secrets/production.env
     volumes:
-      - ../moodledata/Production/:/var/www/moodledata 
+      - ../moodledb/Production/:/var/www/moodledata 
     depends_on:
       - moodle_db
   
@@ -35,7 +35,3 @@ networks:
   twc-moodle-production-network:
     name: twc-moodle-production-network
     driver: bridge
-
-volumes:
-  psql_db_production:
-    driver: local
