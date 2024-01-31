@@ -26,6 +26,8 @@ services:
     container_name: twc-moodle-gateway-dev
     networks:
       - twc-moodle-dev-network
+    ports:
+      - 80:80
     volumes:
       - ./_docker/nginx/conf.d/nginx.dev.conf:/etc/nginx/nginx.conf
       - ./_docker/moodledata:/var/www/moodledata 
