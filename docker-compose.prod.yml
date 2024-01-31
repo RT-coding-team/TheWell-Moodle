@@ -10,7 +10,7 @@ services:
     env_file:
       - ../Moodle-Secrets/production.env
     volumes: 
-      - ../moodledata/Production/:/var/lib/postgresql/data
+      - ../moodledb/Production/:/var/lib/postgresql/data
 
   moodle_site:
     container_name: twc-moodle-site-production
@@ -19,7 +19,7 @@ services:
     env_file:
       - ../Moodle-Secrets/production.env
     volumes:
-      - ../moodledb/Production/:/var/www/moodledata 
+      - ../moodledata/Production/:/var/www/moodledata 
     depends_on:
       - moodle_db
   
