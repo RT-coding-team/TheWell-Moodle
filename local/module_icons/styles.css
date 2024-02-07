@@ -1,7 +1,7 @@
 .activityiconcontainer.custom-module-icon {
     background-color: transparent;
 }
-.activityiconcontainer.smaller.custom-module-icon {
+.activityiconcontainer.smaller.custom-module-icon img {
     height: 40px !important;
     width: 40px !important;
 }
