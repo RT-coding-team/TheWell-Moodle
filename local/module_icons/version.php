@@ -25,8 +25,8 @@ $plugin->requires = 2022041911;
  * Our version number
  *
  */
-$plugin->version = 10202;
+$plugin->version = 10300;
 $plugin->component = 'local_module_icons';
 $plugin->cron = 0;
-$plugin->release = '1.2.2 (Build: 10202)';
+$plugin->release = '1.3.0 (Build: 10300)';
 $plugin->maturity = MATURITY_STABLE;

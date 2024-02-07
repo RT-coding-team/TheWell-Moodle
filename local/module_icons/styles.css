@@ -1,3 +1,6 @@
 .activityiconcontainer.custom-module-icon {
     background-color: #97255e;
 }
+#icon-selector-example img {
+    height: 30px;
+}

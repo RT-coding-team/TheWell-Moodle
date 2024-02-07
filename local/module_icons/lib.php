@@ -28,16 +28,20 @@ require_once(dirname(dirname(dirname(__FILE__))) . DIRECTORY_SEPARATOR . 'config
  * @param MoodleQuickForm $mform The actual form object (required to modify the form).
  */
 function local_module_icons_coursemodule_standard_elements($formwrapper, $mform) {
-    global $DB, $OUTPUT, $PAGE;
+    global $CFG, $DB, $OUTPUT, $PAGE;
     $selected = 'moodle-system';
     $path = $PAGE->theme->dir . DIRECTORY_SEPARATOR . 'pix_core' . DIRECTORY_SEPARATOR . 'mi';
     if (!file_exists($path)) {
         return;
     }
-    $files = array_diff(scandir($path), array('.', '..'));
-    if (empty($files)) {
+    $images = array_diff(scandir($path), array('.', '..'));
+    if (empty($images)) {
         return;
     }
+    $ext = ($CFG->version > 2021051700) ? 'svg' : 'png'; // Moodle 4.0+ uses svg icons
+    $files = array_filter($images, function ($file) use ($ext) {
+        return pathinfo($file, PATHINFO_EXTENSION) === $ext;
+    });
     $course = $formwrapper->get_course();
     $module = $formwrapper->get_coursemodule();
     if ($module) {
