@@ -114,6 +114,8 @@ foreach ($courses as $course) {
 /**
  * Send everything to the API
  */
+$curl = new CurlUtility($url, $token);
+
 if (!empty($assignments)) {
     echo "ASSIGNMENTS:\r\n";
     print_r(json_encode($assignments, JSON_NUMERIC_CHECK));
