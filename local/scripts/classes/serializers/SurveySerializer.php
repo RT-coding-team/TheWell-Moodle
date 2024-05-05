@@ -215,11 +215,19 @@ class SurveySerializer
                         $answer['question'] .= ' (preferred)';
                     }
                     if (in_array($question->type, ['0', '1', '3', '-1']) && array_key_exists($questionId, $data[$userId])) {
-                        $answer['answer'] = $data[$userId][$questionId]['answer1'];
+                        if ($data[$userId][$questionId]['answer1'] !== '') {
+                            $answer['answer'] = $data[$userId][$questionId]['answer1'];
+                        } else {
+                            $answer['answer'] = $data[$userId][$questionId]['answer2'];
+                        }
                     }
                     // Not sure why 3 is in both if checks.
                     if (in_array($question->type, ['2', '3']) && array_key_exists($questionId, $data[$userId])) {
-                        $answer['answer'] = $data[$userId][$questionId]['answer2'];
+                        if ($data[$userId][$questionId]['answer2'] !== '') {
+                            $answer['answer'] = $data[$userId][$questionId]['answer2'];
+                        } else {
+                            $answer['answer'] = $data[$userId][$questionId]['answer1'];
+                        }
                     }
                     $result['answers'][] = $answer;
                 }

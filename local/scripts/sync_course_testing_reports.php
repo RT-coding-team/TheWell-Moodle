@@ -50,12 +50,10 @@ $assignments = [];
 $feedback = [];
 $quizzes = [];
 $surveys = [];
-$ids = [];
 foreach ($courses as $course) {
     if (intval($course->id) === 1) {
         continue;
     }
-    $ids[] = $course->id;
     $courseDetails = [
         'id'            =>  $course->id,
         'fullname'      =>  $course->fullname,
@@ -117,19 +115,12 @@ foreach ($courses as $course) {
  * Send everything to the API
  */
 $curl = new CurlUtility($url, $token);
-echo "SYNCING COURSES:\r\n";
-print_r(json_encode($ids, JSON_NUMERIC_CHECK));
-$curl->makeRequest('/api/lms/stats/sync-courses', 'POST', json_encode($ids), null, true);
-if ($curl->responseCode === 201) {
-    echo "\r\nCourses have been successfully synced to the API.\r\n";
-} else {
-    echo "\r\nError! Courses were not synced to the API.\r\n";
-}
+
 if (!empty($assignments)) {
     echo "ASSIGNMENTS:\r\n";
     print_r(json_encode($assignments, JSON_NUMERIC_CHECK));
 
-    $curl->makeRequest('/api/lms/stats/assignments', 'POST', json_encode($assignments), null, true);
+    $curl->makeRequest('/api/v3/lms/stats/assignments', 'POST', json_encode($assignments), null, true);
     if ($curl->responseCode === 201) {
         echo "\r\nAssignments have been successfully sent to the API.\r\n";
     } else {
@@ -140,7 +131,7 @@ if (!empty($feedback)) {
     echo "\r\nFEEDBACK:\r\n";
     print_r(json_encode($feedback, JSON_NUMERIC_CHECK));
 
-    $curl->makeRequest('/api/lms/stats/feedback', 'POST', json_encode($feedback), null, true);
+    $curl->makeRequest('/api/v3/lms/stats/feedback', 'POST', json_encode($feedback), null, true);
     if ($curl->responseCode === 201) {
         echo "\r\nFeedback has been successfully sent to the API.\r\n";
     } else {
@@ -151,7 +142,7 @@ if (!empty($quizzes)) {
     echo "\r\nQUIZZES:\r\n";
     print_r(json_encode($quizzes, JSON_NUMERIC_CHECK));
 
-    $curl->makeRequest('/api/lms/stats/quizzes', 'POST', json_encode($quizzes), null, true);
+    $curl->makeRequest('/api/v3/lms/stats/quizzes', 'POST', json_encode($quizzes), null, true);
     if ($curl->responseCode === 201) {
         echo "\r\nQuizzes have been successfully sent to the API.\r\n";
     } else {
@@ -162,7 +153,7 @@ if (!empty($surveys)) {
     echo "\r\nSURVEYS:\r\n";
     print_r(json_encode($surveys, JSON_NUMERIC_CHECK));
 
-    $curl->makeRequest('/api/lms/stats/surveys', 'POST', json_encode($surveys), null, true);
+    $curl->makeRequest('/api/v3/lms/stats/surveys', 'POST', json_encode($surveys), null, true);
     if ($curl->responseCode === 201) {
         echo "\r\nSurveys have been successfully sent to the API.\r\n";
     } else {
