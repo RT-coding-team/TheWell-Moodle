@@ -1,37 +1,37 @@
-version: '3.4'
-
 services:
 
-  moodle_db:
-    container_name: twc-moodle-pg-production
+  twl2-pg:
+    container_name: twl2-pg-production
     networks:
-      - twc-moodle-production-network
-    
+      - twl2-production-network
     env_file:
       - ../Moodle-Secrets/production.env
     volumes: 
-      - ../moodledb/Production/:/var/lib/postgresql/data
+      - twl2-pg-production:/var/lib/postgresql/data
 
-  moodle_site:
-    container_name: twc-moodle-site-production
+  twl2-site:
+    container_name: twl2-site-production
     networks:
-      - twc-moodle-production-network
+      - twl2-production-network
     env_file:
       - ../Moodle-Secrets/production.env
     volumes:
       - ../moodledata/Production/:/var/www/moodledata 
     depends_on:
-      - moodle_db
+      - twl2-pg
   
-  moodle_nginx:
-    container_name: twc-moodle-gateway-production
+  twl2-gateway:
+    container_name: twl2-gateway-production
     networks:
-      - twc-moodle-production-network
+      - twl2-production-network
     volumes:
       - ./_docker/nginx/conf.d/nginx.production.conf:/etc/nginx/nginx.conf
       - ../moodledata/Production/:/var/www/moodledata 
 
+volumes:
+  twl2-pg-production:
+
 networks:
-  twc-moodle-production-network:
-    name: twc-moodle-production-network
+  twl2-production-network:
+    name: twl2-production-network
     driver: bridge

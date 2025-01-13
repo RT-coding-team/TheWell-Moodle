@@ -1,42 +1,42 @@
-version: '3.4'
-
 services:
 
-  moodle_db:
-    container_name: twc-moodle-pg-dev
+  twl2-pg:
+    container_name: twl2-pg-dev
     networks:
-      - twc-moodle-dev-network
+      - twl2-dev-network
     env_file:
       - ./.env
     volumes: 
-      - psql_db_dev:/var/lib/postgresql/data
+      - twl2-pg-data-dev:/var/lib/postgresql/data
 
-  moodle_site:
-    container_name: twc-moodle-site-dev
+  twl2-site:
+    container_name: twl2-site-dev
     networks:
-      - twc-moodle-dev-network
+      - twl2-dev-network
     env_file:
       - ./.env
     volumes:
       - ./_docker/moodledata:/var/www/moodledata 
+      - ./:/var/www/html      
     depends_on:
-      - moodle_db
+      - twl2-pg
   
-  moodle_nginx:
-    container_name: twc-moodle-gateway-dev
+  twl2-gateway:
+    container_name: twl2-gateway-dev
     networks:
-      - twc-moodle-dev-network
+      - twl2-dev-network
     ports:
-      - 80:80
+      - 8080:80
     volumes:
       - ./_docker/nginx/conf.d/nginx.dev.conf:/etc/nginx/nginx.conf
       - ./_docker/moodledata:/var/www/moodledata 
+      - ./:/var/www/html      
 
 networks:
-  twc-moodle-dev-network:
-    name: twc-moodle-dev-network
+  twl2-dev-network:
+    name: twl2-dev-network
     driver: bridge
 
 volumes:
-  psql_db_dev:
+  twl2-pg-data-dev:
     driver: local
