@@ -34,7 +34,8 @@ require_once($CFG->dirroot . '/local/pages/forms/edit.php');
  * @copyright   2017 LearningWorks Ltd
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class local_pages_renderer extends plugin_renderer_base {
+class local_pages_renderer extends plugin_renderer_base
+{
 
     /**
      * @var array
@@ -59,13 +60,13 @@ class local_pages_renderer extends plugin_renderer_base {
             $html .= '<div class="pages-action">' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/',
                     array('id' => $parent)) . '" class="custompages-edit">' .
-                    get_string('view', 'local_pages') .'</a> | ' .
+                get_string('view', 'local_pages') . '</a> | ' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/edit.php',
                     array('id' => $parent)) . '" class="custompages-edit">' .
-                    get_string('edit', 'local_pages') . '</a> | ' .
+                get_string('edit', 'local_pages') . '</a> | ' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/pages.php',
                     array('pagedel' => $parent, 'sesskey' => $USER->sesskey)) . '" class="custompages-delete">' .
-                    get_string('delete', 'local_pages') .' </a></div>';
+                get_string('delete', 'local_pages') . ' </a></div>';
             $html .= "<h4 class='custompages-title'>" . $name . "</h4>";
             $html .= "<ul class='custompages_submenu'>";
             foreach ($records as $page) {
@@ -78,13 +79,13 @@ class local_pages_renderer extends plugin_renderer_base {
             $html .= '<div class="pages-action">' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/',
                     array('id' => $parent)) . '" class="custompages-edit">' .
-                    get_string('view', 'local_pages') .'</a> | ' .
+                get_string('view', 'local_pages') . '</a> | ' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/edit.php',
                     array('id' => $parent)) . '" class="custompages-edit">' .
-                    get_string('edit', 'local_pages') .'</a> | ' .
+                get_string('edit', 'local_pages') . '</a> | ' .
                 '<a href="' . new moodle_url($CFG->wwwroot . '/local/pages/pages.php',
                     array('pagedel' => $parent, 'sesskey' => $USER->sesskey)) . '" class="custompages-delete">' .
-                    get_string('delete', 'local_pages') .' </a></div>';
+                get_string('delete', 'local_pages') . ' </a></div>';
             $html .= "<h4 class='custompages-title'>" . $name . "</h4>";
             $html .= "</li>";
         }
@@ -224,6 +225,7 @@ class local_pages_renderer extends plugin_renderer_base {
                         // Get all data sent from the form.
                         $tmpparam = str_replace(" ", "_", $value->name);
                         $tmpparam = optional_param($tmpparam, '', PARAM_RAW);
+                        $tmpparam = $this->cleanme($tmpparam, $value->type);
                         $valuesin[] = $tmpparam;
                     }
                     return str_replace($valuesout, $valuesin, $data->pagecontent);
@@ -239,8 +241,13 @@ class local_pages_renderer extends plugin_renderer_base {
             $record = $value->readsfrom;
             $tmpparam = str_replace(' ', '', $value->name);
             $tmpparam = optional_param($tmpparam, '', PARAM_RAW);
-            if ($value->type == "Text Area") {
+            if ($value->type == get_string('textarea', 'local_pages')) {
                 $str .= '<div class="form-group fitem ' . $errorclass . '">';
+
+                if (isset($this->error_fields[$value->name])) {
+                    $str .= '<span class="help-block error-item">' . $this->error_fields[$value->name] . '</span>';
+                }
+
                 $str .= '<div class="fitemtitle"><label for="' .
                     str_replace(" ", "", $value->name) . '">' . $value->name . '</label></div>';
                 $str .= '<div class="felement"><textarea class="form-control" name="' .
@@ -251,6 +258,9 @@ class local_pages_renderer extends plugin_renderer_base {
                     . '</textarea></div></div>';
             } else if (strtolower($value->type) == "checkbox") {
                 $str .= '<div class="checkbox ' . $errorclass . '">';
+                if (isset($this->error_fields[$value->name])) {
+                    $str .= '<span class="help-block error-item">' . $this->error_fields[$value->name] . '</span>';
+                }
                 $str .= '<label for="' . str_replace(" ", "", $value->name) . '">';
                 $str .= '<input name="' . str_replace(" ", "_", $value->name) . '" type="hidden" value="0"  id="' .
                     str_replace(" ", "", $value->name) . '" />';
@@ -261,12 +271,15 @@ class local_pages_renderer extends plugin_renderer_base {
                 $str .= $value->name . '</label></div>';
             } else {
                 if ($value->type == "HTML") {
-                    $str .= '<div class="form-break">' . $value->name ."</div>";
+                    $str .= '<div class="form-break">' . $value->name . "</div>";
                 } else if ($value->type == "Select") {
                     $str .= '<div class="form-group fitem fitem_fselect' . $errorclass . '">';
+                    if (isset($this->error_fields[$value->name])) {
+                        $str .= '<span class="help-block error-item">' . $this->error_fields[$value->name] . '</span>';
+                    }
                     $str .= '<div class="fitemtitle"><label for="' . str_replace(" ", "", $value->name) . '">' .
                         $value->name . '</label></div>';
-                    $str .= '<div class="felement fselect">'.
+                    $str .= '<div class="felement fselect">' .
                         '<select class="form-control" ' . ($value->required == "Yes" ? "Required" : '') .
                         ' name="' . str_replace(" ", "_", $value->name) . '" id="' .
                         str_replace(" ", "", $value->name) . '">';
@@ -283,6 +296,9 @@ class local_pages_renderer extends plugin_renderer_base {
                     $str .= '</select></div></div>';
                 } else {
                     $str .= '<div class="form-group fitem fitem_ftext ' . $errorclass . '">';
+                    if (isset($this->error_fields[$value->name])) {
+                        $str .= '<span class="help-block error-item">' . $this->error_fields[$value->name] . '</span>';
+                    }
                     $str .= '<div class="fitemtitle"><label for="' . str_replace(" ", "", $value->name) . '">' .
                         $value->name . '</label></div>';
                     $str .= '<div class="felement ftext"><input name="' . str_replace(" ", "_", $value->name) . '" type="' .
@@ -295,14 +311,10 @@ class local_pages_renderer extends plugin_renderer_base {
             }
         }
 
-        if (isset($this->error_fields[$value->name])) {
-            $str .= '<span class="help-block">' . $this->error_fields[$value->name] . '</span>';
-        }
-
         $str .= '<div class="fitem fitem_actionbuttons fitem_fgroup"><div class="felement fgroup">' .
             '<input type="text" name="hp" value="" style="position:absolute;left:-99999px" /> ' .
             '<button type="submit" name="formsubmit" value="1" class="btn btn-primary">' .
-            get_string("submit", "local_pages") .'</button>' .
+            get_string("submit", "local_pages") . '</button>' .
             '</div></div></form>';
         return $str;
     }
@@ -311,35 +323,63 @@ class local_pages_renderer extends plugin_renderer_base {
      *
      * Check if the form is valid
      *
-     * @param  mixed $records
+     * @param mixed $records
      * @return bool
      */
     public function valid($records) {
         $valid = true;
         foreach ((array)$records as $key => $value) {
-            $tmpparam = str_replace(" ", "_", $value->name);
-            $tmpparam = optional_param($tmpparam, '', PARAM_RAW);
+            $tmpparam = trim(str_replace(" ", "_", $value->name));
+            $tmpparam = trim(optional_param($tmpparam, '', PARAM_RAW));
 
             if ($value->required == "Yes" && $value->type != "HTML") {
                 if ($value->type == "Email" && (stripos($tmpparam, "@") === false ||
                         stripos($tmpparam, ".") === false)
                 ) {
-                    $this->error_fields[$value->name] = "Please Supply a valid email address for " . $value->name;
+                    $this->error_fields[$value->name] = get_string('validemail', 'local_pages', $value->name);
                     $valid = false;
                 }
 
                 if ($value->type != 'Email' && $tmpparam == '') {
-                    $this->error_fields[$value->name] = "Please fill in " . $value->name;
+                    $this->error_fields[$value->name] = get_string('pleasefillin', 'local_pages', $value->name);
                     $valid = false;
                 }
 
                 if ($value->type == 'Numeric' && !is_numeric($tmpparam)) {
-                    $this->error_fields[$value->name] = "Please provide a number for " . $value->name;
+                    $this->error_fields[$value->name] = get_string('pleasefillinnumber', 'local_pages', $value->name);
                     $valid = false;
                 }
             }
         }
         return $valid;
+    }
+    /**
+     * clean the incoming data according to field type
+     * @param mixed $data
+     * @param string $type
+     * @return array|float|int|mixed|string|null
+     * @throws coding_exception
+     */
+    public function cleanme($data, $type) {
+        $safedata = '';
+        switch(mb_strtolower($type)) {
+            case 'email':
+                $safedata = clean_param($data, PARAM_EMAIL);
+                break;
+            case 'number':
+                $safedata = clean_param($data, PARAM_FLOAT);
+                break;
+            case 'text':
+            case 'text area':
+            case 'select':
+            case 'checkbox' :
+                $safedata = preg_replace('/[^A-Za-z0-9 _-]/i', '', $data);
+                break;
+            default:
+                $safedata = preg_replace('/[^A-Za-z0-9 _-]/i', '', $data);
+        }
+
+        return $safedata;
     }
 
     /**
@@ -366,7 +406,7 @@ class local_pages_renderer extends plugin_renderer_base {
 
                 $tmpparam = str_replace(" ", "_", $value->name);
                 $tmpparam = optional_param($tmpparam, '', PARAM_RAW);
-
+                $tmpparam = $this->cleanme($tmpparam, $value->type);
                 $fields[$value->name] = $tmpparam;
                 $messagetext .= ucfirst($value->name) . ": " . $tmpparam . "\r\n";
                 $field = strtolower(str_replace(" ", "", $value->name));
@@ -442,6 +482,9 @@ class local_pages_renderer extends plugin_renderer_base {
             $recordpage->id = $data->id;
             $recordpage->pagedate = $data->pagedate;
             $recordpage->pagename = $data->pagename;
+            if (get_config('local_pages', 'additionalhead')) {
+                $recordpage->meta = $data->meta;
+            }
             $recordpage->menuicon = $data->menuicon;
             $recordpage->pageorder = intval($data->pageorder);
             $recordpage->menuname = strtolower(str_replace(array(" ", "/", "\\", "'", '"', ";", "~",
@@ -456,6 +499,10 @@ class local_pages_renderer extends plugin_renderer_base {
             $recordpage->pagecontent = $data->pagecontent['text'];
             $result = $page->update($recordpage);
             if ($result && $result > 0) {
+                $options = array('subdirs' => 0, 'maxbytes' => 204800, 'maxfiles' => 1, 'accepted_types' => '*');
+                if (isset($data->ogimage_filemanager)) {
+                    file_postupdate_standard_filemanager($data, 'ogimage', $options, $context, 'local_pages', 'ogimage', $result);
+                }
                 redirect(new moodle_url($CFG->wwwroot . '/local/pages/edit.php', array('id' => $result)));
             }
         }
@@ -472,6 +519,7 @@ class local_pages_renderer extends plugin_renderer_base {
         $forform = new stdClass();
         $forform->pagecontent['text'] = $page->pagecontent;
         $forform->pagename = $page->pagename;
+        $forform->meta = $page->meta;
         $forform->onmenu = $page->onmenu;
         $forform->accesslevel = $page->accesslevel;
         $forform->pageparent = $page->pageparent;
