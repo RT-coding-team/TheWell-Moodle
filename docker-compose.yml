@@ -21,3 +21,5 @@ services:
     restart: unless-stopped
     volumes:
       - ./:/var/www/html
+    depends_on:
+      - twl2-site
